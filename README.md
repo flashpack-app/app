@@ -7,18 +7,9 @@
 
 You'll run two processes: the **server** (Express + Neon Postgres) and the **Expo client**.
 
-### 1. Server
-
-```powershell
-cd server
-npm install
-npm run migrate   # creates schema + prints 10 genesis invite codes
-npm run dev       # http://localhost:4000
-```
-
 Save one of the printed `FLASH·XXX·XX` codes — you'll need it to sign up.
 
-### 2. Client
+### Client
 
 ```powershell
 # from this folder
