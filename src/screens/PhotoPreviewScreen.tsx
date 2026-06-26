@@ -12,13 +12,32 @@ import { VibeFilter } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
 import FilteredImage from '../components/FilteredImage';
 import { useAppState } from '../state/AppState';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 type State = 'idle' | 'uploading' | 'success';
+
+function LivePreview({ videoUri }: { videoUri: string }) {
+  const player = useVideoPlayer(videoUri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={StyleSheet.absoluteFillObject}
+      contentFit="cover"
+      nativeControls={false}
+    />
+  );
+}
 
 export default function PhotoPreviewScreen() {
   const nav = useNavigation<any>();
   const route = useRoute<any>();
   const uri: string = route.params?.uri;
+  const videoUri: string | undefined = route.params?.videoUri;
   const filter: VibeFilter = route.params?.filter ?? 'raw';
   const { markFirstPackPosted, token, revertPhoto, setLastPostAt, setLastPostedPhotoId, refreshPacks } = useAppState();
   const insets = useSafeAreaInsets();
@@ -56,7 +75,7 @@ export default function PhotoPreviewScreen() {
     }
     setState('uploading');
     try {
-      const res = await APIService.uploadPhoto(token!, uri, filter);
+      const res = await APIService.uploadPhoto(token!, uri, filter, videoUri);
       setPhotoId(res.photoId);
       setLastPostedPhotoId(res.photoId);
       const nowIso = new Date().toISOString();
@@ -97,13 +116,21 @@ export default function PhotoPreviewScreen() {
   return (
     <View style={styles.wrap}>
       <View style={[styles.imageWrap, { paddingTop: insets.top }]}>
-        {uri ? (
+        {videoUri ? (
+          <LivePreview videoUri={videoUri} />
+        ) : uri ? (
           <FilteredImage source={{ uri }} filter={filter} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : null}
         <View style={styles.filterBadge}>
           <View style={[styles.filterDot, { backgroundColor: filterColor[filter] }]} />
           <Text style={styles.filterBadgeText}>{FILTER_LABEL[filter]}</Text>
         </View>
+        {videoUri ? (
+          <View style={styles.liveBadge}>
+            <Ionicons name="flash" size={9} color="#000" />
+            <Text style={styles.liveBadgeText}>flash.live</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.bottom}>
@@ -217,4 +244,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,69,58,0.15)',
   },
   revertText: { color: colors.red, fontSize: 11, fontWeight: '600' },
+  liveBadge: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  liveBadgeText: { color: '#000', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
 });

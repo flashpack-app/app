@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ViewStyle, Pressable } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pack, PackPhoto, PackMember } from '../types/models';
 import { colors, radius } from '../theme/colors';
 import { normalizeFilter } from '../services/filters';
@@ -49,6 +50,27 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
     opacity: opacity.value,
   }));
 
+  // flash.live silent looping video player
+  const videoPlayer = useVideoPlayer(photo.videoURL ?? null, (player) => {
+    if (photo.videoURL) {
+      player.loop = true;
+      player.muted = true;
+    }
+  });
+
+  // For network URLs, play() before load is ignored by AVPlayer.
+  // We listen for readyToPlay and start then.
+  useEffect(() => {
+    if (!photo.videoURL) return;
+    const sub = videoPlayer.addListener('statusChange', ({ status }: any) => {
+      if (status === 'readyToPlay') {
+        videoPlayer.loop = true;
+        videoPlayer.play();
+      }
+    });
+    return () => sub.remove();
+  }, [videoPlayer]);
+
   const [c1, c2] = photo.placeholder ?? ['#222', '#111'];
 
   return (
@@ -66,7 +88,15 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
           { backgroundColor: c2, opacity: 0.5 },
         ]}
       />
-      {photo.imageURL ? (
+      {photo.videoURL ? (
+        <VideoView
+          player={videoPlayer}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+          nativeControls={false}
+          surfaceType="textureView"
+        />
+      ) : photo.imageURL ? (
         <FilteredImage
           source={{ uri: photo.imageURL }}
           filter={normalizeFilter(photo.filter)}
@@ -74,6 +104,12 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
           resizeMode="cover"
         />
       ) : null}
+      {photo.videoURL && (
+        <View style={styles.liveBadge}>
+          <Ionicons name="flash" size={7} color="#000" />
+          <Text style={styles.liveBadgeText}>LIVE</Text>
+        </View>
+      )}
       {expired && (
         <View style={styles.expiredOverlay}>
           <Ionicons name="time-outline" size={16} color="rgba(255,255,255,0.6)" />
@@ -193,6 +229,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 8,
   },
+  liveBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  liveBadgeText: { color: '#000', fontSize: 7, fontWeight: '900', letterSpacing: 0.3 },
 });
 
 export default Mosaic;

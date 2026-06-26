@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
@@ -20,6 +20,37 @@ import { API_URL } from '../config';
 import FilteredImage from '../components/FilteredImage';
 import Mosaic from '../components/Mosaic';
 import { usePreventCapture } from '../services/screenshot';
+import { useVideoPlayer, VideoView } from 'expo-video';
+
+const screenW = Dimensions.get('window').width;
+const screenH = Dimensions.get('window').height;
+
+// Component to handle video player initialization for the viewer
+function LiveViewer({ videoURL, style }: { videoURL: string; style?: any }) {
+  const player = useVideoPlayer(videoURL, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+
+  useEffect(() => {
+    const sub = player.addListener('statusChange', ({ status }: any) => {
+      if (status === 'readyToPlay') {
+        player.loop = true;
+        player.play();
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
+
+  return (
+    <VideoView
+      player={player}
+      style={[StyleSheet.absoluteFillObject, style]}
+      contentFit="contain"
+      nativeControls={false}
+    />
+  );
+}
 
 export default function PhotoViewerScreen() {
   const route = useRoute<any>();
@@ -39,11 +70,15 @@ export default function PhotoViewerScreen() {
       ? photo.imageURL
       : `${API_URL}${photo.imageURL}`
     : undefined;
+
+  const videoUrl = photo?.videoURL
+    ? photo.videoURL.startsWith('http')
+      ? photo.videoURL
+      : `${API_URL}${photo.videoURL}`
+    : undefined;
   const member = pack?.members.find((m) => m.userId === photo?.userId);
   const storyRef = useRef<View>(null);
   const [busy, setBusy] = useState(false);
-
-  const { width: screenW, height: screenH } = Dimensions.get('window');
 
   // Zoom / pan shared values
   const scale = useSharedValue(1);
@@ -217,7 +252,16 @@ export default function PhotoViewerScreen() {
 
       {/* Full image with pinch zoom, free pan, double-tap & swipe-down */}
       <View style={styles.imageWrap}>
-        {imageUrl ? (
+        {videoUrl ? (
+          <GestureDetector gesture={composedGesture}>
+            <Animated.View style={[styles.zoomWrap, imageStyle]}>
+              <LiveViewer
+                videoURL={videoUrl}
+                style={styles.fullImg}
+              />
+            </Animated.View>
+          </GestureDetector>
+        ) : imageUrl ? (
           <GestureDetector gesture={composedGesture}>
             <Animated.View style={[styles.zoomWrap, imageStyle]}>
               <FilteredImage

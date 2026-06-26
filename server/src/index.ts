@@ -10,7 +10,7 @@ const MAX_PACK_MEMBERS = 4;
 const app = express();
 app.use(cors());
 // Photos are uploaded as base64 JSON, so allow large bodies.
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // Health check used by Render (and uptime monitors) to verify the service is alive.
 app.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
@@ -341,24 +341,70 @@ app.get('/photos/:id/raw', async (req: Request, res: Response) => {
   return res.end(buf);
 });
 
+// Public: serve the flash.live video clip for a photo.
+app.get('/photos/:id/video', async (req: Request, res: Response) => {
+  const rows = await query<{ video_data: string | null; video_mime: string | null }>(
+    'SELECT video_data, video_mime FROM photos WHERE id = $1 AND reverted_at IS NULL',
+    [req.params.id],
+  );
+  const row = rows[0];
+  if (!row || !row.video_data) return res.status(404).end();
+  const buf = Buffer.from(row.video_data, 'base64');
+  const totalLength = buf.length;
+  const mime = row.video_mime || 'video/mp4';
+
+  res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  res.setHeader('Accept-Ranges', 'bytes');
+
+  const range = req.headers.range;
+  if (!range) {
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Length', totalLength);
+    return res.end(buf);
+  }
+
+  // Parse Range header: "bytes=start-end"
+  const parts = range.replace(/bytes=/, "").split("-");
+  const start = parseInt(parts[0], 10);
+  const end = parts[1] ? parseInt(parts[1], 10) : totalLength - 1;
+
+  if (start >= totalLength || end >= totalLength || start > end) {
+    res.setHeader('Content-Range', `bytes */${totalLength}`);
+    return res.status(416).end();
+  }
+
+  const chunk = buf.subarray(start, end + 1);
+  res.status(206);
+  res.setHeader('Content-Range', `bytes ${start}-${end}/${totalLength}`);
+  res.setHeader('Content-Length', chunk.length);
+  res.setHeader('Content-Type', mime);
+  return res.end(chunk);
+});
+
 app.post('/photos', requireUser, async (req: Request, res: Response) => {
   const userId = (req as any).userId as string;
-  const { filter, imageUrl, imageData, imageMime } = req.body ?? {};
+  const { filter, imageUrl, imageData, imageMime, videoData, videoMime } = req.body ?? {};
 
   // Accept either a raw base64 string or a full data URI; store only the base64 payload.
   const base64 =
     typeof imageData === 'string' ? imageData.replace(/^data:[^;]+;base64,/, '') : null;
 
+  // flash.live clip — optional video payload
+  const videoBase64 =
+    typeof videoData === 'string' ? videoData.replace(/^data:[^;]+;base64,/, '') : null;
+
+  console.log(`[POST /photos] user=${userId} hasImage=${!!base64} hasVideo=${!!videoBase64} videoMime=${videoMime ?? 'none'} videoBytes=${videoBase64 ? Math.round(videoBase64.length * 0.75 / 1024) + 'kb' : 0}`);
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Insert photo
+    // Insert photo (with optional video)
     const photoRes = await client.query(
-      `INSERT INTO photos(user_id, filter, image_url, image_data, image_mime, expires_at)
-       VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '18 hours')
+      `INSERT INTO photos(user_id, filter, image_url, image_data, image_mime, video_data, video_mime, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + INTERVAL '18 hours')
        RETURNING id`,
-      [userId, filter ?? 'raw', base64 ? null : imageUrl ?? null, base64, imageMime ?? 'image/jpeg'],
+      [userId, filter ?? 'raw', base64 ? null : imageUrl ?? null, base64, imageMime ?? 'image/jpeg', videoBase64, videoMime ?? null],
     );
     const photoId = photoRes.rows[0].id;
 
@@ -579,11 +625,13 @@ async function shapePack(r: PackBaseRow) {
     user_id: string;
     image_url: string | null;
     has_image: boolean;
+    has_video: boolean;
     filter: string;
     created_at: string;
     placeholder: [string, string];
   }>(
     `SELECT p.id, p.user_id, p.image_url, (p.image_data IS NOT NULL) AS has_image,
+            (p.video_data IS NOT NULL) AS has_video,
             p.filter, p.created_at,
             ARRAY['#3b2a4a', '#1a1a2e']::text[] AS placeholder
      FROM photos p
@@ -612,8 +660,10 @@ async function shapePack(r: PackBaseRow) {
     city: string;
     text: string;
     created_at: string;
+    avatar_url: string | null;
+    avatar_data: string | null;
   }>(
-    `SELECT pc.id, pc.user_id, u.username, pm.flag, pm.city, pc.text, pc.created_at
+    `SELECT pc.id, pc.user_id, u.username, pm.flag, pm.city, pc.text, pc.created_at, u.avatar_url, u.avatar_data
      FROM pack_comments pc
      JOIN users u ON u.id = pc.user_id
      JOIN pack_members pm ON pm.user_id = pc.user_id AND pm.pack_id = pc.pack_id
@@ -655,6 +705,8 @@ async function shapePack(r: PackBaseRow) {
       userId: p.user_id,
       // Prefer the hosted image endpoint; fall back to any legacy stored URL.
       imageURL: p.has_image ? `/photos/${p.id}/raw` : p.image_url ?? undefined,
+      // flash.live silent clip (Pro)
+      videoURL: p.has_video ? `/photos/${p.id}/video` : undefined,
       filter: p.filter,
       capturedAt: p.created_at,
       expiresAt: r.pack_expires_at,
@@ -672,6 +724,7 @@ async function shapePack(r: PackBaseRow) {
       city: c.city,
       text: c.text,
       sentAt: c.created_at,
+      avatarUrl: c.avatar_data ? `/avatars/${c.user_id}` : (c.avatar_url ?? undefined),
     })),
     allPosted,
     screenshots: screenshots.map((s) => ({ userId: s.user_id, username: s.username, takenAt: s.created_at })),
@@ -958,7 +1011,7 @@ app.post('/user-reports', requireUser, async (req: Request, res: Response) => {
 
 app.patch('/me', requireUser, async (req: Request, res: Response) => {
   const userId = (req as any).userId as string;
-  const { avatarUrl, isPro, proBorder } = req.body ?? {};
+  const { avatarUrl, isPro, proBorder, hasPongBadge } = req.body ?? {};
   const sets: string[] = [];
   const values: any[] = [];
   if (typeof avatarUrl === 'string' || avatarUrl === null) {

@@ -107,6 +107,7 @@ export const mockPacks: Pack[] = [
         {
           id: 'c1',
           userId: 'u-2',
+          username: 'kenji',
           flag: '🇯🇵',
           city: 'tokyo',
           text: 'this rooftop hit different tonight.',
@@ -115,6 +116,7 @@ export const mockPacks: Pack[] = [
         {
           id: 'c2',
           userId: 'u-3',
+          username: 'lara',
           flag: '🇧🇷',
           city: 'rio',
           text: 'beach was empty, kinda surreal.',

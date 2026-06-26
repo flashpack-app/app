@@ -32,6 +32,7 @@ const BORDER_COLORS = [
 ];
 
 const FEATURES = [
+  { icon: 'videocam-outline', title: 'flash.live ⚡️', body: 'capture 1.5-second silent looping video bursts directly in-camera to bring your packs to life.' },
   { icon: 'infinite-outline', title: 'unlimited reverts', body: "change your mind any time within the 24h window — keep your streak." },
   { icon: 'archive-outline', title: 'pack vault', body: 'save unlimited packs. browse them as a private mosaic library.' },
   { icon: 'sparkles-outline', title: 'pro filters', body: 'access 4 exclusive film LUTs: bonboa, daisy, earth, hibiscus.' },
@@ -75,7 +76,7 @@ export default function ProScreen() {
           </View>
           <Text style={styles.heroTitle}>flash{'\n'}without limits.</Text>
           <Text style={styles.heroSub}>
-            unlock pro filters, the pack vault, and more invites. one app. one tap. zero noise.
+            unlock flash.live video bursts, pro filters, the pack vault, and more. one app. one tap. zero noise.
           </Text>
         </View>
 

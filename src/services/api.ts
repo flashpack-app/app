@@ -90,7 +90,11 @@ function mapPack(p: any): Pack {
     id: p.id,
     number: p.number,
     members: (p.members ?? []).map((m: any) => ({ ...m, avatarUrl: avatarUrlAbsolute(m.avatarUrl) ?? m.avatarUrl })),
-    photos: (p.photos ?? []).map((ph: any) => ({ ...ph, imageURL: absoluteUrl(ph.imageURL) })),
+    photos: (p.photos ?? []).map((ph: any) => ({
+      ...ph,
+      imageURL: absoluteUrl(ph.imageURL),
+      videoURL: absoluteUrl(ph.videoURL),
+    })),
     chemistryScore: p.chemistryScore ?? 0,
     createdAt: p.createdAt,
     expiresAt: p.expiresAt,
@@ -101,7 +105,13 @@ function mapPack(p: any): Pack {
     reactions: p.reactions ?? [],
     screenshots: p.screenshots ?? [],
     comment: p.comments?.length
-      ? { messages: p.comments, isLocked: !p.allPosted }
+      ? {
+          messages: p.comments.map((c: any) => ({
+            ...c,
+            avatarUrl: avatarUrlAbsolute(c.avatarUrl) ?? c.avatarUrl,
+          })),
+          isLocked: !p.allPosted,
+        }
       : undefined,
   };
 }
@@ -149,25 +159,57 @@ export const APIService = {
   async sendOTP(_phone: string) { /* removed */ },
   async verifyOTP(_phone: string, _otp: string): Promise<string> { return 'mock'; },
 
-  async uploadPhoto(token: string, uri: string, filter: VibeFilter): Promise<{ photoId: string; packId: string; packNumber: number }> {
+  async uploadPhoto(
+    token: string,
+    uri: string | null,
+    filter: VibeFilter,
+    videoUri?: string | null,
+  ): Promise<{ photoId: string; packId: string; packNumber: number }> {
     // Compress the photo and convert to base64 so the server can host it for the
     // whole pack. The filter is applied at render time, so we store the raw image.
     let imageData: string | undefined;
-    try {
-      const IM: any = await import('expo-image-manipulator');
-      const result = await IM.manipulateAsync(
-        uri,
-        [{ resize: { width: 2048 } }],
-        { compress: 0.9, format: IM.SaveFormat.JPEG, base64: true },
-      );
-      if (result?.base64) imageData = result.base64;
-    } catch {
-      /* fall back to sending the local uri below */
+    if (uri) {
+      try {
+        const IM: any = await import('expo-image-manipulator');
+        const result = await IM.manipulateAsync(
+          uri,
+          [{ resize: { width: 2048 } }],
+          { compress: 0.9, format: IM.SaveFormat.JPEG, base64: true },
+        );
+        if (result?.base64) imageData = result.base64;
+      } catch {
+        /* fall back to sending the local uri below */
+      }
     }
+
+    // Read the flash.live clip as base64 (if provided).
+    let videoData: string | undefined;
+    let videoMime: string | undefined;
+    if (videoUri) {
+      try {
+        const FS: any = await import('expo-file-system');
+        const b64 = await FS.readAsStringAsync(videoUri, { encoding: FS.EncodingType.Base64 });
+        if (b64) {
+          videoData = b64;
+          // iOS CameraView records .mov (QuickTime), Android records .mp4
+          const ext = videoUri.split('.').pop()?.toLowerCase();
+          videoMime = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+        }
+      } catch {
+        /* skip video if unreadable */
+      }
+    }
+
     return http('/photos', {
       method: 'POST',
       token,
-      body: imageData ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg', filter } : { imageUrl: uri, filter },
+      body: {
+        ...(imageData
+          ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg' }
+          : uri ? { imageUrl: uri } : {}),
+        ...(videoData ? { videoData, videoMime } : {}),
+        filter,
+      },
     });
   },
 

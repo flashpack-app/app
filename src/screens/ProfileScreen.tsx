@@ -161,6 +161,7 @@ export default function ProfileScreen() {
     packedWith: { flag: string; name: string }[];
     invitedBy: string | null;
     vibeProfile?: Record<string, number>;
+    hasPongBadge?: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [vibeExpanded, setVibeExpanded] = useState(false);
@@ -324,7 +325,8 @@ export default function ProfileScreen() {
   const initials = (displayUser?.username ?? '').slice(0, 2).toUpperCase();
 
   return (
-    <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 40 }}>
+    <View style={{ flex: 1, backgroundColor: colors.black }}>
+      <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -399,7 +401,7 @@ export default function ProfileScreen() {
               style={styles.avatarImg}
               onLoad={() => console.log('avatar loaded:', displayUser.avatarUrl)}
               onError={(e) => {
-                console.error('avatar load error:', e.nativeEvent.error, displayUser.avatarUrl);
+                console.error('avatar load error:', e.error, displayUser.avatarUrl);
                 setAvatarLoadError(true);
               }}
             />
@@ -432,7 +434,7 @@ export default function ProfileScreen() {
             </Animated.View>
           ) : isOwnProfile && me.invitedBy ? (
             <Pressable
-              onPress={() => onSecretTap(() => nav.navigate('PublicProfile', { username: me.invitedBy! }))}
+              onPress={() => onSecretTap(() => nav.push('PublicProfile', { username: me.invitedBy! }))}
               style={styles.invitedBy}
             >
               <ScaledText style={styles.invitedByText}>
@@ -450,7 +452,7 @@ export default function ProfileScreen() {
             </Animated.View>
           ) : !isOwnProfile && publicProfile?.invitedBy ? (
             <Pressable
-              onPress={() => onSecretTap(() => nav.navigate('PublicProfile', { username: publicProfile.invitedBy! }))}
+              onPress={() => onSecretTap(() => nav.push('PublicProfile', { username: publicProfile.invitedBy! }))}
               style={styles.invitedBy}
             >
               <ScaledText style={styles.invitedByText}>
@@ -626,7 +628,22 @@ export default function ProfileScreen() {
         onClose={() => setShowMap(false)}
         members={mapMembers}
       />
-    </ScrollView>
+      </ScrollView>
+
+      {!isOwnProfile && (
+        <View style={[styles.bottomNav, { paddingBottom: Math.max(12, insets.bottom) }]}>
+          <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Feed' })} style={styles.navItem}>
+            <Ionicons name="grid-outline" size={22} color="rgba(255,255,255,0.35)" />         
+          </Pressable>
+          <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Camera' })} style={styles.navItem}>
+            <Ionicons name="camera-outline" size={22} color="rgba(255,255,255,0.35)" />
+          </Pressable>
+          <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Profile' })} style={styles.navItem}>
+            <Ionicons name="person" size={22} color={colors.yellow} />
+          </Pressable>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -891,4 +908,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,214,10,0.20)',
   },
   mapBtnText: { color: colors.yellow, fontSize: 10, fontWeight: '700' },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: '#0A0A0A',
+    paddingTop: 8,
+  },
+  navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4 },
 });

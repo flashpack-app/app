@@ -36,6 +36,7 @@ import ChemistryBreakdown from '../components/ChemistryBreakdown';
 import PillButton from '../components/PillButton';
 import ReactionStack from '../components/ReactionStack';
 import FilteredImage from '../components/FilteredImage';
+import { Image } from 'expo-image';
 import ScaledText from '../components/ScaledText';
 import { normalizeFilter } from '../services/filters';
 import ScreenshotWarningModal from './ScreenshotWarningModal';
@@ -43,6 +44,7 @@ import { useScreenshotDetector, usePreventCapture } from '../services/screenshot
 import FloatingReactions, { triggerFloatingReaction } from '../components/FloatingReactions';
 import { ModerationService } from '../services/moderation';
 import FlashLogo from '../components/FlashLogo';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 const GHOST_EMOJIS = ['👻', '🔥', '❤️', '😂', '😮'];
 
@@ -72,6 +74,36 @@ function ShadeInTile({
     opacity: interpolate(ready.value, [start, start + 0.22], [0, 1], Extrapolation.CLAMP),
   }));
   return <Animated.View style={[style, shadeStyle]}>{children}</Animated.View>;
+}
+
+/* Silent looping flash.live video tile */
+function LiveTile({ videoURL, style }: { videoURL: string; style?: any }) {
+  const player = useVideoPlayer(videoURL, (p) => {
+    p.loop = true;
+    p.muted = true;
+  });
+
+  // play() before load is a no-op on network URLs (AVPlayer ignores it).
+  // Fire play() the moment the player signals it's readyToPlay.
+  useEffect(() => {
+    const sub = player.addListener('statusChange', ({ status }: any) => {
+      if (status === 'readyToPlay') {
+        player.loop = true;
+        player.play();
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
+
+  return (
+    <VideoView
+      player={player}
+      style={[StyleSheet.absoluteFillObject, style]}
+      contentFit="cover"
+      nativeControls={false}
+      surfaceType="textureView"
+    />
+  );
 }
 
 function useCountdown(target: Date | null): string {
@@ -246,10 +278,12 @@ export default function PackRevealScreen() {
     const msg = {
       id: 'c-' + Date.now(),
       userId: user?.id ?? 'anon',
+      username: user?.username ?? 'anon',
       flag: user?.flag ?? '🌍',
       city: user?.city ?? 'unknown',
       text: draft.trim(),
       sentAt: new Date().toISOString(),
+      avatarUrl: user?.avatarUrl,
     };
     addComment(pack.id, msg);
     setDraft('');
@@ -327,7 +361,10 @@ export default function PackRevealScreen() {
                   onPress={() => nav.navigate('PhotoViewer', { packId: pack.id, photoId: p.id })}
                   style={StyleSheet.absoluteFill}
                 >
-                  {p.imageURL ? (
+                  {/* flash.live: silent looping video */}
+                  {p.videoURL ? (
+                    <LiveTile videoURL={resolveUrl(p.videoURL)!} />
+                  ) : p.imageURL ? (
                     <FilteredImage
                       source={{ uri: resolveUrl(p.imageURL)! }}
                       filter={normalizeFilter(p.filter)}
@@ -336,6 +373,13 @@ export default function PackRevealScreen() {
                     />
                   ) : (
                     <View style={[StyleSheet.absoluteFill, { backgroundColor: p.placeholder?.[0] ?? '#222' }]} />
+                  )}
+                  {/* flash.live badge */}
+                  {p.videoURL && (
+                    <View style={styles.tileLiveBadge}>
+                      <Ionicons name="flash" size={8} color="#000" />
+                      <ScaledText style={styles.tileLiveText}>flash.live</ScaledText>
+                    </View>
                   )}
                   {member && (
                     <View style={styles.tileFlag}>
@@ -447,21 +491,51 @@ export default function PackRevealScreen() {
             </View>
           )}
 
-          {packComments.slice(0, 4).map((c) => (
-            <View
-              key={c.id}
-              style={[
-                styles.commentCard,
-                c.userId === user?.id && styles.youCard,
-              ]}
-            >
-              <ScaledText style={c.userId === user?.id ? styles.metaYou : styles.meta}>
-                {c.flag} {c.city} · {Math.max(1, Math.floor((Date.now() - new Date(c.sentAt).getTime()) / 60000))}m ago
-                {c.userId === user?.id && ' · you'}
-              </ScaledText>
-              <ScaledText style={styles.commentText}>{c.text}</ScaledText>
-            </View>
-          ))}
+          {packComments.slice(0, 4).map((c) => {
+            const isSelf = c.userId === user?.id;
+            const member = pack.members.find((m) => m.userId === c.userId);
+            const username = member?.username ?? c.username ?? 'anon';
+            const avatarUrl = member?.avatarUrl ?? c.avatarUrl;
+            const avatarColor = member?.avatarColor ?? colors.yellow;
+            const initials = member?.initials ?? (username ? username.slice(0, 2).toUpperCase() : '??');
+            
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => {
+                  if (isSelf) {
+                    nav.navigate('Tabs', { screen: 'Profile' });
+                  } else {
+                    nav.push('PublicProfile', { username });
+                  }
+                }}
+                style={[
+                  styles.commentCard,
+                  isSelf && styles.youCard,
+                ]}
+              >
+                <View style={styles.commentHeaderRow}>
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={styles.commentAvatar as any} />
+                  ) : (
+                    <View style={[styles.commentInitialsBg, { backgroundColor: avatarColor }]}>
+                      <ScaledText style={styles.commentInitialsText}>{initials}</ScaledText>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.commentMetaRow}>
+                      <ScaledText style={styles.commentUsername}>@{username}</ScaledText>
+                      <ScaledText style={isSelf ? styles.metaYou : styles.meta}>
+                        {c.flag} {c.city} · {Math.max(1, Math.floor((Date.now() - new Date(c.sentAt).getTime()) / 60000))}m ago
+                        {isSelf && ' · you'}
+                      </ScaledText>
+                    </View>
+                    <ScaledText style={styles.commentText}>{c.text}</ScaledText>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
 
           {isMember && !userCommented && allPosted && (
             <View style={styles.youCard}>
@@ -542,7 +616,7 @@ export default function PackRevealScreen() {
       {/* Custom bottom nav */}
       <View style={[styles.bottomNav, { paddingBottom: Math.max(12, insets.bottom) }]}>
         <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Feed' })} style={styles.navItem}>
-          <Ionicons name="grid-outline" size={22} color="rgba(255,255,255,0.35)" />         
+          <Ionicons name="grid" size={22} color={colors.yellow} />         
         </Pressable>
         <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Camera' })} style={styles.navItem}>
           <Ionicons name="camera-outline" size={22} color="rgba(255,255,255,0.35)" />
@@ -656,6 +730,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  tileLiveBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  tileLiveText: { color: '#000', fontSize: 8, fontWeight: '900', letterSpacing: 0.3 },
   chemWrap: { paddingHorizontal: 14, paddingTop: 14 },
   chemHint: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 5 },
   chemHintText: { color: colors.textFade, fontSize: 10 },
@@ -715,6 +802,42 @@ const styles = StyleSheet.create({
   meta: { color: colors.textFade, fontSize: 9 },
   metaYou: { color: 'rgba(255,214,10,0.45)', fontSize: 9 },
   commentText: { color: 'rgba(255,255,255,0.85)', fontSize: 12, lineHeight: 17 },
+  commentHeaderRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  commentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#222',
+  },
+  commentInitialsBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentInitialsText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  commentMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginBottom: 2,
+  },
+  commentUsername: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   inputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
   input: {
     flex: 1,

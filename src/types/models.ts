@@ -94,6 +94,7 @@ export interface PackPhoto {
   userId: string;
   imageURL?: string; // optional in mock
   thumbnailURL?: string;
+  videoURL?: string; // flash.live 3-second silent clip (Pro)
   filter: VibeFilter;
   capturedAt: string;
   expiresAt: string;
@@ -105,10 +106,12 @@ export interface PackPhoto {
 export interface CommentMessage {
   id: string;
   userId: string;
+  username: string;
   flag: string;
   city: string;
   text: string;
   sentAt: string;
+  avatarUrl?: string;
 }
 
 export interface PackComment {

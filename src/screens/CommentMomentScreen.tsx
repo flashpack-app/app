@@ -36,6 +36,7 @@ export default function CommentMomentScreen() {
     const msg = {
       id: 'c-' + Date.now(),
       userId: user?.id ?? 'anon',
+      username: user?.username ?? 'anon',
       flag: user?.flag ?? '🇹🇷',
       city: user?.city ?? 'unknown',
       text,

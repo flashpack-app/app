@@ -38,7 +38,8 @@
     "backgroundColor": "#0A0A0A",
     "plugins": [
       "expo-camera",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-video"
     ],
     "extra": {
       "apiUrl": "",

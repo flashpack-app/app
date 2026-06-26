@@ -68,6 +68,10 @@ CREATE TABLE IF NOT EXISTS photos (
 ALTER TABLE photos ADD COLUMN IF NOT EXISTS image_data TEXT;
 ALTER TABLE photos ADD COLUMN IF NOT EXISTS image_mime TEXT;
 
+-- flash.live 3-second silent video clip (Pro feature)
+ALTER TABLE photos ADD COLUMN IF NOT EXISTS video_data TEXT;
+ALTER TABLE photos ADD COLUMN IF NOT EXISTS video_mime TEXT;
+
 -- Packs (groups of users who posted in same window)
 CREATE TABLE IF NOT EXISTS packs (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

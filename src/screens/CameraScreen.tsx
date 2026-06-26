@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, Animated as RNAnimated } from 'react-native';
-import { CameraView, useCameraPermissions, FlashMode, CameraType } from 'expo-camera';
+import { View, Text, StyleSheet, Pressable, Alert, Animated as RNAnimated, Platform } from 'react-native';
+import { CameraView, useCameraPermissions, useMicrophonePermissions, FlashMode, CameraType } from 'expo-camera';
 import * as Haptics from '../services/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +31,7 @@ const TIMER_OPTIONS = [0, 3, 5, 10];
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
+  const [micPermission, requestMicPermission] = useMicrophonePermissions();
   const [filter, setFilter] = useState<VibeFilter>('raw');
   const [flash, setFlash] = useState<FlashMode>('off');
   const [facing, setFacing] = useState<CameraType>('back');
@@ -39,7 +40,11 @@ export default function CameraScreen() {
   const [timerSec, setTimerSec] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0); // 0..1 over 3s
+  const isRecording = useRef(false);
   const flashOpacity = useRef(new RNAnimated.Value(0)).current;
+  const shutterPulse = useRef(new RNAnimated.Value(1)).current;
   const baseZoom = useRef(0);
   const camRef = useRef<CameraView>(null);
   const nav = useNavigation<any>();
@@ -64,6 +69,11 @@ export default function CameraScreen() {
     if (!permission.granted) requestPermission();
   }, [permission]);
 
+  useEffect(() => {
+    if (!micPermission) return;
+    if (!micPermission.granted) requestMicPermission();
+  }, [micPermission]);
+
   const flashOverlayPlay = () => {
     RNAnimated.sequence([
       RNAnimated.timing(flashOpacity, { toValue: 0.6, duration: 60, useNativeDriver: true }),
@@ -71,19 +81,97 @@ export default function CameraScreen() {
     ]).start();
   };
 
-  const takePicture = async () => {
+  const takePicture = async (videoUri?: string) => {
     if (!camRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (flash === 'on') flashOverlayPlay();
     try {
       const photo = await camRef.current.takePictureAsync({ quality: 1 });
       if (photo?.uri) {
-        nav.navigate('PhotoPreview', { uri: photo.uri, filter });
+        nav.navigate('PhotoPreview', { uri: photo.uri, filter, ...(videoUri ? { videoUri } : {}) });
       }
     } catch {
     } finally {
       setIsCapturing(false);
     }
+  };
+
+  // 1.5-second silent video recording (flash.live)
+  const startLiveCapture = async () => {
+    if (!camRef.current || isRecording.current) return;
+    isRecording.current = true;
+    setIsCapturing(true);
+
+    // Blink flash the screen to indicate recording started (as requested)
+    flashOverlayPlay();
+
+    // Pulse shutter ring
+    const pulse = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(shutterPulse, { toValue: 1.12, duration: 400, useNativeDriver: true }),
+        RNAnimated.timing(shutterPulse, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+
+    // Progress arc (0→1 over 1.5 seconds)
+    const startTime = Date.now();
+    const DURATION = 1500;
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      setVideoProgress(Math.min(elapsed / DURATION, 1));
+      if (elapsed >= DURATION) clearInterval(progressInterval);
+    }, 50);
+
+    // Stop recording after exactly 1.5 seconds
+    const stopTimeout = setTimeout(() => {
+      if (camRef.current) {
+        try {
+          camRef.current.stopRecording();
+        } catch (e) {
+          console.log('Error stopping recording', e);
+        }
+      }
+    }, DURATION);
+
+    let videoUri: string | undefined;
+    try {
+      const recording = await camRef.current.recordAsync({
+        maxDuration: 2, // backup safety limit
+        mute: true,
+      } as any);
+      videoUri = recording?.uri;
+    } catch {
+      /* ignore */
+    } finally {
+      clearTimeout(stopTimeout);
+      clearInterval(progressInterval);
+      pulse.stop();
+      shutterPulse.setValue(1);
+      setVideoProgress(0);
+      isRecording.current = false;
+    }
+
+    // Take a still frame for the thumbnail
+    if (videoUri) {
+      // Navigate to preview with both still thumbnail + video
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (camRef.current) {
+        try {
+          const photo = await camRef.current.takePictureAsync({ quality: 0.7, skipProcessing: true });
+          if (photo?.uri) {
+            setIsCapturing(false); // must reset before navigate so Retake works
+            nav.navigate('PhotoPreview', { uri: photo.uri, filter, videoUri });
+            return;
+          }
+        } catch { /* fall through */ }
+      }
+      // Fallback: navigate without still (video only)
+      setIsCapturing(false); // must reset before navigate so Retake works
+      nav.navigate('PhotoPreview', { uri: videoUri, filter, videoUri });
+      return;
+    }
+    setIsCapturing(false);
   };
 
   const isProFilter = PRO_FILTERS.includes(filter);
@@ -93,6 +181,10 @@ export default function CameraScreen() {
     if (!camRef.current || isCapturing || locked) return;
     if (!canCapture) {
       nav.navigate('Pro');
+      return;
+    }
+    if (isVideoMode) {
+      startLiveCapture();
       return;
     }
     if (timerSec > 0) {
@@ -144,8 +236,26 @@ export default function CameraScreen() {
     <View style={styles.wrap}>
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: Math.max(8, insets.top) }]}>
-        <FlashLogo size={20} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <FlashLogo size={20} isLive={isVideoMode} />
+        </View>
         <View style={styles.topBtns}>
+          {/* flash.live toggle — Pro only, iOS only */}
+          {user?.isPro && Platform.OS === 'ios' && (
+            <Pressable
+              onPress={() => {
+                setIsVideoMode((v) => !v);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[styles.iconBtn, isVideoMode && styles.iconBtnActive]}
+            >
+              <Ionicons
+                name={isVideoMode ? 'videocam' : 'videocam-outline'}
+                size={16}
+                color={isVideoMode ? '#000' : colors.white}
+              />
+            </Pressable>
+          )}
           <Pressable
             onPress={() => setFlash(flash === 'off' ? 'on' : 'off')}
             style={styles.iconBtn}
@@ -182,6 +292,7 @@ export default function CameraScreen() {
                 facing={facing}
                 flash={flash}
                 zoom={zoom}
+                mode={isVideoMode ? 'video' : 'picture'}
               />
             ) : (
               <View style={[StyleSheet.absoluteFill, styles.permissionWrap]}>
@@ -237,10 +348,11 @@ export default function CameraScreen() {
             <View style={styles.zoomBadge}>
               <Text style={styles.zoomText}>{(0.5 + zoom * 2).toFixed(1)}x</Text>
             </View>
+            {/* Countdown removed per user request */}
 
-            {/* Countdown overlay */}
-            {countdown > 0 && (
-              <View pointerEvents="none" style={styles.countdownOverlay}>
+            {/* Timer countdown (for regular picture timer) */}
+            {!isVideoMode && countdown > 0 && (
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
                 <Text style={styles.countdownText}>{countdown}</Text>
               </View>
             )}
@@ -264,12 +376,31 @@ export default function CameraScreen() {
           onPress={onShutter}
           disabled={isCapturing}
           style={({ pressed }) => [
-            styles.shutter,
-            pressed && { transform: [{ scale: 0.94 }] },
+            { opacity: pressed ? 0.85 : 1 },
             isCapturing && { opacity: 0.6 },
           ]}
         >
-          <View style={styles.shutterInner} />
+          <RNAnimated.View
+            style={[
+              styles.shutter,
+              isVideoMode && styles.shutterVideo,
+              { transform: [{ scale: shutterPulse }] },
+            ]}
+          >
+            {isVideoMode ? (
+              <View style={styles.shutterVideoInner}>
+                {/* Circular progress arc */}
+                {videoProgress > 0 && (
+                  <View style={StyleSheet.absoluteFill}>
+                    <View style={[styles.progressArc, { opacity: 0.9 }]} />
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.shutterInner} />
+            )}
+          </RNAnimated.View>
+          {/* Countdown text removed per user request */}
         </Pressable>
         <Pressable
           onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
@@ -429,7 +560,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  shutterVideo: {
+    borderColor: '#FF3B30',
+    borderWidth: 3,
+  },
   shutterInner: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.white },
+  shutterVideoInner: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressArc: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 30,
+    borderWidth: 3,
+    borderColor: colors.yellow,
+  },
+  videoTimerLabel: {
+    position: 'absolute',
+    bottom: -18,
+    alignSelf: 'center',
+  },
+  videoTimerText: { color: '#FF3B30', fontSize: 11, fontWeight: '700' },
+  iconBtnActive: { backgroundColor: colors.yellow },
   flipBtn: {
     width: 32,
     height: 32,
