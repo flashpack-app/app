@@ -1,6 +1,8 @@
 import { API_URL } from '../config';
 import { Pack, User, InviteSlot, VibeFilter, AdminStats, AdminUserRow, GenesisCode } from '../types/models';
 import { mockPacks } from '../data/mock';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 class HTTPError extends Error {
   status: number;
@@ -170,14 +172,14 @@ export const APIService = {
     let imageData: string | undefined;
     if (uri) {
       try {
-        const IM: any = await import('expo-image-manipulator');
-        const result = await IM.manipulateAsync(
+        const result = await ImageManipulator.manipulateAsync(
           uri,
           [{ resize: { width: 2048 } }],
-          { compress: 0.9, format: IM.SaveFormat.JPEG, base64: true },
+          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true },
         );
         if (result?.base64) imageData = result.base64;
-      } catch {
+      } catch (err) {
+        console.error('Error manipulating image in uploadPhoto:', err);
         /* fall back to sending the local uri below */
       }
     }
@@ -187,15 +189,17 @@ export const APIService = {
     let videoMime: string | undefined;
     if (videoUri) {
       try {
-        const FS: any = await import('expo-file-system');
-        const b64 = await FS.readAsStringAsync(videoUri, { encoding: FS.EncodingType.Base64 });
+        const b64 = await FileSystem.readAsStringAsync(videoUri, { encoding: FileSystem.EncodingType.Base64 });
         if (b64) {
           videoData = b64;
           // iOS CameraView records .mov (QuickTime), Android records .mp4
           const ext = videoUri.split('.').pop()?.toLowerCase();
           videoMime = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+        } else {
+          console.warn('Read file string was empty for videoUri:', videoUri);
         }
-      } catch {
+      } catch (err) {
+        console.error('Error reading video file in uploadPhoto:', err);
         /* skip video if unreadable */
       }
     }
@@ -256,11 +260,10 @@ export const APIService = {
   async uploadAvatar(token: string, uri: string): Promise<string> {
     let imageData: string | undefined;
     try {
-      const IM: any = await import('expo-image-manipulator');
-      const result = await IM.manipulateAsync(
+      const result = await ImageManipulator.manipulateAsync(
         uri,
         [{ resize: { width: 768 } }],
-        { compress: 0.85, format: IM.SaveFormat.JPEG, base64: true },
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true },
       );
       if (result?.base64) imageData = result.base64;
     } catch (e) {
@@ -270,8 +273,7 @@ export const APIService = {
     if (!imageData) {
       // Try reading file directly as base64
       try {
-        const { File } = await import('expo-file-system');
-        const b64 = await new File(uri).base64();
+        const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
         imageData = b64;
       } catch (e) {
         console.warn('avatar read failed:', e);

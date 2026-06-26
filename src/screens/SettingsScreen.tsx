@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from '../services/haptics';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -108,12 +109,12 @@ export default function SettingsScreen() {
     if (!result.canceled && result.assets?.[0]?.uri) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       try {
-        const FileSystem = await import('expo-file-system');
-        const dir = (FileSystem as any).documentDirectory ?? '';
+        const dir = FileSystem.documentDirectory ?? '';
         const dest = `${dir}avatar-${Date.now()}.jpg`;
-        await (FileSystem as any).copyAsync({ from: result.assets[0].uri, to: dest });
+        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
         updateAvatar(dest);
-      } catch {
+      } catch (err) {
+        console.error('Error copying avatar image:', err);
         updateAvatar(result.assets[0].uri);
       }
     }
