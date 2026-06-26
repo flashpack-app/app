@@ -159,14 +159,14 @@ export const APIService = {
         [{ resize: { width: 2048 } }],
         { compress: 0.9, format: IM.SaveFormat.JPEG, base64: true },
       );
-      if (result?.base64) imageData = `data:image/jpeg;base64,${result.base64}`;
+      if (result?.base64) imageData = result.base64;
     } catch {
       /* fall back to sending the local uri below */
     }
     return http('/photos', {
       method: 'POST',
       token,
-      body: imageData ? { imageData, imageMime: 'image/jpeg', filter } : { imageUrl: uri, filter },
+      body: imageData ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg', filter } : { imageUrl: uri, filter },
     });
   },
 
@@ -227,8 +227,8 @@ export const APIService = {
     if (!imageData) {
       // Try reading file directly as base64
       try {
-        const FS = await import('expo-file-system/legacy');
-        const b64 = await FS.readAsStringAsync(uri, { encoding: 'base64' as any });
+        const { File } = await import('expo-file-system');
+        const b64 = await new File(uri).base64();
         imageData = b64;
       } catch (e) {
         console.warn('avatar read failed:', e);
@@ -238,11 +238,14 @@ export const APIService = {
     const res = await http<{ avatarUrl: string }>('/me/avatar', {
       method: 'POST',
       token,
-      body: { imageData: `data:image/jpeg;base64,${imageData}`, imageMime: 'image/jpeg' },
+      body: { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg' },
     });
-    // Make it absolute and append a cache-buster so a freshly-changed avatar
-    // isn't masked by the previously cached one.
-    return avatarUrlAbsolute(res.avatarUrl) ?? res.avatarUrl;
+    // Make it absolute and append a fresh cache-buster so a just-changed avatar
+    // replaces any previously cached image.
+    const abs = avatarUrlAbsolute(res.avatarUrl) ?? res.avatarUrl;
+    if (!abs) throw new Error('missing_avatar_url');
+    const sep = abs.includes('?') ? '&' : '?';
+    return `${abs}${sep}cb=${Date.now()}`;
   },
   async logScreenshot(token: string, packId: string): Promise<void> {
     await http('/screenshot', { method: 'POST', token, body: { packId } });
@@ -354,7 +357,7 @@ export const APIService = {
   },
   async getPublicProfile(username: string): Promise<{ username: string; avatarUrl?: string; city: string; country: string; flag: string; streakDays: number; isPro: boolean; isAdmin: boolean; joinedAt: string; packs: number; countries: number; countryList: { flag: string; name: string }[]; packedWith: { flag: string; name: string }[]; invitedBy: string | null; vibeProfile: Record<string, number> }> {
     const res = await http<{ user: any }>(`/users/${encodeURIComponent(username)}`, {});
-    return res.user;
+    return { ...res.user, avatarUrl: avatarUrlAbsolute(res.user.avatarUrl) ?? res.user.avatarUrl };
   },
   async getDailyTopic(): Promise<{ topic: string; date: string }> {
     const res = await http<{ topic: string; date: string }>('/daily-topic', {});

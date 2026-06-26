@@ -27,3 +27,4 @@ function defaultUrl(): string {
 }
 
 export const API_URL: string = fromExtra || defaultUrl();
+console.log('API_URL:', API_URL);

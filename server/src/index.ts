@@ -5,6 +5,8 @@ import { pool, query } from './db';
 import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
 
+const MAX_PACK_MEMBERS = 4;
+
 const app = express();
 app.use(cors());
 // Photos are uploaded as base64 JSON, so allow large bodies.
@@ -367,16 +369,19 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
       [userId],
     );
 
-    // Simple matching: find open packs that haven't expired yet and don't already have this user
+    // Simple matching: find an open pack that isn't expired, isn't full, and doesn't already have this user.
     let packRes = await client.query(
       `SELECT p.id, p.number FROM packs p
        WHERE p.status = 'open'
          AND p.expires_at > NOW()
+         AND (
+           SELECT COUNT(*) FROM pack_members pm WHERE pm.pack_id = p.id
+         ) < $2
          AND NOT EXISTS (
            SELECT 1 FROM pack_members pm WHERE pm.pack_id = p.id AND pm.user_id = $1
          )
        LIMIT 1`,
-      [userId],
+      [userId, MAX_PACK_MEMBERS],
     );
 
     let packId: string;

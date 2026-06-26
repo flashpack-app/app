@@ -209,6 +209,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const avatarUrl = await APIService.uploadAvatar(token, uri);
           const next = { ...user, avatarUrl };
           setUser(next);
+          setPacks((prev) =>
+            prev.map((pack) => ({
+              ...pack,
+              members: pack.members.map((m) => (m.id === next.id ? { ...m, avatarUrl } : m)),
+            }))
+          );
           await saveSession({ token, user: next });
         } catch (e) {
           console.error('updateAvatar failed:', e);

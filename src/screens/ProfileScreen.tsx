@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Image, Alert, ActivityIndicator, Modal } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, Modal } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -27,6 +28,7 @@ export default function ProfileScreen() {
   const [avatarMenu, setAvatarMenu] = useState(false);
   const [avatarViewer, setAvatarViewer] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
 
   const [publicProfile, setPublicProfile] = useState<{
     username: string;
@@ -162,11 +164,11 @@ export default function ProfileScreen() {
     if (!result.canceled && result.assets?.[0]?.uri) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       try {
-        const FileSystem = await import('expo-file-system/legacy');
-        const dir = FileSystem.documentDirectory ?? '';
-        const dest = `${dir}avatar-${Date.now()}.jpg`;
-        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-        updateAvatar(dest);
+        const { File, Paths } = await import('expo-file-system');
+        const src = new File(result.assets[0].uri);
+        const dst = new File(Paths.document, `avatar-${Date.now()}.jpg`);
+        await src.copy(dst);
+        updateAvatar(dst.uri);
       } catch (e) {
         console.warn('avatar copy failed, using original uri:', e);
         updateAvatar(result.assets[0].uri);
@@ -174,11 +176,15 @@ export default function ProfileScreen() {
     }
   };
 
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [displayUser?.avatarUrl]);
+
   const onAvatarPress = () => {
     Haptics.selectionAsync?.();
     if (isOwnProfile) {
       setAvatarMenu(true);
-    } else if (displayUser?.avatarUrl) {
+    } else if (displayUser?.avatarUrl && !avatarLoadError) {
       setAvatarViewer(true);
     }
   };
@@ -272,8 +278,16 @@ export default function ProfileScreen() {
       {/* Avatar */}
       <View style={styles.avatarWrap}>
         <Pressable onPress={onAvatarPress} style={[styles.avatar, isPro && styles.avatarPro]}>
-          {displayUser?.avatarUrl ? (
-            <Image source={{ uri: displayUser.avatarUrl }} style={styles.avatarImg} />
+          {displayUser?.avatarUrl && !avatarLoadError ? (
+            <Image
+              source={{ uri: displayUser.avatarUrl }}
+              style={styles.avatarImg}
+              onLoad={() => console.log('avatar loaded:', displayUser.avatarUrl)}
+              onError={(e) => {
+                console.error('avatar load error:', e.nativeEvent.error, displayUser.avatarUrl);
+                setAvatarLoadError(true);
+              }}
+            />
           ) : (
             <ScaledText style={styles.avatarInitials}>{initials}</ScaledText>
           )}
@@ -473,7 +487,7 @@ export default function ProfileScreen() {
             <Ionicons name="close" size={28} color={colors.white} />
           </Pressable>
           {displayUser?.avatarUrl ? (
-            <Image source={{ uri: displayUser.avatarUrl }} style={styles.viewerImg} resizeMode="contain" />
+            <Image source={{ uri: displayUser.avatarUrl }} style={styles.viewerImg} contentFit="contain" />
           ) : null}
         </Pressable>
       </Modal>
