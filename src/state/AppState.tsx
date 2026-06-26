@@ -51,6 +51,7 @@ interface AppStateValue {
   revertPhoto: (photoId: string) => Promise<void>;
   refreshStreak: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
+  awardPongBadge: () => Promise<void>;
 }
 
 const AppStateContext = createContext<AppStateValue | undefined>(undefined);
@@ -251,6 +252,19 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const list = await APIService.getNotifications(token);
           setUnreadCount(list.filter((n) => !n.readAt).length);
         } catch {}
+      },
+      async awardPongBadge() {
+        if (!user) return;
+        const next = { ...user, hasPongBadge: true };
+        setUser(next);
+        if (token) {
+          try {
+            await APIService.updateProfile(token, { hasPongBadge: true } as any);
+            await saveSession({ token, user: next });
+          } catch (e) {
+            console.error('awardPongBadge failed:', e);
+          }
+        }
       },
     }),
     [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic],

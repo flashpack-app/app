@@ -390,30 +390,32 @@ export default function PackRevealScreen() {
           ) : (
             <PillButton
               variant="dim"
-              label={!isMember ? 'members only' : canReact ? 'react' : 'max reached'}
+              label={canReact ? 'react' : 'max reached'}
               style={{ flex: 1, height: 38 }}
-              onPress={() => isMember && canReact && setShowEmojiPicker(true)}
+              onPress={() => canReact && setShowEmojiPicker(true)}
             >
               <Ionicons
-                name={isMember ? 'happy-outline' : 'lock-closed'}
+                name="happy-outline"
                 size={14}
-                color={isMember && canReact ? colors.white : colors.textFade}
+                color={canReact ? colors.white : colors.textFade}
               />
             </PillButton>
           )}
-          <PillButton
-            variant="white"
-            label={sharing ? 'rendering…' : 'share'}
-            style={{ flex: 1, height: 38 }}
-            onPress={onSharePack}
-            disabled={sharing}
-          >
-            {sharing ? (
-              <ActivityIndicator size="small" color="#000" />
-            ) : (
-              <Ionicons name="share-outline" size={14} color="#000" />
-            )}
-          </PillButton>
+          {isMember && (
+            <PillButton
+              variant="white"
+              label={sharing ? 'rendering…' : 'share'}
+              style={{ flex: 1, height: 38 }}
+              onPress={onSharePack}
+              disabled={sharing}
+            >
+              {sharing ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <Ionicons name="share-outline" size={14} color="#000" />
+              )}
+            </PillButton>
+          )}
         </Animated.View>
 
         {/* Reaction stack */}
@@ -441,7 +443,7 @@ export default function PackRevealScreen() {
           {!isMember && (
             <View style={styles.lockBanner}>
               <Ionicons name="lock-closed" size={12} color={colors.textFade} />
-              <ScaledText style={styles.lockText}>only pack members can react & comment</ScaledText>
+              <ScaledText style={styles.lockText}>only pack members can comment</ScaledText>
             </View>
           )}
 

@@ -38,6 +38,7 @@ interface UserRow {
   avatar_data: string | null;
   avatar_mime: string | null;
   pro_border: string | null;
+  has_pong_badge: boolean;
 }
 
 /* Free geocoding via Nominatim (OpenStreetMap). Rate-limited; ok for infrequent registrations. */
@@ -972,6 +973,10 @@ app.patch('/me', requireUser, async (req: Request, res: Response) => {
     values.push(proBorder);
     sets.push(`pro_border = $${values.length}`);
   }
+  if (typeof hasPongBadge === 'boolean') {
+    values.push(hasPongBadge);
+    sets.push(`has_pong_badge = $${values.length}`);
+  }
   if (sets.length === 0) return res.status(400).json({ error: 'no_fields' });
   values.push(userId);
   const rows = await query<UserRow>(
@@ -1252,7 +1257,7 @@ app.post('/screenshot', requireUser, async (req: Request, res: Response) => {
 app.get('/users/:username', async (req: Request, res: Response) => {
   const username = req.params.username.trim().toLowerCase();
   const userRows = await query<UserRow>(
-    `SELECT id, username, avatar_url, avatar_data, avatar_mime, city, country, flag, streak_days, is_pro, is_admin, created_at, invited_by
+    `SELECT id, username, avatar_url, avatar_data, avatar_mime, city, country, flag, streak_days, is_pro, is_admin, created_at, invited_by, has_pong_badge
      FROM users WHERE username = $1`,
     [username],
   );
@@ -1310,6 +1315,7 @@ app.get('/users/:username', async (req: Request, res: Response) => {
       countryList: countryRows.map((r) => ({ flag: r.flag, name: r.country })),
       packedWith: packedWith.map((r) => ({ flag: r.flag, name: r.country })),
       invitedBy: invitedByRows[0]?.username ?? null,
+      hasPongBadge: !!userRows[0].has_pong_badge,
       vibeProfile,
     },
   });

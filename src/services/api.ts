@@ -80,6 +80,7 @@ function mapUser(row: any): User {
     countries: 0,
     saved: 0,
     packedWith: [],
+    hasPongBadge: !!(row.hasPongBadge ?? row.has_pong_badge),
   };
 }
 
@@ -355,7 +356,7 @@ export const APIService = {
   async savePushToken(token: string, pushToken: string): Promise<void> {
     await http('/me/push-token', { method: 'POST', token, body: { token: pushToken } });
   },
-  async getPublicProfile(username: string): Promise<{ username: string; avatarUrl?: string; city: string; country: string; flag: string; streakDays: number; isPro: boolean; isAdmin: boolean; joinedAt: string; packs: number; countries: number; countryList: { flag: string; name: string }[]; packedWith: { flag: string; name: string }[]; invitedBy: string | null; vibeProfile: Record<string, number> }> {
+  async getPublicProfile(username: string): Promise<{ username: string; avatarUrl?: string; city: string; country: string; flag: string; streakDays: number; isPro: boolean; isAdmin: boolean; joinedAt: string; packs: number; countries: number; countryList: { flag: string; name: string }[]; packedWith: { flag: string; name: string }[]; invitedBy: string | null; vibeProfile: Record<string, number>; hasPongBadge?: boolean }> {
     const res = await http<{ user: any }>(`/users/${encodeURIComponent(username)}`, {});
     return { ...res.user, avatarUrl: avatarUrlAbsolute(res.user.avatarUrl) ?? res.user.avatarUrl };
   },

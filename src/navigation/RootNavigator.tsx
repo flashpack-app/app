@@ -9,6 +9,8 @@ import { colors } from '../theme/colors';
 import { addNotificationReceivedListener, addNotificationResponseReceivedListener } from '../services/pushNotifications';
 import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
+import FlashLogo from '../components/FlashLogo';
+import * as SplashScreen from 'expo-splash-screen';
 
 import InviteGateScreen from '../screens/InviteGateScreen';
 import UsernameScreen from '../screens/UsernameScreen';
@@ -123,6 +125,17 @@ function Tabs() {
   );
 }
 
+function CustomSplash() {
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+  return (
+    <View style={styles.boot}>
+      <FlashLogo size={42} />
+    </View>
+  );
+}
+
 export default function RootNavigator() {
   const { isAuthenticated, isBooting } = useAppState();
 
@@ -143,11 +156,7 @@ export default function RootNavigator() {
   }, []);
 
   if (isBooting) {
-    return (
-      <View style={styles.boot}>
-        <ActivityIndicator color={colors.yellow} />
-      </View>
-    );
+    return <CustomSplash />;
   }
 
   return (

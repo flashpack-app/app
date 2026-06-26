@@ -7,6 +7,9 @@ import { AppStateProvider } from './src/state/AppState';
 import { AccessibilityProvider } from './src/services/AccessibilityContext';
 import { CoachmarkProvider } from './src/onboarding/CoachmarkContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   return (

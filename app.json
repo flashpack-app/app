@@ -33,9 +33,7 @@
       ]
     },
     "splash": {
-      "image": "./src/assets/logo-white.png",
-      "backgroundColor": "#0A0A0A",
-      "resizeMode": "contain"
+      "backgroundColor": "#0A0A0A"
     },
     "backgroundColor": "#0A0A0A",
     "plugins": [

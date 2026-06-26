@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, Modal } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,6 +16,76 @@ import ScaledText from '../components/ScaledText';
 import VibemeterBar from '../components/VibemeterBar';
 import CountryChip from '../components/CountryChip';
 import CountryMapModal from '../components/CountryMapModal';
+import PongGame from '../components/PongGame';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+} from 'react-native-reanimated';
+
+// ── Streak colour tiers ───────────────────────────────────────────────
+function getStreakColor(days: number): { bg: string; glow: string } {
+  if (days >= 100) return { bg: '#FF2D2D', glow: 'rgba(255,45,45,0.55)' };
+  if (days >= 30)  return { bg: '#FF5E1A', glow: 'rgba(255,94,26,0.55)' };
+  if (days >= 14)  return { bg: '#FF7A00', glow: 'rgba(255,122,0,0.5)'  };
+  if (days >= 7)   return { bg: '#FF9500', glow: 'rgba(255,149,0,0.45)' };
+  return             { bg: '#FFD60A', glow: 'rgba(255,214,10,0.35)' };
+}
+
+// ── Animated fire badge ───────────────────────────────────────────────
+const StreakBadge: React.FC<{ days: number; onPress?: () => void }> = ({ days, onPress }) => {
+  const { bg, glow } = getStreakColor(days);
+  const scale = useSharedValue(1);
+
+  const badgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <View style={streakBadgeStyles.positioner}>
+      <Pressable
+        onPressIn={() => { scale.value = withSpring(1.18, { damping: 10, stiffness: 300 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 200 }); }}
+        onPress={onPress}
+        hitSlop={8}
+      >
+        <Animated.View style={[streakBadgeStyles.badgeInner, { backgroundColor: bg, shadowColor: glow }, badgeStyle]}>
+          <Ionicons name="flame" size={9} color="#000" />
+          <Text style={streakBadgeStyles.label}>{days}d</Text>
+        </Animated.View>
+      </Pressable>
+    </View>
+  );
+};
+
+const streakBadgeStyles = StyleSheet.create({
+  positioner: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    zIndex: 10,
+  },
+  badge: {
+    // Pressable wrapper — no visual style, just for hit area
+  },
+  badgeInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.18)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    shadowOpacity: 0.5,
+    elevation: 6,
+  },
+  flame: { /* animated wrapper — no style needed */ },
+  label: { fontWeight: '700', fontSize: 10, color: '#000' },
+});
 
 export default function ProfileScreen() {
   const { user: me, streak, packs, refreshStreak, refreshPacks, token, updateAvatar } = useAppState();
@@ -29,6 +99,51 @@ export default function ProfileScreen() {
   const [avatarViewer, setAvatarViewer] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [showPong, setShowPong] = useState(false);
+  const adminTapCount = useRef(0);
+  const adminTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const secretScale = useSharedValue(1);
+  const secretRotate = useSharedValue(0);
+
+  const secretStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: secretScale.value },
+      { rotateZ: `${secretRotate.value}deg` }
+    ],
+  }));
+
+  const onSecretTap = (navCallback?: () => void, isAdminBadge = false) => {
+    adminTapCount.current += 1;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (adminTapTimer.current) clearTimeout(adminTapTimer.current);
+    
+    if (adminTapCount.current >= 10) {
+      adminTapCount.current = 0;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      secretScale.value = withSpring(1, { damping: 15, stiffness: 200 });
+      secretRotate.value = withSpring(0);
+      setShowPong(true);
+    } else {
+      if (isAdminBadge) {
+        secretScale.value = withSpring(1 + adminTapCount.current * 0.08, { damping: 8, stiffness: 300 });
+        const shakeAmount = adminTapCount.current * 2;
+        secretRotate.value = withSequence(
+          withSpring(-shakeAmount, { damping: 5, stiffness: 400 }),
+          withSpring(shakeAmount, { damping: 5, stiffness: 400 }),
+          withSpring(0, { damping: 10, stiffness: 300 })
+        );
+      }
+      
+      adminTapTimer.current = setTimeout(() => { 
+        if (adminTapCount.current === 1 && navCallback) {
+          navCallback();
+        }
+        adminTapCount.current = 0;
+        secretScale.value = withSpring(1);
+        secretRotate.value = withSpring(0);
+      }, 250);
+    }
+  };
 
   const [publicProfile, setPublicProfile] = useState<{
     username: string;
@@ -110,7 +225,16 @@ export default function ProfileScreen() {
 
   // Members with city data for the map
   const mapMembers = useMemo(() => {
-    if (!isOwnProfile) return [];
+    if (!isOwnProfile) {
+      // For another user's profile we only have aggregated country data — synthesise
+      // one "member" per country using their flag so the map shows country markers.
+      return (publicProfile?.countryList ?? []).map((c: { flag: string; name: string }, i: number) => ({
+        userId: `country-${i}`,
+        city: c.name,
+        country: c.name,
+        flag: c.flag,
+      }));
+    }
     const seen = new Set<string>();
     const result: { userId: string; city: string; country: string; flag: string; lat?: number; lng?: number }[] = [];
     for (const p of packs) {
@@ -128,7 +252,7 @@ export default function ProfileScreen() {
       }
     }
     return result;
-  }, [packs, isOwnProfile]);
+  }, [packs, isOwnProfile, publicProfile]);
 
   // Compute vibemeter from streak.history (own) or public profile (other)
   const vibe = useMemo(() => {
@@ -159,20 +283,11 @@ export default function ProfileScreen() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      try {
-        const { File, Paths } = await import('expo-file-system');
-        const src = new File(result.assets[0].uri);
-        const dst = new File(Paths.document, `avatar-${Date.now()}.jpg`);
-        await src.copy(dst);
-        updateAvatar(dst.uri);
-      } catch (e) {
-        console.warn('avatar copy failed, using original uri:', e);
-        updateAvatar(result.assets[0].uri);
-      }
+      Haptics.selectionAsync();
+      updateAvatar(result.assets[0].uri);
     }
   };
 
@@ -296,10 +411,10 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={11} color="#000" />
             </View>
           )}
-          <View style={styles.streak}>
-            <Ionicons name="flame" size={9} color="#000" />
-            <ScaledText style={styles.streakText}>{displayUser?.streakDays ?? 0}d</ScaledText>
-          </View>
+          <StreakBadge
+            days={displayUser?.streakDays ?? 0}
+            onPress={isOwnProfile ? () => nav.navigate('Streak') : undefined}
+          />
         </Pressable>
         <ScaledText style={styles.location}>{displayUser?.city}, {displayUser?.country}</ScaledText>
         <View style={styles.statsRow}>
@@ -307,38 +422,50 @@ export default function ProfileScreen() {
           <Stat n={realCountriesCount} l="countries" onPress={isOwnProfile ? () => nav.navigate('Countries') : undefined} />
           <Stat n={displayUser?.streakDays ?? 0} l="streak" onPress={isOwnProfile ? () => nav.navigate('Streak') : undefined} />
         </View>
-        {isOwnProfile && me.isAdmin ? (
-          <View style={styles.adminBadge}>
-            <Ionicons name="shield-checkmark" size={11} color={colors.yellow} />
-            <ScaledText style={styles.adminBadgeText}>admin</ScaledText>
-          </View>
-        ) : isOwnProfile && me.invitedBy ? (
-          <Pressable
-            onPress={() => nav.navigate('PublicProfile', { username: me.invitedBy })}
-            style={styles.invitedBy}
-          >
-            <ScaledText style={styles.invitedByText}>
-              invited by <ScaledText style={styles.invitedByAt}>@{me.invitedBy}</ScaledText>
-            </ScaledText>
-            <Ionicons name="chevron-forward" size={12} color={colors.textFade} />
-          </Pressable>
-        ) : null}
-        {!isOwnProfile && publicProfile?.isAdmin ? (
-          <View style={styles.adminBadge}>
-            <Ionicons name="shield-checkmark" size={11} color={colors.yellow} />
-            <ScaledText style={styles.adminBadgeText}>admin</ScaledText>
-          </View>
-        ) : !isOwnProfile && publicProfile?.invitedBy ? (
-          <Pressable
-            onPress={() => nav.navigate('PublicProfile', { username: publicProfile.invitedBy! })}
-            style={styles.invitedBy}
-          >
-            <ScaledText style={styles.invitedByText}>
-              invited by <ScaledText style={styles.invitedByAt}>@{publicProfile.invitedBy}</ScaledText>
-            </ScaledText>
-            <Ionicons name="chevron-forward" size={12} color={colors.textFade} />
-          </Pressable>
-        ) : null}
+        <View style={{ alignItems: 'center' }}>
+          {isOwnProfile && me.isAdmin ? (
+            <Animated.View style={secretStyle}>
+              <Pressable onPress={() => onSecretTap(undefined, true)} hitSlop={10} style={styles.adminBadge}>
+                <Ionicons name="shield-checkmark" size={11} color={colors.yellow} />
+                <ScaledText style={styles.adminBadgeText}>admin</ScaledText>
+              </Pressable>
+            </Animated.View>
+          ) : isOwnProfile && me.invitedBy ? (
+            <Pressable
+              onPress={() => onSecretTap(() => nav.navigate('PublicProfile', { username: me.invitedBy! }))}
+              style={styles.invitedBy}
+            >
+              <ScaledText style={styles.invitedByText}>
+                invited by <ScaledText style={styles.invitedByAt}>@{me.invitedBy}</ScaledText>
+              </ScaledText>
+              <Ionicons name="chevron-forward" size={12} color={colors.textFade} />
+            </Pressable>
+          ) : null}
+          {!isOwnProfile && publicProfile?.isAdmin ? (
+            <Animated.View style={secretStyle}>
+              <Pressable onPress={() => onSecretTap(undefined, true)} style={styles.adminBadge}>
+                <Ionicons name="shield-checkmark" size={11} color={colors.yellow} />
+                <ScaledText style={styles.adminBadgeText}>admin</ScaledText>
+              </Pressable>
+            </Animated.View>
+          ) : !isOwnProfile && publicProfile?.invitedBy ? (
+            <Pressable
+              onPress={() => onSecretTap(() => nav.navigate('PublicProfile', { username: publicProfile.invitedBy! }))}
+              style={styles.invitedBy}
+            >
+              <ScaledText style={styles.invitedByText}>
+                invited by <ScaledText style={styles.invitedByAt}>@{publicProfile.invitedBy}</ScaledText>
+              </ScaledText>
+              <Ionicons name="chevron-forward" size={12} color={colors.textFade} />
+            </Pressable>
+          ) : null}
+          {displayUser?.hasPongBadge && (
+            <Pressable onPress={() => setShowPong(true)} style={styles.pongBadge}>
+              <Ionicons name="trophy" size={11} color={colors.yellow} />
+              <ScaledText style={styles.pongBadgeText}>pong champion 🏓</ScaledText>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <View style={styles.divider} />
@@ -492,6 +619,8 @@ export default function ProfileScreen() {
         </Pressable>
       </Modal>
 
+      <PongGame visible={showPong} onClose={() => setShowPong(false)} />
+
       <CountryMapModal
         visible={showMap}
         onClose={() => setShowMap(false)}
@@ -587,6 +716,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,214,10,0.20)',
   },
   adminBadgeText: { color: colors.yellow, fontSize: 11, fontWeight: '700' },
+  pongBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,214,10,0.08)',
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,214,10,0.20)',
+  },
+  pongBadgeText: { color: colors.yellow, fontSize: 11, fontWeight: '700' },
   vibeExpand: {
     flexDirection: 'row',
     alignItems: 'center',

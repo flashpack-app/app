@@ -45,6 +45,7 @@ export interface User {
   countries: number;
   saved: number;
   packedWith: { flag: string; name: string }[];
+  hasPongBadge?: boolean;
 }
 
 export interface AdminUserRow extends User {
