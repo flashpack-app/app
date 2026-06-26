@@ -5,9 +5,6 @@
 
 ## Quick start
 
-You'll run two processes: the **server** (Express + Neon Postgres) and the **Expo client**.
-
-Save one of the printed `FLASH·XXX·XX` codes — you'll need it to sign up.
 
 ### Client
 
