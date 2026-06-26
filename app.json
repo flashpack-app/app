@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "flash.",
+    "slug": "flash",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "flash",
+    "newArchEnabled": true,
+    "icon": "./src/assets/app-icon.png",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.flash.app",
+      "icon": "./src/assets/app-icon.png",
+      "infoPlist": {
+        "NSCameraUsageDescription": "flash. needs your camera to capture photos for your pack.",
+        "NSPhotoLibraryAddUsageDescription": "flash. saves your captured packs to your library.",
+        "NSFaceIDUsageDescription": "flash. uses face id to securely sign you in."
+      }
+    },
+    "android": {
+      "package": "com.flash.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/app-icon.png",
+        "backgroundColor": "#0A0A0A"
+      },
+      "permissions": [
+        "CAMERA",
+        "VIBRATE",
+        "USE_BIOMETRIC",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "splash": {
+      "image": "./src/assets/logo-white.png",
+      "backgroundColor": "#0A0A0A",
+      "resizeMode": "contain"
+    },
+    "backgroundColor": "#0A0A0A",
+    "plugins": [
+      "expo-camera",
+      "expo-notifications"
+    ],
+    "extra": {
+      "apiUrl": "",
+      "eas": {
+        "projectId": "e2cf8dae-530e-4eb8-b2ba-17bd027de57c"
+      }
+    },
+    "owner": "mory808"
+  }
+}
