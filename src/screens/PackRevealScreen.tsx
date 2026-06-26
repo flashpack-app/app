@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   TextInput,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -40,6 +42,7 @@ import ScreenshotWarningModal from './ScreenshotWarningModal';
 import { useScreenshotDetector, usePreventCapture } from '../services/screenshot';
 import FloatingReactions, { triggerFloatingReaction } from '../components/FloatingReactions';
 import { ModerationService } from '../services/moderation';
+import FlashLogo from '../components/FlashLogo';
 
 const GHOST_EMOJIS = ['👻', '🔥', '❤️', '😂', '😮'];
 
@@ -256,7 +259,7 @@ export default function PackRevealScreen() {
   const memberOf = (uid: string) => pack.members.find((m) => m.userId === uid);
 
   return (
-    <View style={styles.wrap}>
+    <KeyboardAvoidingView style={styles.wrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
         {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
@@ -470,6 +473,9 @@ export default function PackRevealScreen() {
                   onChangeText={setDraft}
                   multiline
                   maxLength={200}
+                  returnKeyType="send"
+                  blurOnSubmit={true}
+                  onSubmitEditing={onSendComment}
                 />
                 <Pressable
                   disabled={!draft.trim()}
@@ -505,10 +511,20 @@ export default function PackRevealScreen() {
         <View ref={storyRef} collapsable={false} style={styles.storyHidden} pointerEvents="none">
           <View style={styles.storyInner}>
             <View>
-              <ScaledText style={styles.storyBrand}>flash.</ScaledText>
+              {/* Logo row */}
+              <View style={styles.storyLogoRow}>
+                <FlashLogo size={96} />
+              </View>
+              {/* Tagline */}
               <ScaledText style={styles.storyTagline}>
-                {pack.members.length} people · {pack.countriesCount} countries
+                {pack.members.length} people · {pack.countriesCount} {pack.countriesCount === 1 ? 'country' : 'countries'}
               </ScaledText>
+              {/* Country flags */}
+              <View style={styles.storyFlagsRow}>
+                {Array.from(new Set(pack.members.map((m) => m.flag).filter(Boolean))).slice(0, 8).map((flag, i) => (
+                  <ScaledText key={i} style={styles.storyFlag}>{flag}</ScaledText>
+                ))}
+              </View>
             </View>
             <View style={styles.storyMosaic}>
               <Mosaic pack={pack} height={960} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
@@ -533,7 +549,7 @@ export default function PackRevealScreen() {
           <Ionicons name="person-outline" size={22} color="rgba(255,255,255,0.35)" />
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -744,8 +760,10 @@ const styles = StyleSheet.create({
     paddingBottom: 200,
     justifyContent: 'space-between',
   },
-  storyBrand: { color: colors.white, fontSize: 84, fontWeight: '900', letterSpacing: -3 },
-  storyTagline: { color: colors.textDim, fontSize: 28, fontWeight: '500', marginTop: 8 },
+  storyLogoRow: { flexDirection: 'row', alignItems: 'center' },
+  storyTagline: { color: colors.textDim, fontSize: 28, fontWeight: '500', marginTop: 12 },
+  storyFlagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  storyFlag: { fontSize: 40 },
   storyMosaic: { width: 960, height: 960, alignSelf: 'center' },
   storyFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   storyChem: { color: colors.yellow, fontSize: 56, fontWeight: '800' },

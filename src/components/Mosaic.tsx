@@ -34,6 +34,7 @@ interface CellProps {
 
 const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, index, animate, onPress }) => {
   const isPro = member?.isPro;
+  const proBorderColor = member?.proBorder || colors.yellow;
   const scale = useSharedValue(animate ? 0.85 : 1);
   const opacity = useSharedValue(animate ? 0 : 1);
 
@@ -51,7 +52,12 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
   const [c1, c2] = photo.placeholder ?? ['#222', '#111'];
 
   return (
-    <Animated.View style={[styles.cell, isSelf && styles.selfCell, isPro && !isSelf && styles.proCell, aStyle]}>
+    <Animated.View style={[
+      styles.cell,
+      isSelf && styles.selfCell,
+      isPro && !isSelf && { borderWidth: 1.5, borderColor: proBorderColor },
+      aStyle,
+    ]}>
     <Pressable onPress={onPress} disabled={!onPress} style={StyleSheet.absoluteFill}>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: c1 }]} />
       <View
@@ -82,7 +88,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
         </View>
       )}
       {isPro && !isSelf && (
-        <View style={styles.proBadge}>
+        <View style={[styles.proBadge, { backgroundColor: proBorderColor }]}>
           <Ionicons name="flash" size={8} color="#000" />
         </View>
       )}
