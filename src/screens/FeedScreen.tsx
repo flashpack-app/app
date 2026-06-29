@@ -10,7 +10,6 @@ import PackCard from '../components/PackCard';
 import LiquidRefresh from '../components/LiquidRefresh';
 import { colors } from '../theme/colors';
 import { useAppState } from '../state/AppState';
-import { usePreventCapture } from '../services/screenshot';
 import ScaledText from '../components/ScaledText';
 
 function useCountdown(target: Date | null): string {
@@ -40,7 +39,10 @@ export default function FeedScreen() {
   const progress = useSharedValue(0);
   const triggeredRef = useRef(false);
   const isFocused = useIsFocused();
-  usePreventCapture(isFocused);
+  const scrollRef = useRef<FlatList<any>>(null);
+  // Note: do NOT call usePreventCapture here — toggling FLAG_SECURE on tab
+  // focus/blur causes the black screen on Android. Screenshot blocking is
+  // handled inside PhotoViewerScreen for other people's photos only.
 
   // Show every pack that is still alive (not expired). The 18h expiry window
   // naturally hides old packs, so we don't filter by calendar day — otherwise a
@@ -79,6 +81,8 @@ export default function FeedScreen() {
     await Promise.all([refreshPacks(), refreshDiscover(), refreshNotifications()]);
     setRefreshing(false);
     triggeredRef.current = false;
+    progress.value = 0;
+    scrollRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, [refreshPacks, refreshDiscover, refreshNotifications]);
 
   const longPress = (packId: string) => {

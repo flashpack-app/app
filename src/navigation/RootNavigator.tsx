@@ -42,6 +42,7 @@ import ReportBugScreen from '../screens/ReportBugScreen';
 import PackVaultScreen from '../screens/PackVaultScreen';
 import CountriesScreen from '../screens/CountriesScreen';
 import PackCalendarScreen from '../screens/PackCalendarScreen';
+import WelcomeLocationScreen from '../screens/WelcomeLocationScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -137,7 +138,7 @@ function CustomSplash() {
 }
 
 export default function RootNavigator() {
-  const { isAuthenticated, isBooting } = useAppState();
+  const { isAuthenticated, isBooting, isOnboarding } = useAppState();
 
   useEffect(() => {
     const received = addNotificationReceivedListener((notification) => {
@@ -174,12 +175,17 @@ export default function RootNavigator() {
             <Stack.Screen name="Username" component={UsernameScreen} />
             <Stack.Screen name="SignIn" component={SignInScreen} />
           </>
+        ) : isOnboarding ? (
+          <>
+            <Stack.Screen name="WelcomeLocation" component={WelcomeLocationScreen} options={{ animation: 'fade' }} />
+            <Stack.Screen name="OnboardingPro" component={ProScreen} options={{ animation: 'slide_from_bottom' }} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Tabs" component={Tabs} />
             <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
             <Stack.Screen name="PackReveal" component={PackRevealScreen} />
-            <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+            <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'modal', animation: 'fade' }} />
             <Stack.Screen name="PackLifecycle" component={PackLifecycleScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="Comment" component={CommentMomentScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />

@@ -115,9 +115,8 @@ export default function UsernameScreen() {
     try {
       const extras = await getLocationExtras();
       const { user, token } = await APIService.redeemInvite(code, clean, extras);
-      await signIn({ user, token });
+      await signIn({ user, token }, true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const reason = e?.body?.error ?? '';

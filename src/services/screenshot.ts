@@ -7,6 +7,11 @@ import { APIService } from './api';
 // iOS: prevents content from appearing in screen recordings.
 export function usePreventCapture(active: boolean) {
   useEffect(() => {
+    if (__DEV__) {
+      // In development/testing, preventScreenCaptureAsync makes screen-mirroring
+      // tools (Scrcpy, Vysor, and emulator feeds) go completely black.
+      return;
+    }
     if (!active) return;
     const key = 'flash-prevent-' + Math.random().toString(36).slice(2);
     ScreenCapture.preventScreenCaptureAsync(key).catch(() => {});

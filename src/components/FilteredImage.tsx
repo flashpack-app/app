@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import {
   Canvas,
   Image,
@@ -22,10 +23,6 @@ interface Props {
   resizeMode?: 'cover' | 'contain';
 }
 
-// GPU 3D-LUT lookup. `image` is the fitted photo, `lut` is the strip texture
-// (size*size wide, size tall). We do trilinear interpolation: bilinear in R/G is
-// handled by the LUT's linear sampler; the blue axis is lerped manually between
-// the two neighbouring slices.
 const LUT_SKSL = `
 uniform shader image;
 uniform shader lut;
@@ -42,7 +39,6 @@ half4 main(float2 xy) {
   float b1 = min(b0 + 1.0, maxIdx);
   float fb = blueIdx - b0;
 
-  // +0.5 centres the sample on the texel for linear interpolation across R/G.
   float rx = c.r * maxIdx + 0.5;
   float gy = c.g * maxIdx + 0.5;
 
@@ -58,7 +54,7 @@ const lutEffect = Skia.RuntimeEffect.Make(LUT_SKSL);
 
 const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'cover' }) => {
   const [layout, setLayout] = useState({ width: 0, height: 0 });
-  const uri = typeof source === 'string' ? source : source.uri;
+  const uri = typeof source === 'string' ? source : source?.uri;
   const image = useImage(uri);
   const def = getFilterDef(filter);
   const lutImage = useImage(def.lut);
@@ -70,42 +66,68 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
   const { width, height } = layout;
   const fit = resizeMode === 'contain' ? 'contain' : 'cover';
 
-  if (!image || width === 0 || height === 0) {
-    return <View style={[style, styles.placeholder]} onLayout={onLayout} />;
+  // If there's no layout yet, render a fallback ExpoImage to start fetching and measuring
+  if (width === 0 || height === 0) {
+    return (
+      <View style={[style, styles.placeholder]} onLayout={onLayout}>
+        {uri ? (
+          <ExpoImage
+            source={{ uri }}
+            style={StyleSheet.absoluteFillObject}
+            contentFit={fit}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
+  const useLut = !!def.lut && !!lutImage && !!lutEffect;
+
+  // Bypassing Skia completely if there's no LUT filter, or if Skia assets haven't loaded yet.
+  // This ensures we get instant image loading, native caching, and 100% crash/black-screen resistance.
+  if (!useLut || !image) {
+    return (
+      <View style={style} onLayout={onLayout}>
+        {uri ? (
+          <ExpoImage
+            source={{ uri }}
+            style={StyleSheet.absoluteFillObject}
+            contentFit={fit}
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFillObject, styles.placeholder]} />
+        )}
+      </View>
+    );
   }
 
   const dst = rect(0, 0, width, height);
-  const useLut = !!def.lut && !!lutImage && !!lutEffect;
 
   return (
     <View style={style} onLayout={onLayout}>
       <Canvas style={{ width, height }} pointerEvents="none">
-        {useLut ? (
-          <Fill>
-            <Shader
-              source={lutEffect!}
-              uniforms={{ size: def.lutSize ?? 33, intensity: def.intensity ?? 1 }}
-            >
-              <ImageShader
-                image={image}
-                fit={fit}
-                rect={dst}
-                tx="clamp"
-                ty="clamp"
-                sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.None }}
-              />
-              <ImageShader
-                image={lutImage!}
-                fit="none"
-                tx="clamp"
-                ty="clamp"
-                sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.None }}
-              />
-            </Shader>
-          </Fill>
-        ) : (
-          <Image image={image} x={0} y={0} width={width} height={height} fit={fit} />
-        )}
+        <Fill>
+          <Shader
+            source={lutEffect!}
+            uniforms={{ size: def.lutSize ?? 33, intensity: def.intensity ?? 1 }}
+          >
+            <ImageShader
+              image={image}
+              fit={fit}
+              rect={dst}
+              tx="clamp"
+              ty="clamp"
+              sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.None }}
+            />
+            <ImageShader
+              image={lutImage!}
+              fit="none"
+              tx="clamp"
+              ty="clamp"
+              sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.None }}
+            />
+          </Shader>
+        </Fill>
       </Canvas>
     </View>
   );

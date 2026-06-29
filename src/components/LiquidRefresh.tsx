@@ -28,11 +28,9 @@ export default function LiquidRefresh({ progress }: { progress: SharedValue<numb
   });
 
   const containerStyle = useAnimatedStyle(() => {
-    const visible = progress.value > 0;
     return {
       opacity: progress.value,
-      height: visible ? 48 : 0,
-      paddingVertical: visible ? 10 : 0,
+      height: progress.value * 48,
     };
   });
 
@@ -64,8 +62,10 @@ export default function LiquidRefresh({ progress }: { progress: SharedValue<numb
 
 const styles = StyleSheet.create({
   wrap: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    height: 48,
+    paddingVertical: 10,
   },
 });

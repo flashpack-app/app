@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 import { pool, query } from './db';
 import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
@@ -11,6 +13,11 @@ const app = express();
 app.use(cors());
 // Photos are uploaded as base64 JSON, so allow large bodies.
 app.use(express.json({ limit: '50mb' }));
+
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 // Health check used by Render (and uptime monitors) to verify the service is alive.
 app.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
@@ -329,56 +336,78 @@ app.get('/invite/slots', requireUser, async (req: Request, res: Response) => {
 // No auth header is required because image loaders (Skia/<Image>) can't send one;
 // the photo id is an unguessable UUID.
 app.get('/photos/:id/raw', async (req: Request, res: Response) => {
+  const photoId = req.params.id;
+  const cachedFilePath = path.join(UPLOADS_DIR, `raw-${photoId}`);
+  const mimePath = cachedFilePath + '.mime';
+
+  if (fs.existsSync(cachedFilePath) && fs.existsSync(mimePath)) {
+    try {
+      const mime = fs.readFileSync(mimePath, 'utf8');
+      res.setHeader('Content-Type', mime || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+      return res.sendFile(cachedFilePath);
+    } catch (err) {
+      console.error('Error reading cached raw file:', err);
+    }
+  }
+
   const rows = await query<{ image_data: string | null; image_mime: string | null }>(
     'SELECT image_data, image_mime FROM photos WHERE id = $1 AND reverted_at IS NULL',
-    [req.params.id],
+    [photoId],
   );
   const row = rows[0];
   if (!row || !row.image_data) return res.status(404).end();
   const buf = Buffer.from(row.image_data, 'base64');
-  res.setHeader('Content-Type', row.image_mime || 'image/jpeg');
+  const mime = row.image_mime || 'image/jpeg';
+
+  try {
+    fs.writeFileSync(cachedFilePath, buf);
+    fs.writeFileSync(mimePath, mime);
+  } catch (err) {
+    console.error('Error writing cached raw file:', err);
+  }
+
+  res.setHeader('Content-Type', mime);
   res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
-  return res.end(buf);
+  return res.sendFile(cachedFilePath);
 });
 
 // Public: serve the flash.live video clip for a photo.
 app.get('/photos/:id/video', async (req: Request, res: Response) => {
+  const photoId = req.params.id;
+  const cachedFilePath = path.join(UPLOADS_DIR, `video-${photoId}`);
+  const mimePath = cachedFilePath + '.mime';
+
+  if (fs.existsSync(cachedFilePath) && fs.existsSync(mimePath)) {
+    try {
+      const mime = fs.readFileSync(mimePath, 'utf8');
+      res.setHeader('Content-Type', mime || 'video/mp4');
+      res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+      return res.sendFile(cachedFilePath);
+    } catch (err) {
+      console.error('Error reading cached video file:', err);
+    }
+  }
+
   const rows = await query<{ video_data: string | null; video_mime: string | null }>(
     'SELECT video_data, video_mime FROM photos WHERE id = $1 AND reverted_at IS NULL',
-    [req.params.id],
+    [photoId],
   );
   const row = rows[0];
   if (!row || !row.video_data) return res.status(404).end();
   const buf = Buffer.from(row.video_data, 'base64');
-  const totalLength = buf.length;
   const mime = row.video_mime || 'video/mp4';
 
-  res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
-  res.setHeader('Accept-Ranges', 'bytes');
-
-  const range = req.headers.range;
-  if (!range) {
-    res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Length', totalLength);
-    return res.end(buf);
+  try {
+    fs.writeFileSync(cachedFilePath, buf);
+    fs.writeFileSync(mimePath, mime);
+  } catch (err) {
+    console.error('Error writing cached video file:', err);
   }
 
-  // Parse Range header: "bytes=start-end"
-  const parts = range.replace(/bytes=/, "").split("-");
-  const start = parseInt(parts[0], 10);
-  const end = parts[1] ? parseInt(parts[1], 10) : totalLength - 1;
-
-  if (start >= totalLength || end >= totalLength || start > end) {
-    res.setHeader('Content-Range', `bytes */${totalLength}`);
-    return res.status(416).end();
-  }
-
-  const chunk = buf.subarray(start, end + 1);
-  res.status(206);
-  res.setHeader('Content-Range', `bytes ${start}-${end}/${totalLength}`);
-  res.setHeader('Content-Length', chunk.length);
   res.setHeader('Content-Type', mime);
-  return res.end(chunk);
+  res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  return res.sendFile(cachedFilePath);
 });
 
 app.post('/photos', requireUser, async (req: Request, res: Response) => {
@@ -560,6 +589,18 @@ app.post('/photos/:id/revert', requireUser, async (req: Request, res: Response) 
   await query('DELETE FROM pack_members WHERE photo_id = $1', [photoId]);
   // Reset last_post_at so camera unlocks
   await query('UPDATE users SET last_post_at = NULL WHERE id = $1', [userId]);
+
+  // Delete cached media files from disk
+  const cachedFilePath = path.join(UPLOADS_DIR, `raw-${photoId}`);
+  const cachedVideoPath = path.join(UPLOADS_DIR, `video-${photoId}`);
+  try {
+    if (fs.existsSync(cachedFilePath)) fs.unlinkSync(cachedFilePath);
+    if (fs.existsSync(cachedFilePath + '.mime')) fs.unlinkSync(cachedFilePath + '.mime');
+    if (fs.existsSync(cachedVideoPath)) fs.unlinkSync(cachedVideoPath);
+    if (fs.existsSync(cachedVideoPath + '.mime')) fs.unlinkSync(cachedVideoPath + '.mime');
+  } catch (err) {
+    console.error('Error unlinking reverted photo caches:', err);
+  }
 
   return res.json({ ok: true });
 });
@@ -1042,18 +1083,42 @@ app.patch('/me', requireUser, async (req: Request, res: Response) => {
 
 // Serve avatar by user id (no auth needed; id is unguessable uuid)
 app.get('/avatars/:userId', async (req: Request, res: Response) => {
+  const userId = req.params.userId;
+  const cachedFilePath = path.join(UPLOADS_DIR, `avatar-${userId}`);
+  const mimePath = cachedFilePath + '.mime';
+
+  if (fs.existsSync(cachedFilePath) && fs.existsSync(mimePath)) {
+    try {
+      const mime = fs.readFileSync(mimePath, 'utf8');
+      res.setHeader('Content-Type', mime || 'image/jpeg');
+      // Avatars live at a stable per-user URL but can change, so don't cache as
+      // immutable — revalidate so a new avatar replaces the old one immediately.
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.sendFile(cachedFilePath);
+    } catch (err) {
+      console.error('Error reading cached avatar file:', err);
+    }
+  }
+
   const rows = await query<{ avatar_data: string | null; avatar_mime: string | null }>(
     'SELECT avatar_data, avatar_mime FROM users WHERE id = $1',
-    [req.params.userId],
+    [userId],
   );
   const row = rows[0];
   if (!row || !row.avatar_data) return res.status(404).end();
   const buf = Buffer.from(row.avatar_data, 'base64');
-  res.setHeader('Content-Type', row.avatar_mime || 'image/jpeg');
-  // Avatars live at a stable per-user URL but can change, so don't cache as
-  // immutable — revalidate so a new avatar replaces the old one immediately.
+  const mime = row.avatar_mime || 'image/jpeg';
+
+  try {
+    fs.writeFileSync(cachedFilePath, buf);
+    fs.writeFileSync(mimePath, mime);
+  } catch (err) {
+    console.error('Error writing cached avatar file:', err);
+  }
+
+  res.setHeader('Content-Type', mime);
   res.setHeader('Cache-Control', 'no-cache');
-  return res.end(buf);
+  return res.sendFile(cachedFilePath);
 });
 
 // Upload avatar as base64
@@ -1063,6 +1128,16 @@ app.post('/me/avatar', requireUser, async (req: Request, res: Response) => {
   if (!imageData || typeof imageData !== 'string') {
     return res.status(400).json({ error: 'imageData_required' });
   }
+
+  // Delete cached avatar from disk if exists
+  const cachedFilePath = path.join(UPLOADS_DIR, `avatar-${userId}`);
+  try {
+    if (fs.existsSync(cachedFilePath)) fs.unlinkSync(cachedFilePath);
+    if (fs.existsSync(cachedFilePath + '.mime')) fs.unlinkSync(cachedFilePath + '.mime');
+  } catch (err) {
+    console.error('Error unlinking avatar cache:', err);
+  }
+
   const rows = await query<UserRow>(
     'UPDATE users SET avatar_data = $1, avatar_mime = $2, avatar_url = NULL WHERE id = $3 RETURNING *',
     [imageData, imageMime ?? 'image/jpeg', userId],

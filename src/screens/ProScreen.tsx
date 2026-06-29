@@ -45,22 +45,30 @@ const FEATURES = [
 export default function ProScreen() {
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { user, updateProBorder } = useAppState();
+  const { user, updateProBorder, isOnboarding, setIsOnboarding } = useAppState();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
+
+  const onClose = () => {
+    if (isOnboarding) {
+      setIsOnboarding(false);
+    } else {
+      nav.goBack();
+    }
+  };
 
   const onSubscribe = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert(
       'thanks for the support 🟡',
       'in-app purchases will be available in the next build. your interest is logged.',
-      [{ text: 'ok', onPress: () => nav.goBack() }],
+      [{ text: 'ok', onPress: onClose }],
     );
   };
 
   return (
     <View style={styles.wrap}>
       <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
+        <Pressable onPress={onClose} style={styles.backBtn}>
           <Ionicons name="close" size={22} color={colors.white} />
         </Pressable>
         <Text style={styles.title}>flash. pro</Text>
@@ -170,6 +178,12 @@ export default function ProScreen() {
         <Text style={styles.fineprint}>
           cancel anytime. lifetime is one-time. you'll be charged after a 7-day free trial on yearly plans.
         </Text>
+
+        {isOnboarding && (
+          <Pressable onPress={onClose} style={styles.skipLink}>
+            <Text style={styles.skipLinkText}>maybe later · enter the app →</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -296,6 +310,17 @@ const styles = StyleSheet.create({
   },
   ctaText: { color: '#000', fontSize: 15, fontWeight: '800' },
   fineprint: { color: colors.textHint, fontSize: 10, textAlign: 'center', lineHeight: 14 },
+  skipLink: {
+    marginTop: 6,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  skipLinkText: {
+    color: 'rgba(255,255,255,0.22)',
+    fontSize: 11,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
+  },
 
   borderCard: {
     backgroundColor: colors.card,

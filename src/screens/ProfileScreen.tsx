@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from '../services/haptics';
 import { colors } from '../theme/colors';
 import { useAppState } from '../state/AppState';
@@ -17,6 +18,7 @@ import VibemeterBar from '../components/VibemeterBar';
 import CountryChip from '../components/CountryChip';
 import CountryMapModal from '../components/CountryMapModal';
 import PongGame from '../components/PongGame';
+import LiquidRefresh from '../components/LiquidRefresh';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -95,15 +97,18 @@ export default function ProfileScreen() {
   const targetUsername = route.params?.username as string | undefined;
   const { largerText } = useAccessibility();
   const isOwnProfile = !targetUsername || targetUsername === me?.username;
-  const [avatarMenu, setAvatarMenu] = useState(false);
   const [avatarViewer, setAvatarViewer] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
   const [showPong, setShowPong] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const adminTapCount = useRef(0);
   const adminTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggeredRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
   const secretScale = useSharedValue(1);
   const secretRotate = useSharedValue(0);
+  const progress = useSharedValue(0);
 
   const secretStyle = useAnimatedStyle(() => ({
     transform: [
@@ -182,6 +187,26 @@ export default function ProfileScreen() {
         .finally(() => setLoading(false));
     }
   }, [isOwnProfile, targetUsername]);
+
+  const onRefresh = useCallback(async () => {
+    if (triggeredRef.current) return;
+    triggeredRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setRefreshing(true);
+    if (isOwnProfile) {
+      await Promise.all([refreshStreak(), refreshPacks()]);
+    } else if (targetUsername) {
+      setLoading(true);
+      await APIService.getPublicProfile(targetUsername)
+        .then((p) => setPublicProfile(p))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+    setRefreshing(false);
+    triggeredRef.current = false;
+    progress.value = 0;
+    scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  }, [isOwnProfile, targetUsername, refreshStreak, refreshPacks]);
 
   const displayUser = isOwnProfile ? me : publicProfile;
   const isPro = displayUser?.isPro ?? false;
@@ -287,8 +312,16 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      Haptics.selectionAsync();
-      updateAvatar(result.assets[0].uri);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      try {
+        const dir = FileSystem.documentDirectory ?? '';
+        const dest = `${dir}avatar-${Date.now()}.jpg`;
+        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+        updateAvatar(dest);
+      } catch (err) {
+        console.error('Error copying avatar image:', err);
+        updateAvatar(result.assets[0].uri);
+      }
     }
   };
 
@@ -299,7 +332,11 @@ export default function ProfileScreen() {
   const onAvatarPress = () => {
     Haptics.selectionAsync?.();
     if (isOwnProfile) {
-      setAvatarMenu(true);
+      Alert.alert('profile photo', undefined, [
+        { text: displayUser?.avatarUrl ? 'change photo' : 'add photo', onPress: () => void onPickPhoto() },
+        ...(displayUser?.avatarUrl ? [{ text: 'view photo', onPress: () => setAvatarViewer(true) }] : []),
+        { text: 'cancel', style: 'cancel' }
+      ] as any);
     } else if (displayUser?.avatarUrl && !avatarLoadError) {
       setAvatarViewer(true);
     }
@@ -326,7 +363,25 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.black }}>
-      <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.wrap}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y < 0 && !triggeredRef.current) {
+            progress.value = Math.min(Math.abs(y) / 70, 1);
+            if (y < -70) {
+              onRefresh();
+            }
+          }
+        }}
+        onScrollEndDrag={() => {
+          progress.value = 0;
+        }}
+      >
+        <LiquidRefresh progress={progress} />
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -572,38 +627,7 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Avatar action bottom sheet */}
-      <Modal visible={avatarMenu} transparent animationType="fade" onRequestClose={() => setAvatarMenu(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setAvatarMenu(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: Math.max(16, insets.bottom) }]} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            {displayUser?.avatarUrl ? (
-              <Pressable
-                style={styles.sheetRow}
-                onPress={() => { setAvatarMenu(false); setTimeout(() => setAvatarViewer(true), 250); }}
-              >
-                <Ionicons name="expand-outline" size={20} color={colors.white} />
-                <ScaledText style={styles.sheetRowText}>view photo</ScaledText>
-              </Pressable>
-            ) : null}
-            <Pressable
-              style={styles.sheetRow}
-              onPress={() => {
-                // Close the sheet first; launching the picker while the Modal is
-                // still dismissing prevents the gallery from appearing.
-                setAvatarMenu(false);
-                setTimeout(() => { void onPickPhoto(); }, 350);
-              }}
-            >
-              <Ionicons name="image-outline" size={20} color={colors.white} />
-              <ScaledText style={styles.sheetRowText}>{displayUser?.avatarUrl ? 'change photo' : 'add photo'}</ScaledText>
-            </Pressable>
-            <Pressable style={[styles.sheetRow, styles.sheetCancel]} onPress={() => setAvatarMenu(false)}>
-              <ScaledText style={[styles.sheetRowText, { color: colors.textDim }]}>cancel</ScaledText>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+
 
       {/* Fullscreen avatar viewer */}
       <Modal visible={avatarViewer} transparent animationType="fade" onRequestClose={() => setAvatarViewer(false)}>

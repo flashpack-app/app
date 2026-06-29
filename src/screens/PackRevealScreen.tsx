@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   ScrollView,
@@ -10,6 +10,9 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Text,
+  Keyboard,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -44,6 +47,7 @@ import { useScreenshotDetector, usePreventCapture } from '../services/screenshot
 import FloatingReactions, { triggerFloatingReaction } from '../components/FloatingReactions';
 import { ModerationService } from '../services/moderation';
 import FlashLogo from '../components/FlashLogo';
+import LiquidRefresh from '../components/LiquidRefresh';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
 const GHOST_EMOJIS = ['👻', '🔥', '❤️', '😂', '😮'];
@@ -127,7 +131,7 @@ function useCountdown(target: Date | null): string {
 export default function PackRevealScreen() {
   const route = useRoute<any>();
   const nav = useNavigation<any>();
-  const { packs, discoverPacks, reactions, addReaction, addComment, user, comments, token, dailyTopic } = useAppState();
+  const { packs, discoverPacks, reactions, addReaction, addComment, user, comments, token, dailyTopic, refreshPacks, refreshDiscover } = useAppState();
   const { reduceMotion, minimizeAnimations } = useAccessibility();
   const id = route.params?.packId ?? packs[0]?.id;
   const pack = packs.find((p) => p.id === id) ?? discoverPacks.find((p) => p.id === id) ?? packs[0];
@@ -136,8 +140,13 @@ export default function PackRevealScreen() {
   const [showChem, setShowChem] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const hasDailyTopic = !!dailyTopic && dailyTopic.date === new Date().toISOString().slice(0, 10);
   const storyRef = useRef<View>(null);
+  const triggeredRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const progress = useSharedValue(0);
   const insets = useSafeAreaInsets();
 
   const onSharePack = async () => {
@@ -174,7 +183,27 @@ export default function PackRevealScreen() {
   useScreenshotDetector(token, pack?.id, () => setWarn(true));
   const timeLeft = useCountdown(pack?.expiresAt ? new Date(pack.expiresAt) : null);
 
-  if (!pack) return <View style={styles.wrap} />;
+  const onRefresh = useCallback(async () => {
+    if (triggeredRef.current) return;
+    triggeredRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setRefreshing(true);
+    await Promise.all([refreshPacks(), refreshDiscover()]);
+    setRefreshing(false);
+    triggeredRef.current = false;
+    progress.value = 0;
+    scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+  }, [refreshPacks, refreshDiscover]);
+
+  if (!pack) return (
+    <View style={[styles.wrap, { justifyContent: 'center', alignItems: 'center' }]}>
+      <Pressable onPress={() => nav.goBack()} style={{ position: 'absolute', top: Math.max(12, insets.top), left: 12, padding: 8 }}>
+        <Ionicons name="chevron-back" size={22} color={colors.white} />
+      </Pressable>
+      <Ionicons name="layers-outline" size={40} color={colors.textFade} />
+      <ScaledText style={{ color: colors.textFade, marginTop: 12, fontSize: 14 }}>pack not found</ScaledText>
+    </View>
+  );
 
   // ── reveal animation ──
   const ready = useSharedValue(0);
@@ -294,7 +323,25 @@ export default function PackRevealScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.wrap} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 12 }}
+        scrollEventThrottle={16}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y < 0 && !triggeredRef.current) {
+            progress.value = Math.min(Math.abs(y) / 70, 1);
+            if (y < -70) {
+              onRefresh();
+            }
+          }
+        }}
+        onScrollEndDrag={() => {
+          progress.value = 0;
+        }}
+      >
+        <LiquidRefresh progress={progress} />
         {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
           <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
@@ -540,29 +587,91 @@ export default function PackRevealScreen() {
           {isMember && !userCommented && allPosted && (
             <View style={styles.youCard}>
               <ScaledText style={styles.metaYou}>{user?.flag ?? '🌍'} you · write once, locked forever</ScaledText>
-              <View style={styles.inputRow}>
-                <TextInput
-                  placeholder="say something..."
-                  placeholderTextColor="rgba(255,255,255,0.3)"
-                  style={styles.input}
-                  value={draft}
-                  onChangeText={setDraft}
-                  multiline
-                  maxLength={200}
-                  returnKeyType="send"
-                  blurOnSubmit={true}
-                  onSubmitEditing={onSendComment}
-                />
-                <Pressable
-                  disabled={!draft.trim()}
-                  onPress={onSendComment}
-                  style={[styles.sendBtn, !draft.trim() && { opacity: 0.4 }]}
-                >
-                  <Ionicons name="arrow-up" size={14} color="#000" />
-                </Pressable>
-              </View>
+              <Pressable
+                onPress={() => setShowCommentModal(true)}
+                style={styles.inputPlaceholderRow}
+              >
+                <ScaledText style={styles.inputPlaceholderText}>say something...</ScaledText>
+                <View style={styles.sendBtnPlaceholder}>
+                  <Ionicons name="chatbubble-outline" size={12} color="rgba(255,255,255,0.4)" />
+                </View>
+              </Pressable>
             </View>
           )}
+
+          {/* Premium Bottom Sheet-style Comment Input Modal */}
+          <Modal
+            visible={showCommentModal}
+            animationType="slide"
+            transparent
+            statusBarTranslucent
+            onRequestClose={() => setShowCommentModal(false)}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.modalBackdrop}
+            >
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPressIn={() => {
+                  Keyboard.dismiss();
+                  setShowCommentModal(false);
+                }}
+              />
+              <View style={[styles.modalContainer, { paddingBottom: Math.max(20, insets.bottom + 10) }]}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderTitleRow}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.yellow} />
+                    <ScaledText style={styles.modalTitle}>add comment</ScaledText>
+                  </View>
+                  <Pressable
+                    onPressIn={() => {
+                      Keyboard.dismiss();
+                      setShowCommentModal(false);
+                    }}
+                    style={styles.modalCloseBtn}
+                    hitSlop={12}
+                  >
+                    <Ionicons name="close" size={18} color="rgba(255,255,255,0.4)" />
+                  </Pressable>
+                </View>
+                
+                <ScaledText style={styles.modalHint}>
+                  you are commenting as <Text style={styles.modalUserHighlight}>@{user?.username}</Text> · write once, locked forever
+                </ScaledText>
+
+                <View style={styles.modalInputRow}>
+                  <TextInput
+                    autoFocus
+                    placeholder="say something..."
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    style={styles.modalInput}
+                    value={draft}
+                    onChangeText={setDraft}
+                    maxLength={200}
+                    returnKeyType="send"
+                    blurOnSubmit={true}
+                    onSubmitEditing={() => {
+                      if (draft.trim()) {
+                        onSendComment();
+                        setShowCommentModal(false);
+                      }
+                    }}
+                  />
+                  <Pressable
+                    disabled={!draft.trim()}
+                    onPress={() => {
+                      onSendComment();
+                      setShowCommentModal(false);
+                    }}
+                    style={[styles.modalSendBtn, !draft.trim() && { opacity: 0.35 }]}
+                  >
+                    <Ionicons name="arrow-up" size={15} color="#000" />
+                  </Pressable>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
 
           {userCommented && (
             <View style={[styles.lockBanner, { marginTop: 6 }]}>
@@ -854,6 +963,100 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputPlaceholderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    height: 34,
+    marginTop: 4,
+  },
+  inputPlaceholderText: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+  },
+  sendBtnPlaceholder: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    borderWidth: 1,
+    borderColor: '#222',
+    borderBottomWidth: 0,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalHint: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 10,
+    marginBottom: 16,
+  },
+  modalUserHighlight: {
+    color: colors.yellow,
+    fontWeight: '600',
+  },
+  modalInputRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-end',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 18,
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  modalInput: {
+    flex: 1,
+    minHeight: 34,
+    maxHeight: 110,
+    color: '#FFF',
+    fontSize: 13,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  modalSendBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: colors.yellow,
     alignItems: 'center',
     justifyContent: 'center',

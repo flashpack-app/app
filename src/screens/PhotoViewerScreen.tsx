@@ -59,23 +59,29 @@ export default function PhotoViewerScreen() {
   const { packs, discoverPacks, user } = useAppState();
   const packId: string = route.params?.packId;
   const photoId: string | undefined = route.params?.photoId;
-  const pack =
-    packs.find((p) => p.id === packId) ?? discoverPacks.find((p) => p.id === packId);
-  const isMember = !!pack && pack.members.some((m) => m.userId === user?.id);
-  // Block screenshots when viewing someone else's (discover) photo.
-  usePreventCapture(!!pack && !isMember);
-  const photo = pack?.photos.find((p) => p.id === photoId) ?? pack?.photos[0];
-  const imageUrl = photo?.imageURL
-    ? photo.imageURL.startsWith('http') || photo.imageURL.startsWith('data:')
-      ? photo.imageURL
-      : `${API_URL}${photo.imageURL}`
-    : undefined;
 
-  const videoUrl = photo?.videoURL
-    ? photo.videoURL.startsWith('http')
-      ? photo.videoURL
-      : `${API_URL}${photo.videoURL}`
-    : undefined;
+  // Use a ref so the pack data doesn't disappear if state updates mid-view
+  const packRef = useRef(
+    packs.find((p) => p.id === packId) ?? discoverPacks.find((p) => p.id === packId)
+  );
+  const pack = packRef.current ?? packs.find((p) => p.id === packId) ?? discoverPacks.find((p) => p.id === packId);
+  // Update ref whenever a valid pack is resolved
+  if (pack && !packRef.current) packRef.current = pack;
+
+  const isMember = !!pack && pack.members.some((m) => m.userId === user?.id);
+  // Block screenshots only when viewing someone else's (discover) photo.
+  usePreventCapture(!!pack && !isMember);
+  const resolveUrl = (u?: string): string | undefined => {
+    if (!u) return undefined;
+    if (u.startsWith('http') || u.startsWith('data:')) return u;
+    const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+    const path = u.startsWith('/') ? u : `/${u}`;
+    return `${baseUrl}${path}`;
+  };
+
+  const photo = pack?.photos.find((p) => p.id === photoId) ?? pack?.photos[0];
+  const imageUrl = resolveUrl(photo?.imageURL);
+  const videoUrl = resolveUrl(photo?.videoURL);
   const member = pack?.members.find((m) => m.userId === photo?.userId);
   const storyRef = useRef<View>(null);
   const [busy, setBusy] = useState(false);
@@ -198,8 +204,15 @@ export default function PhotoViewerScreen() {
 
   if (!pack || !photo) {
     return (
-      <View style={styles.wrap}>
-        <Text style={{ color: colors.white, marginTop: 80, textAlign: 'center' }}>photo not found</Text>
+      <View style={[styles.wrap, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Pressable
+          onPress={() => nav.goBack()}
+          style={[styles.iconBtn, { position: 'absolute', top: Math.max(12, insets.top), left: 12 }]}
+        >
+          <Ionicons name="close" size={24} color={colors.white} />
+        </Pressable>
+        <Ionicons name="image-outline" size={40} color={colors.textFade} />
+        <Text style={{ color: colors.textFade, marginTop: 12, fontSize: 14 }}>photo not found</Text>
       </View>
     );
   }

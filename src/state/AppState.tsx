@@ -32,7 +32,9 @@ interface AppStateValue {
   comments: Record<string, CommentMessage[]>;
   streak: StreakInfo | null;
   dailyTopic: { topic: string; date: string } | null;
-  signIn: (s: Session) => Promise<void>;
+  isOnboarding: boolean;
+  setIsOnboarding: (val: boolean) => void;
+  signIn: (s: Session, onboarding?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   refreshPacks: () => Promise<void>;
@@ -70,6 +72,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [comments, setComments] = useState<Record<string, CommentMessage[]>>({});
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [dailyTopic, setDailyTopic] = useState<{ topic: string; date: string } | null>(null);
+  const [isOnboarding, setIsOnboarding] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -113,9 +116,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       comments,
       streak,
       dailyTopic,
-      async signIn(s) {
+      isOnboarding,
+      setIsOnboarding,
+      async signIn(s, onboarding = false) {
         setUser(s.user);
         setToken(s.token);
+        setIsOnboarding(onboarding);
         await saveSession(s);
         registerForPushNotificationsAsync(s.token).catch(() => {});
       },
@@ -176,6 +182,29 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           const loaded = await APIService.getDiscover(token);
           setDiscoverPacks(loaded);
+          const cmtMap: Record<string, CommentMessage[]> = {};
+          for (const p of loaded) {
+            if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
+          }
+          if (Object.keys(cmtMap).length) {
+            setComments((prev) => ({ ...prev, ...cmtMap }));
+          }
+          setReactions((prev) => {
+            const next: Record<string, PackReaction[]> = { ...prev };
+            for (const p of loaded) {
+              const server = (p.reactions ?? []).map((r: any) => ({
+                userId: r.userId,
+                emoji: r.emoji,
+                sentAt: new Date().toISOString(),
+              }));
+              const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
+              const serverKeys = new Set(server.map(key));
+              const local = prev[p.id] ?? [];
+              const extra = local.filter((r) => !serverKeys.has(key(r)));
+              next[p.id] = [...server, ...extra];
+            }
+            return next;
+          });
         } catch {}
       },
       markAllRead: () => setUnreadCount(0),
@@ -267,7 +296,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
     }),
-    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic],
+    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, setIsOnboarding],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
