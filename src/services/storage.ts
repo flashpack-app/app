@@ -13,7 +13,8 @@ export async function loadSession(): Promise<Session | null> {
     const raw = await AsyncStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as Session;
-  } catch {
+  } catch (e) {
+    console.warn('failed to load session from storage:', e);
     return null;
   }
 }

@@ -90,12 +90,16 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           await saveSession({ token: s.token, user: fresh });
           registerForPushNotificationsAsync(s.token).catch(() => {});
-        } catch {}
+        } catch (e) {
+          console.warn('failed to refresh user on boot:', e);
+        }
       }
       try {
         const topic = await APIService.getDailyTopic();
         setDailyTopic(topic);
-      } catch {}
+      } catch (e) {
+        console.warn('failed to load daily topic:', e);
+      }
       setBooting(false);
     })();
   }, []);
@@ -142,7 +146,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const fresh = await APIService.getMe(token);
           setUser(fresh);
           await saveSession({ token, user: fresh });
-        } catch {}
+        } catch (e) {
+          console.warn('refreshUser failed:', e);
+        }
       },
       async refreshPacks() {
         if (!token) return;
@@ -175,7 +181,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return next;
           });
           if (loaded.length > 0) setHasPostedFirstPack(true);
-        } catch {}
+        } catch (e) {
+          console.warn('refreshPacks failed:', e);
+        }
       },
       async refreshDiscover() {
         if (!token) return;
@@ -205,7 +213,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
             return next;
           });
-        } catch {}
+        } catch (e) {
+          console.warn('refreshDiscover failed:', e);
+        }
       },
       markAllRead: () => setUnreadCount(0),
       markOneRead: () => setUnreadCount((c) => Math.max(0, c - 1)),
@@ -224,13 +234,17 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return { ...prev, [packId]: [...existing, { userId, emoji, sentAt: new Date().toISOString() }] };
         });
         if (token) {
-          APIService.addReaction(token, packId, emoji).catch(() => {});
+          APIService.addReaction(token, packId, emoji).catch((e) => {
+            console.warn('addReaction failed:', e);
+          });
         }
       },
       addComment: (packId, msg) => {
         setComments((prev) => ({ ...prev, [packId]: [...(prev[packId] ?? []), msg] }));
         if (token) {
-          APIService.addComment(token, packId, msg.text).catch(() => {});
+          APIService.addComment(token, packId, msg.text).catch((e) => {
+            console.warn('addComment failed:', e);
+          });
         }
       },
       async updateAvatar(uri) {
@@ -257,7 +271,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           await APIService.updateProfile(token, { proBorder: color });
           await saveSession({ token, user: next });
-        } catch {}
+        } catch (e) {
+          console.warn('updateProBorder failed:', e);
+        }
       },
       async revertPhoto(photoId) {
         if (!token) return;
@@ -273,14 +289,18 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setStreak(s);
           if (s.lastPostAt) setLastPostAt(s.lastPostAt);
           setUser((prev) => (prev ? { ...prev, streakDays: s.streakDays } : prev));
-        } catch {}
+        } catch (e) {
+          console.warn('refreshStreak failed:', e);
+        }
       },
       async refreshNotifications() {
         if (!token) return;
         try {
           const list = await APIService.getNotifications(token);
           setUnreadCount(list.filter((n) => !n.readAt).length);
-        } catch {}
+        } catch (e) {
+          console.warn('refreshNotifications failed:', e);
+        }
       },
       async awardPongBadge() {
         if (!user) return;
