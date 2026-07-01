@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 
 interface CountryEntry {
@@ -15,7 +15,6 @@ interface CountryEntry {
 
 export default function CountriesScreen() {
   const nav = useNavigation<any>();
-  const insets = useSafeAreaInsets();
   const { packs, user } = useAppState();
 
   const countries = useMemo(() => {
@@ -38,13 +37,7 @@ export default function CountriesScreen() {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>countries</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <ScreenHeader title="countries" />
       <ScrollView contentContainerStyle={styles.scroll}>
         {countries.length === 0 ? (
           <View style={styles.empty}>
@@ -84,15 +77,6 @@ export default function CountriesScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
   scroll: { padding: 12, paddingBottom: 40 },
   empty: { alignItems: 'center', marginTop: 80, gap: 10 },
   emptyTitle: { color: colors.white, fontSize: 14, fontWeight: '600' },

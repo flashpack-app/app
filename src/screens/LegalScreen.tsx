@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 
 type DocKey = 'terms' | 'privacy' | 'guidelines' | 'content' | 'cookies' | 'copyright' | 'data';
 
@@ -40,20 +39,12 @@ const DOCS: Record<DocKey, { title: string; body: string }> = {
 
 export default function LegalScreen() {
   const route = useRoute<any>();
-  const nav = useNavigation();
-  const insets = useSafeAreaInsets();
   const docKey: DocKey = route.params?.doc ?? 'terms';
   const doc = DOCS[docKey] ?? DOCS.terms;
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>{doc.title}</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <ScreenHeader title={doc.title} />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.body}>{doc.body}</Text>
       </ScrollView>
@@ -63,15 +54,6 @@ export default function LegalScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700', flex: 1, textAlign: 'center' },
   scroll: { padding: 16, paddingBottom: 40 },
   body: { color: colors.textSecondary, fontSize: 12, lineHeight: 20 },
 });

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, ToastAndroid, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
 import PillButton from '../components/PillButton';
+import ScreenHeader from '../components/ScreenHeader';
 import { APIService } from '../services/api';
 
 const REASONS = [
@@ -21,7 +21,6 @@ const REASONS = [
 export default function ReportScreen() {
   const nav = useNavigation<any>();
   const route = useRoute<any>();
-  const insets = useSafeAreaInsets();
   const { packs, token } = useAppState();
   const id = route.params?.packId;
   const pack = packs.find((p) => p.id === id) ?? packs[0];
@@ -40,13 +39,7 @@ export default function ReportScreen() {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.back}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>report pack</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <ScreenHeader title="report pack" />
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 12 }}>
         {pack && <Mosaic pack={pack} height={88} cellGap={1} showFlags={false} borderRadius={10} />}
@@ -88,15 +81,6 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  back: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
   sectionLabel: { color: colors.textDim, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   row: {
     flexDirection: 'row',
