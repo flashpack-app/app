@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import {
@@ -57,7 +57,19 @@ const lutEffect = Skia.RuntimeEffect.Make(LUT_SKSL);
 const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'cover', showLoader = false }) => {
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const [loading, setLoading] = useState(true);
+  const [showSpinner, setShowSpinner] = useState(false);
   const uri = typeof source === 'string' ? source : source?.uri;
+
+  // Only reveal the spinner if loading genuinely takes a beat, so cached
+  // images that paint instantly on remount never flash a loader.
+  useEffect(() => {
+    if (!loading) {
+      setShowSpinner(false);
+      return;
+    }
+    const t = setTimeout(() => setShowSpinner(true), 300);
+    return () => clearTimeout(t);
+  }, [loading]);
   const image = useImage(uri);
   const def = getFilterDef(filter);
   const lutImage = useImage(def.lut);
@@ -80,7 +92,6 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
             contentFit={fit}
             cachePolicy="memory-disk"
             recyclingKey={uri}
-            transition={200}
           />
         ) : null}
       </View>
@@ -102,11 +113,10 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
               contentFit={fit}
               cachePolicy="memory-disk"
               recyclingKey={uri}
-              transition={200}
               onLoadStart={() => setLoading(true)}
               onLoadEnd={() => setLoading(false)}
             />
-            {showLoader && loading ? (
+            {showLoader && showSpinner ? (
               <View style={[StyleSheet.absoluteFillObject, styles.loader]} pointerEvents="none">
                 <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
               </View>

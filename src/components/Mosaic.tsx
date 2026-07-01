@@ -56,6 +56,17 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
   }));
 
   const [videoReady, setVideoReady] = useState(false);
+  const [showVideoSpinner, setShowVideoSpinner] = useState(false);
+
+  // Only show the spinner if the clip takes a beat to become playable.
+  useEffect(() => {
+    if (!photo.videoURL || videoReady) {
+      setShowVideoSpinner(false);
+      return;
+    }
+    const t = setTimeout(() => setShowVideoSpinner(true), 300);
+    return () => clearTimeout(t);
+  }, [photo.videoURL, videoReady]);
 
   // flash.live silent looping video player
   const videoPlayer = useVideoPlayer(photo.videoURL ?? null, (player) => {
@@ -105,7 +116,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
             nativeControls={false}
             surfaceType="textureView"
           />
-          {!videoReady && (
+          {!videoReady && showVideoSpinner && (
             <View style={[StyleSheet.absoluteFill, styles.loader]} pointerEvents="none">
               <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
             </View>
