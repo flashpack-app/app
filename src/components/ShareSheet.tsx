@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from '../services/haptics';
@@ -87,22 +86,6 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
     }
   };
 
-  const onSaveImage = async () => {
-    if (!normalizedUri) return;
-    try {
-      const permission = await MediaLibrary.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('permission needed', 'allow photo access to save the image.');
-        return;
-      }
-      await MediaLibrary.saveToLibraryAsync(normalizedUri);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      Alert.alert('saved', 'image saved to your photos.');
-    } catch {
-      Alert.alert('save failed', 'could not save the image.');
-    }
-  };
-
   const onMore = async () => {
     if (!normalizedUri) return;
     try {
@@ -150,13 +133,6 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
               label={copied ? 'copied' : 'copy link'}
               accent={colors.white}
               onPress={onCopyLink}
-            />
-            <ShareAction
-              icon="download-outline"
-              label="save image"
-              accent={colors.yellow}
-              onPress={onSaveImage}
-              disabled={!normalizedUri}
             />
             <ShareAction
               icon="ellipsis-horizontal"
