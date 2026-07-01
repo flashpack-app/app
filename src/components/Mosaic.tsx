@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ViewStyle, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ViewStyle, Pressable, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -55,6 +55,8 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
     opacity: opacity.value,
   }));
 
+  const [videoReady, setVideoReady] = useState(false);
+
   // flash.live silent looping video player
   const videoPlayer = useVideoPlayer(photo.videoURL ?? null, (player) => {
     if (photo.videoURL) {
@@ -71,6 +73,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
       if (status === 'readyToPlay') {
         videoPlayer.loop = true;
         videoPlayer.play();
+        setVideoReady(true);
       }
     });
     return () => sub.remove();
@@ -94,19 +97,27 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
         ]}
       />
       {photo.videoURL ? (
-        <VideoView
-          player={videoPlayer}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-          nativeControls={false}
-          surfaceType="textureView"
-        />
+        <>
+          <VideoView
+            player={videoPlayer}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            nativeControls={false}
+            surfaceType="textureView"
+          />
+          {!videoReady && (
+            <View style={[StyleSheet.absoluteFill, styles.loader]} pointerEvents="none">
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+            </View>
+          )}
+        </>
       ) : photo.imageURL ? (
         <FilteredImage
           source={{ uri: photo.imageURL }}
           filter={normalizeFilter(photo.filter)}
           style={StyleSheet.absoluteFillObject}
           resizeMode="cover"
+          showLoader
         />
       ) : null}
       {photo.videoURL && (
@@ -248,6 +259,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: 4,
   },
   liveBadgeText: { color: '#000', fontSize: 7, fontWeight: '900', letterSpacing: 0.3 },
+  loader: { alignItems: 'center', justifyContent: 'center' },
 });
 
 export default Mosaic;

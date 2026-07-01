@@ -64,7 +64,13 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
               ]}
             >
               {m.avatarUrl ? (
-                <Image source={{ uri: m.avatarUrl }} style={styles.avatarImg} />
+                <Image
+                  source={{ uri: m.avatarUrl }}
+                  style={styles.avatarImg}
+                  cachePolicy="memory-disk"
+                  recyclingKey={m.avatarUrl}
+                  transition={150}
+                />
               ) : (
                 <View style={[styles.avatarFallback, { backgroundColor: m.avatarColor }]}>
                   <Text style={styles.avatarText}>{m.initials}</Text>

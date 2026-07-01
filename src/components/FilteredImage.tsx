@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import {
   Canvas,
@@ -21,6 +21,8 @@ interface Props {
   filter: VibeFilter | string | null | undefined;
   style?: StyleProp<ViewStyle>;
   resizeMode?: 'cover' | 'contain';
+  /** Show a spinner over the image until it finishes loading. */
+  showLoader?: boolean;
 }
 
 const LUT_SKSL = `
@@ -52,8 +54,9 @@ half4 main(float2 xy) {
 
 const lutEffect = Skia.RuntimeEffect.Make(LUT_SKSL);
 
-const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'cover' }) => {
+const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'cover', showLoader = false }) => {
   const [layout, setLayout] = useState({ width: 0, height: 0 });
+  const [loading, setLoading] = useState(true);
   const uri = typeof source === 'string' ? source : source?.uri;
   const image = useImage(uri);
   const def = getFilterDef(filter);
@@ -75,6 +78,9 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
             source={{ uri }}
             style={StyleSheet.absoluteFillObject}
             contentFit={fit}
+            cachePolicy="memory-disk"
+            recyclingKey={uri}
+            transition={200}
           />
         ) : null}
       </View>
@@ -89,11 +95,23 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
     return (
       <View style={style} onLayout={onLayout}>
         {uri ? (
-          <ExpoImage
-            source={{ uri }}
-            style={StyleSheet.absoluteFillObject}
-            contentFit={fit}
-          />
+          <>
+            <ExpoImage
+              source={{ uri }}
+              style={StyleSheet.absoluteFillObject}
+              contentFit={fit}
+              cachePolicy="memory-disk"
+              recyclingKey={uri}
+              transition={200}
+              onLoadStart={() => setLoading(true)}
+              onLoadEnd={() => setLoading(false)}
+            />
+            {showLoader && loading ? (
+              <View style={[StyleSheet.absoluteFillObject, styles.loader]} pointerEvents="none">
+                <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+              </View>
+            ) : null}
+          </>
         ) : (
           <View style={[StyleSheet.absoluteFillObject, styles.placeholder]} />
         )}
@@ -135,6 +153,7 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
 
 const styles = StyleSheet.create({
   placeholder: { backgroundColor: '#111' },
+  loader: { alignItems: 'center', justifyContent: 'center' },
 });
 
 export default React.memo(FilteredImage);
