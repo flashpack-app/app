@@ -295,7 +295,7 @@ export default function CameraScreen() {
                 ref={camRef}
                 style={StyleSheet.absoluteFill}
                 facing={facing}
-                flash={flash}
+                flash={isVideoMode ? 'off' : flash}
                 zoom={zoom}
                 mode={isVideoMode ? 'video' : 'picture'}
               />
