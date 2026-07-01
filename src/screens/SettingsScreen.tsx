@@ -21,14 +21,17 @@ import ScaledText from '../components/ScaledText';
 import ScreenHeader from '../components/ScreenHeader';
 import { ToggleRow, NavRow, Section } from '../components/settings';
 import { useSettingsStyles } from '../components/settings';
+import { resetOnboarding } from '../services/onboardingStore';
+import { useCoachmark } from '../onboarding/CoachmarkContext';
 
 export default function SettingsScreen() {
   const nav = useNavigation<any>();
-  const { user, signOut, updateAvatar } = useAppState();
+  const { user, signOut, updateAvatar, setIsOnboarding } = useAppState();
   const { settings } = useSettings();
   const colors = useColors();
   const settingsStyles = useSettingsStyles();
   const styles = useThemedStyles(makeStyles);
+  const { startOnboarding } = useCoachmark();
 
   if (!user) return <View style={settingsStyles.wrap} />;
 
@@ -56,6 +59,24 @@ export default function SettingsScreen() {
         updateAvatar(result.assets[0].uri);
       }
     }
+  };
+
+  const onReplayTutorial = () => {
+    Alert.alert(
+      'replay tutorial?',
+      'this will restart the onboarding walkthrough.',
+      [
+        { text: 'cancel', style: 'cancel' },
+        {
+          text: 'replay',
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            await resetOnboarding();
+            setIsOnboarding(true);
+          },
+        },
+      ],
+    );
   };
 
   const confirmSignOut = () => {
@@ -170,6 +191,15 @@ export default function SettingsScreen() {
             icon="shield-checkmark-outline"
             label="data & security settings"
             onPress={() => nav.navigate('DataSecuritySettings')}
+          />
+        </Section>
+
+        {/* Tutorial */}
+        <Section title="tutorial">
+          <NavRow
+            icon="refresh-outline"
+            label="replay tutorial"
+            onPress={onReplayTutorial}
           />
         </Section>
 

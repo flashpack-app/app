@@ -45,6 +45,7 @@ import PackVaultScreen from '../screens/PackVaultScreen';
 import CountriesScreen from '../screens/CountriesScreen';
 import PackCalendarScreen from '../screens/PackCalendarScreen';
 import WelcomeLocationScreen from '../screens/WelcomeLocationScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -188,7 +189,7 @@ export default function RootNavigator() {
           </>
         ) : isOnboarding ? (
           <>
-            <Stack.Screen name="WelcomeLocation" component={WelcomeLocationScreen} options={{ animation: 'fade' }} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
             <Stack.Screen name="OnboardingPro" component={ProScreen} options={{ animation: 'slide_from_bottom' }} />
           </>
         ) : (
