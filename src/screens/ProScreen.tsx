@@ -8,6 +8,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
+import { markOnboardingComplete } from '../services/onboardingStore';
 
 interface Plan {
   id: 'monthly' | 'yearly' | 'lifetime';
@@ -51,8 +52,9 @@ export default function ProScreen() {
   const { user, updateProBorder, isOnboarding, setIsOnboarding } = useAppState();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
 
-  const onClose = () => {
+  const onClose = async () => {
     if (isOnboarding) {
+      await markOnboardingComplete();
       setIsOnboarding(false);
     } else {
       nav.goBack();
