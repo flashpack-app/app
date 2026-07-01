@@ -152,7 +152,9 @@ export default function PongGame({ visible, onClose }: Props) {
       );
       if (playerScore >= WIN_SCORE) {
         phase = 'won';
-        awardPongBadge().catch(() => {});
+        awardPongBadge().catch((e) => {
+          console.warn('awardPongBadge failed:', e);
+        });
       }
       else { phase = 'point'; }
     }

@@ -14,9 +14,13 @@ export function usePreventCapture(active: boolean) {
     }
     if (!active) return;
     const key = 'flash-prevent-' + Math.random().toString(36).slice(2);
-    ScreenCapture.preventScreenCaptureAsync(key).catch(() => {});
+    ScreenCapture.preventScreenCaptureAsync(key).catch((e) => {
+      console.warn('preventScreenCapture failed:', e);
+    });
     return () => {
-      ScreenCapture.allowScreenCaptureAsync(key).catch(() => {});
+      ScreenCapture.allowScreenCaptureAsync(key).catch((e) => {
+        console.warn('allowScreenCapture failed:', e);
+      });
     };
   }, [active]);
 }
@@ -29,7 +33,9 @@ export function useScreenshotDetector(token: string | null, packId: string | und
     if (!packId || !token) return;
     const sub = ScreenCapture.addScreenshotListener(() => {
       onDetectRef.current();
-      APIService.logScreenshot(token, packId).catch(() => {});
+      APIService.logScreenshot(token, packId).catch((e) => {
+        console.warn('logScreenshot failed:', e);
+      });
     });
     return () => {
       sub.remove();

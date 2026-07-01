@@ -29,8 +29,8 @@ async function http<T>(
   let json: any = null;
   try {
     json = await res.json();
-  } catch {
-    /* ignore */
+  } catch (e) {
+    console.warn('failed to parse response JSON for', path, e);
   }
   if (!res.ok) throw new HTTPError(res.status, json);
   return json as T;

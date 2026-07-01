@@ -59,7 +59,9 @@ async function geocodeCity(city: string, country: string): Promise<{ lat: number
     if (data && data.length > 0) {
       return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
     }
-  } catch {}
+  } catch (e) {
+    console.warn('geocoding failed for', city, country, e);
+  }
   return null;
 }
 
@@ -212,7 +214,8 @@ app.post('/invite/redeem', async (req: Request, res: Response) => {
       userCity = userCity ?? ipData?.city ?? 'unknown';
       userCountry = userCountry ?? ipData?.country_code ?? 'UN';
       userFlag = userFlag ?? ipData?.country_flag ?? '🌍';
-    } catch {
+    } catch (e) {
+      console.warn('IP geolocation failed:', e);
       userCity = userCity ?? 'unknown';
       userCountry = userCountry ?? 'UN';
       userFlag = userFlag ?? '🌍';
@@ -1488,6 +1491,14 @@ const BANNER = `
     ██║     ███████╗██║  ██║███████║██║  ██║${Y}.${R}
     ╚═╝     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝${Y}.${R}
 `;
+
+// Global error handler for unhandled async route errors
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('unhandled route error:', err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'internal_server_error' });
+  }
+});
 
 async function start() {
   await bootstrap();

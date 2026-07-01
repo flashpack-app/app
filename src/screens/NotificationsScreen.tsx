@@ -40,7 +40,9 @@ export default function NotificationsScreen() {
     try {
       const res = await APIService.getNotifications(token);
       setItems(res);
-    } catch {}
+    } catch (e) {
+      console.warn('failed to load notifications:', e);
+    }
   }, [token]);
 
   useEffect(() => {
@@ -57,7 +59,9 @@ export default function NotificationsScreen() {
       await APIService.markNotificationsRead(token);
       markAllRead();
       setItems((prev) => prev.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })));
-    } catch {}
+    } catch (e) {
+      console.warn('failed to mark notifications read:', e);
+    }
   };
 
   const onRefresh = async () => {
@@ -70,7 +74,9 @@ export default function NotificationsScreen() {
     if (!n.readAt) {
       setItems((prev) => prev.map((item) => (item.id === n.id ? { ...item, readAt: new Date().toISOString() } : item)));
       markOneRead();
-      if (token) APIService.markNotificationRead(token, n.id).catch(() => {});
+      if (token) APIService.markNotificationRead(token, n.id).catch((e) => {
+        console.warn('failed to mark notification read:', e);
+      });
     }
     if (n.packId) nav.navigate('PackReveal', { packId: n.packId });
   };

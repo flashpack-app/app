@@ -183,7 +183,9 @@ export default function ProfileScreen() {
       setLoading(true);
       APIService.getPublicProfile(targetUsername)
         .then((p) => setPublicProfile(p))
-        .catch(() => {})
+        .catch((e) => {
+          console.warn('failed to load public profile:', e);
+        })
         .finally(() => setLoading(false));
     }
   }, [isOwnProfile, targetUsername]);
@@ -199,7 +201,9 @@ export default function ProfileScreen() {
       setLoading(true);
       await APIService.getPublicProfile(targetUsername)
         .then((p) => setPublicProfile(p))
-        .catch(() => {})
+        .catch((e) => {
+          console.warn('failed to refresh public profile:', e);
+        })
         .finally(() => setLoading(false));
     }
     setRefreshing(false);
