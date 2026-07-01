@@ -11,12 +11,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 
 export default function ContactUsScreen() {
   const nav = useNavigation();
-  const insets = useSafeAreaInsets();
   const [topic, setTopic] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -40,13 +39,7 @@ export default function ContactUsScreen() {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>contact us</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <ScreenHeader title="contact us" />
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 14, paddingBottom: 40 }}>
         <Text style={styles.intro}>have a question or feedback? we read every message.</Text>
@@ -97,15 +90,6 @@ export default function ContactUsScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
   intro: { color: colors.textDim, fontSize: 12, lineHeight: 18, marginBottom: 6 },
   card: {
     backgroundColor: colors.card,

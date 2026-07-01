@@ -3,8 +3,8 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 
 interface Plan {
@@ -44,7 +44,6 @@ const FEATURES = [
 
 export default function ProScreen() {
   const nav = useNavigation<any>();
-  const insets = useSafeAreaInsets();
   const { user, updateProBorder, isOnboarding, setIsOnboarding } = useAppState();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
 
@@ -67,13 +66,10 @@ export default function ProScreen() {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={onClose} style={styles.backBtn}>
-          <Ionicons name="close" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>flash. pro</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <ScreenHeader
+        title="flash. pro"
+        onBack={onClose}
+      />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}>
         {/* Hero */}
@@ -191,15 +187,6 @@ export default function ProScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
 
   hero: {
     backgroundColor: colors.card,

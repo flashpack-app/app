@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 
 function fmt(ms: number) {
@@ -18,7 +18,6 @@ function fmt(ms: number) {
 export default function PackLifecycleScreen() {
   const nav = useNavigation<any>();
   const route = useRoute<any>();
-  const insets = useSafeAreaInsets();
   const { packs, user } = useAppState();
   const packId: string | undefined = route.params?.packId;
   const pack = packId ? packs.find((p) => p.id === packId) : packs[0];
@@ -38,13 +37,7 @@ export default function PackLifecycleScreen() {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.iconBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>pack lifecycle</Text>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader title="pack lifecycle" />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 18 }}>
         {/* Countdown hero */}
@@ -162,15 +155,6 @@ const Step: React.FC<{
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  iconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
   heroCard: {
     backgroundColor: colors.card,
     borderWidth: StyleSheet.hairlineWidth,

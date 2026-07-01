@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 
 interface DocItem {
   key: string;
@@ -24,17 +24,10 @@ const DOCS: DocItem[] = [
 
 export default function LegalMenuScreen() {
   const nav = useNavigation<any>();
-  const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>legal</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <ScreenHeader title="legal" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.sub}>legal documents and policies for flash.</Text>
         {DOCS.map((d) => (
@@ -56,15 +49,6 @@ export default function LegalMenuScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
   scroll: { padding: 12, gap: 8, paddingBottom: 40 },
   sub: { color: colors.textDim, fontSize: 12, marginBottom: 8, paddingHorizontal: 4 },
   card: {

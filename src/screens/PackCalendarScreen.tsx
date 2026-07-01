@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
+import ProGate from '../components/ProGate';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
 
@@ -23,22 +24,20 @@ function groupByMonth(packs: any[]) {
 export default function PackCalendarScreen() {
   const nav = useNavigation<any>();
   const { packs, user } = useAppState();
-  const insets = useSafeAreaInsets();
   const isPro = user?.isPro ?? false;
 
   const groups = useMemo(() => groupByMonth(packs), [packs]);
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.headerTitle}>archive</Text>
-        <Pressable onPress={() => nav.navigate('PackVault')} style={styles.backBtn}>
-          <Ionicons name="cube-outline" size={20} color={colors.yellow} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title="archive"
+        right={
+          <Pressable onPress={() => nav.navigate('PackVault')} style={styles.rightBtn}>
+            <Ionicons name="cube-outline" size={20} color={colors.yellow} />
+          </Pressable>
+        }
+      />
 
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40, gap: 24 }}>
         {groups.length === 0 && (
@@ -73,23 +72,10 @@ export default function PackCalendarScreen() {
       </ScrollView>
 
       {!isPro && (
-        <View style={styles.blurOverlay}>
-          <View style={styles.lockContent}>
-            <Ionicons name="lock-closed" size={28} color={colors.yellow} />
-            <Text style={styles.lockTitle}>archive is pro</Text>
-            <Text style={styles.lockSub}>upgrade to flash. pro to unlock your pack archive.</Text>
-            <Pressable
-              onPress={() => nav.navigate('Pro')}
-              style={({ pressed }) => [
-                styles.upgradeBtn,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <Ionicons name="flash" size={14} color="#000" />
-              <Text style={styles.upgradeText}>upgrade to pro</Text>
-            </Pressable>
-          </View>
-        </View>
+        <ProGate
+          title="archive is pro"
+          subtitle="upgrade to flash. pro to unlock your pack archive."
+        />
       )}
     </View>
   );
@@ -97,37 +83,9 @@ export default function PackCalendarScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  rightBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   empty: { color: colors.textDim, textAlign: 'center', marginTop: 40, fontSize: 12 },
-  blurOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10,10,10,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    top: 44,
-  },
-  lockContent: { alignItems: 'center', gap: 8, padding: 20 },
-  lockTitle: { color: colors.white, fontSize: 14, fontWeight: '700' },
-  lockSub: { color: colors.textFade, fontSize: 11, textAlign: 'center', maxWidth: 220 },
-  upgradeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    marginTop: 4,
-  },
-  upgradeText: { color: '#000', fontSize: 12, fontWeight: '700' },
+
   monthLabel: {
     color: colors.textDim,
     fontSize: 11,

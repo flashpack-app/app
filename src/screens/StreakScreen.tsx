@@ -3,15 +3,14 @@ import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../theme/colors';
+import { colors, filterColor } from '../theme/colors';
+import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { APIService } from '../services/api';
 
 export default function StreakScreen() {
   const nav = useNavigation<any>();
   const { streak, refreshStreak, user, token } = useAppState();
-  const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -45,13 +44,7 @@ export default function StreakScreen() {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <Text style={styles.title}>streak</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <ScreenHeader title="streak" />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
         {/* Big streak number */}
@@ -88,7 +81,7 @@ export default function StreakScreen() {
         )}
         {history.map((h: any, i: number) => (
           <View key={h.id ?? i} style={styles.row}>
-            <View style={[styles.filterDot, { backgroundColor: filterColor(h.filter) }]} />
+            <View style={[styles.filterDot, { backgroundColor: filterColor[h.filter] ?? '#888' }]} />
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>{h.filter} flash</Text>
               <Text style={styles.rowMeta}>{new Date(h.date).toLocaleDateString()}</Text>
@@ -103,33 +96,8 @@ export default function StreakScreen() {
   );
 }
 
-function filterColor(filter: string) {
-  const map: Record<string, string> = {
-    raw: '#B4B2A9',
-    cinema: '#C9A36B',
-    maku: '#7FA6B0',
-    neagh: '#6E8E7C',
-    ontario: '#8C7BA6',
-    summer: '#E0A94E',
-    bonboa: '#D98E8E',
-    daisy: '#E6C25A',
-    earth: '#A9794B',
-    hibiscus: '#C56FA0',
-  };
-  return map[filter] ?? '#888';
-}
-
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
   hero: {
     alignItems: 'center',
     gap: 6,

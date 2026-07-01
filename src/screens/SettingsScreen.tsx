@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   ScrollView,
@@ -6,93 +6,26 @@ import {
   Pressable,
   Alert,
   Image,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from '../services/haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { useAppState } from '../state/AppState';
-import { UserSettings, loadSettings, saveSettings } from '../services/settingsStore';
+import { useSettings } from '../hooks/useSettings';
 import ScaledText from '../components/ScaledText';
-
-/* ─── ToggleRow ─── */
-interface ToggleRowProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: boolean;
-  onToggle: (v: boolean) => void;
-  accentColor?: string;
-}
-const ToggleRow: React.FC<ToggleRowProps> = ({ icon, label, value, onToggle, accentColor }) => (
-  <View style={styles.row}>
-    <View style={[styles.rowIcon, accentColor ? { backgroundColor: accentColor + '22' } : null]}>
-      <Ionicons name={icon} size={17} color={accentColor ?? colors.white} />
-    </View>
-    <ScaledText style={styles.rowLabel}>{label}</ScaledText>
-    <Switch
-      value={value}
-      onValueChange={onToggle}
-      trackColor={{ false: '#333', true: colors.yellow + '66' }}
-      thumbColor={value ? colors.yellow : '#888'}
-      ios_backgroundColor="#333"
-    />
-  </View>
-);
-
-/* ─── NavRow ─── */
-interface NavRowProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value?: string;
-  onPress?: () => void;
-  destructive?: boolean;
-  accentColor?: string;
-}
-const NavRow: React.FC<NavRowProps> = ({ icon, label, value, onPress, destructive, accentColor }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={!onPress}
-    style={({ pressed }) => [styles.row, pressed && onPress && { opacity: 0.6 }]}
-  >
-    <View style={[styles.rowIcon, accentColor ? { backgroundColor: accentColor + '22' } : null]}>
-      <Ionicons name={icon} size={17} color={accentColor ?? (destructive ? colors.red : colors.white)} />
-    </View>
-    <ScaledText style={[styles.rowLabel, ...(destructive ? [{ color: colors.red }] : [])]}>{label}</ScaledText>
-    {value !== undefined && <ScaledText style={styles.rowValue}>{value}</ScaledText>}
-    {onPress && <Ionicons name="chevron-forward" size={14} color={colors.textFade} />}
-  </Pressable>
-);
-
-/* ─── Section ─── */
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <View style={styles.section}>
-    <ScaledText style={styles.sectionLabel}>{title}</ScaledText>
-    <View style={styles.card}>{children}</View>
-  </View>
-);
+import ScreenHeader from '../components/ScreenHeader';
+import { ToggleRow, NavRow, Section } from '../components/settings';
+import { settingsStyles } from '../components/settings';
 
 export default function SettingsScreen() {
   const nav = useNavigation<any>();
   const { user, signOut, updateAvatar } = useAppState();
-  const insets = useSafeAreaInsets();
-  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const { settings } = useSettings();
 
-  useEffect(() => {
-    loadSettings().then(setSettings);
-  }, []);
-
-  const patch = (partial: Partial<UserSettings>) => {
-    const next = { ...(settings ?? {}), ...partial } as UserSettings;
-    setSettings(next);
-    saveSettings(partial);
-  };
-
-  if (!user) return <View style={styles.wrap} />;
+  if (!user) return <View style={settingsStyles.wrap} />;
 
   const onPickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -127,57 +60,11 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const confirmDeleteAccount = () => {
-    Alert.alert(
-      'delete account?',
-      'this permanently deletes your account, photos, packs, and all data. this cannot be undone.',
-      [
-        { text: 'cancel', style: 'cancel' },
-        {
-          text: 'delete forever',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('request received', 'your account deletion request has been sent to support.');
-          },
-        },
-      ],
-    );
-  };
-
-  const clearCache = async () => {
-    try {
-      const keys = await AsyncStorage.getAllKeys();
-      const toRemove = keys.filter((k) => !k.includes('session') && !k.includes('settings'));
-      if (toRemove.length) await AsyncStorage.multiRemove(toRemove);
-      Alert.alert('cache cleared', 'temporary data has been removed.');
-    } catch {
-      Alert.alert('failed', 'could not clear cache.');
-    }
-  };
-
-  const downloadData = () => {
-    Alert.alert('data export', 'we are preparing your data export. you will receive an email within 48 hours.');
-  };
-
-  const contactSupport = () => {
-    nav.navigate('ContactUs');
-  };
-
-  const reportBug = () => {
-    nav.navigate('ReportBug');
-  };
-
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
-        <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={colors.white} />
-        </Pressable>
-        <ScaledText style={styles.title}>settings</ScaledText>
-        <View style={{ width: 32 }} />
-      </View>
+    <View style={settingsStyles.wrap}>
+      <ScreenHeader title="settings" />
 
-      <ScrollView contentContainerStyle={{ padding: 12, gap: 14, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={settingsStyles.scroll}>
         {/* Avatar */}
         <Pressable onPress={onPickPhoto} style={styles.avatarRow}>
           <View style={styles.avatar}>
@@ -268,8 +155,8 @@ export default function SettingsScreen() {
 
         {/* Support */}
         <Section title="support">
-          <NavRow icon="mail-outline" label="contact us" onPress={contactSupport} />
-          <NavRow icon="bug-outline" label="report a bug" onPress={reportBug} />
+          <NavRow icon="mail-outline" label="contact us" onPress={() => nav.navigate('ContactUs')} />
+          <NavRow icon="bug-outline" label="report a bug" onPress={() => nav.navigate('ReportBug')} />
         </Section>
 
         {/* Data & Security */}
@@ -298,50 +185,6 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: colors.black },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.white, fontSize: 16, fontWeight: '700' },
-  section: { gap: 6 },
-  sectionLabel: {
-    color: colors.textDim,
-    fontSize: 10,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    paddingHorizontal: 4,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  rowIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowLabel: { flex: 1, color: colors.white, fontSize: 13, fontWeight: '500' },
-  rowValue: { color: colors.textFade, fontSize: 12, marginRight: 4 },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
