@@ -28,7 +28,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from '../services/haptics';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { useAccessibility } from '../services/AccessibilityContext';
 import { API_URL } from '../config';
@@ -82,6 +84,8 @@ function ShadeInTile({
 
 /* Silent looping flash.live video tile */
 function LiveTile({ videoURL, style }: { videoURL: string; style?: any }) {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const player = useVideoPlayer(videoURL, (p) => {
     p.loop = true;
     p.muted = true;
@@ -129,6 +133,8 @@ function useCountdown(target: Date | null): string {
 }
 
 export default function PackRevealScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const route = useRoute<any>();
   const nav = useNavigation<any>();
   const { packs, discoverPacks, reactions, addReaction, addComment, user, comments, token, dailyTopic, refreshPacks, refreshDiscover } = useAppState();
@@ -738,7 +744,7 @@ export default function PackRevealScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   scroll: { flex: 1 },
   header: {

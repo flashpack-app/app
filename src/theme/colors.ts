@@ -1,4 +1,30 @@
-export const colors = {
+export type ThemeName = 'dark' | 'light';
+
+export interface Palette {
+  name: ThemeName;
+  black: string;
+  card: string;
+  border: string;
+  borderSoft: string;
+  yellow: string;
+  green: string;
+  red: string;
+  amber: string;
+  white: string;
+  textPrimary: string;
+  textSecondary: string;
+  textHint: string;
+  textDim: string;
+  textFade: string;
+  surfaceSoft: string;
+  surfaceSofter: string;
+  surfaceMid: string;
+  /** Foreground-tinted overlay, e.g. subtle fills and separators. */
+  overlay: (alpha: number) => string;
+}
+
+export const darkColors: Palette = {
+  name: 'dark',
   black: '#0A0A0A',
   card: '#141414',
   border: '#252525',
@@ -16,7 +42,33 @@ export const colors = {
   surfaceSoft: 'rgba(255,255,255,0.06)',
   surfaceSofter: 'rgba(255,255,255,0.03)',
   surfaceMid: 'rgba(255,255,255,0.08)',
-} as const;
+  overlay: (a: number) => `rgba(255,255,255,${a})`,
+};
+
+export const lightColors: Palette = {
+  name: 'light',
+  black: '#FFFFFF',
+  card: '#F5F5F7',
+  border: '#D9D9DE',
+  borderSoft: '#E6E6EA',
+  yellow: '#F5B800',
+  green: '#248A3D',
+  red: '#D70015',
+  amber: '#B25000',
+  white: '#0A0A0A',
+  textPrimary: '#0A0A0A',
+  textSecondary: 'rgba(0,0,0,0.5)',
+  textHint: 'rgba(0,0,0,0.28)',
+  textDim: 'rgba(0,0,0,0.4)',
+  textFade: 'rgba(0,0,0,0.32)',
+  surfaceSoft: 'rgba(0,0,0,0.05)',
+  surfaceSofter: 'rgba(0,0,0,0.03)',
+  surfaceMid: 'rgba(0,0,0,0.07)',
+  overlay: (a: number) => `rgba(0,0,0,${a})`,
+};
+
+/** Default palette. Kept as the dark theme for backwards compatibility. */
+export const colors: Palette = darkColors;
 
 export const filterColor: Record<string, string> = {
   raw: '#B4B2A9',

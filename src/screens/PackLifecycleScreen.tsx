@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 
@@ -16,6 +18,8 @@ function fmt(ms: number) {
 }
 
 export default function PackLifecycleScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const route = useRoute<any>();
   const { packs, user } = useAppState();
@@ -121,27 +125,34 @@ export default function PackLifecycleScreen() {
   );
 }
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <View style={{ gap: 8 }}>
-    <Text style={styles.sectionLabel}>{title}</Text>
-    <View style={styles.card}>{children}</View>
-  </View>
-);
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.sectionLabel}>{title}</Text>
+      <View style={styles.card}>{children}</View>
+    </View>
+  );
+};
 
-const Para: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Text style={styles.para}>{children}</Text>
-);
+const Para: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const styles = useThemedStyles(makeStyles);
+  return <Text style={styles.para}>{children}</Text>;
+};
 
-const Bold: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Text style={styles.bold}>{children}</Text>
-);
+const Bold: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const styles = useThemedStyles(makeStyles);
+  return <Text style={styles.bold}>{children}</Text>;
+};
 
 const Step: React.FC<{
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   label: string;
   body: string;
-}> = ({ icon, color, label, body }) => (
+}> = ({ icon, color, label, body }) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
   <View style={styles.step}>
     <View style={[styles.stepIcon, { backgroundColor: color + '22' }]}>
       <Ionicons name={icon} size={13} color={color} />
@@ -151,9 +162,10 @@ const Step: React.FC<{
       <Text style={styles.stepBody}>{body}</Text>
     </View>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   heroCard: {
     backgroundColor: colors.card,

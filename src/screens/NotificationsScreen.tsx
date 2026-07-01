@@ -3,7 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Activity
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { APIService, NotificationItem } from '../services/api';
 
@@ -17,7 +19,7 @@ const typeIcon: Record<string, keyof typeof Ionicons.glyphMap> = {
   screenshot: 'warning-outline',
 };
 
-const typeColor: Record<string, string> = {
+const makeTypeColor = (colors: Palette): Record<string, string> => ({
   pack: colors.green,
   comment: colors.yellow,
   reaction: colors.yellow,
@@ -25,9 +27,12 @@ const typeColor: Record<string, string> = {
   system: colors.yellow,
   invite: colors.yellow,
   screenshot: colors.red,
-};
+});
 
 export default function NotificationsScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const typeColor = makeTypeColor(colors);
   const nav = useNavigation<any>();
   const { markAllRead, markOneRead, token } = useAppState();
   const insets = useSafeAreaInsets();
@@ -135,7 +140,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   header: {
     flexDirection: 'row',

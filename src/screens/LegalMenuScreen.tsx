@@ -2,7 +2,9 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 
 interface DocItem {
@@ -23,6 +25,8 @@ const DOCS: DocItem[] = [
 ];
 
 export default function LegalMenuScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
 
   return (
@@ -47,7 +51,7 @@ export default function LegalMenuScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   scroll: { padding: 12, gap: 8, paddingBottom: 40 },
   sub: { color: colors.textDim, fontSize: 12, marginBottom: 8, paddingHorizontal: 4 },

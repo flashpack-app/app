@@ -1,10 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { InviteSlot } from '../types/models';
 
 const InviteSlotRow: React.FC<{ slot: InviteSlot }> = ({ slot }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   if (slot.status === 'joined') {
     return (
       <View style={styles.row}>
@@ -53,7 +57,7 @@ const InviteSlotRow: React.FC<{ slot: InviteSlot }> = ({ slot }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

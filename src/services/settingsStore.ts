@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 export interface UserSettings {
+  // appearance
+  theme: ThemeMode;
+
   // notifications
   pushNotifications: boolean;
   pushNewPacks: boolean;
@@ -43,7 +48,9 @@ export interface UserSettings {
   silentMode: boolean;
 }
 
-const DEFAULTS: UserSettings = {
+export const DEFAULT_SETTINGS: UserSettings = {
+  theme: 'dark',
+
   pushNotifications: true,
   pushNewPacks: true,
   pushComments: true,
@@ -86,9 +93,9 @@ const KEY = '@flash_settings';
 export async function loadSettings(): Promise<UserSettings> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {}
-  return { ...DEFAULTS };
+  return { ...DEFAULT_SETTINGS };
 }
 
 export async function saveSettings(patch: Partial<UserSettings>): Promise<void> {

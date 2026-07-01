@@ -12,18 +12,23 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from '../services/haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { useSettings } from '../hooks/useSettings';
 import ScaledText from '../components/ScaledText';
 import ScreenHeader from '../components/ScreenHeader';
 import { ToggleRow, NavRow, Section } from '../components/settings';
-import { settingsStyles } from '../components/settings';
+import { useSettingsStyles } from '../components/settings';
 
 export default function SettingsScreen() {
   const nav = useNavigation<any>();
   const { user, signOut, updateAvatar } = useAppState();
   const { settings } = useSettings();
+  const colors = useColors();
+  const settingsStyles = useSettingsStyles();
+  const styles = useThemedStyles(makeStyles);
 
   if (!user) return <View style={settingsStyles.wrap} />;
 
@@ -184,7 +189,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,7 +204,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#222',
+    backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,

@@ -5,7 +5,10 @@ import * as Haptics from '../services/haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
-import { colors, filterColor } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
+import { filterColor } from '../theme/colors';
 import { APIService } from '../services/api';
 import { ModerationService } from '../services/moderation';
 import { VibeFilter } from '../types/models';
@@ -34,6 +37,8 @@ function LivePreview({ videoUri }: { videoUri: string }) {
 }
 
 export default function PhotoPreviewScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const route = useRoute<any>();
   const uri: string = route.params?.uri;
@@ -176,7 +181,7 @@ export default function PhotoPreviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   imageWrap: { flex: 1, backgroundColor: '#111' },
   filterBadge: {

@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useSettings } from '../hooks/useSettings';
 import { useAccessibility, updateAccessibilitySettings } from '../services/AccessibilityContext';
 import { UserSettings, saveSettings } from '../services/settingsStore';
 import ScaledText from '../components/ScaledText';
 import ScreenHeader from '../components/ScreenHeader';
-import { ToggleRow, Section, settingsStyles } from '../components/settings';
+import { ToggleRow, Section, useSettingsStyles } from '../components/settings';
 
 const ChoiceRow: React.FC<{
   icon: keyof typeof Ionicons.glyphMap;
@@ -15,34 +17,41 @@ const ChoiceRow: React.FC<{
   value: string;
   options: string[];
   onChange: (v: string) => void;
-}> = ({ icon, label, value, options, onChange }) => (
-  <View style={settingsStyles.row}>
-    <View style={settingsStyles.rowIcon}>
-      <Ionicons name={icon} size={17} color={colors.white} />
+}> = ({ icon, label, value, options, onChange }) => {
+  const colors = useColors();
+  const settingsStyles = useSettingsStyles();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={settingsStyles.row}>
+      <View style={settingsStyles.rowIcon}>
+        <Ionicons name={icon} size={17} color={colors.white} />
+      </View>
+      <ScaledText style={settingsStyles.rowLabel}>{label}</ScaledText>
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        {options.map((o) => (
+          <Pressable
+            key={o}
+            onPress={() => onChange(o)}
+            style={[
+              styles.choicePill,
+              value === o && { backgroundColor: colors.yellow },
+            ]}
+          >
+            <ScaledText style={[styles.choiceText, ...(value === o ? [{ color: '#000', fontWeight: '700' } as any] : [])]}>
+              {o}
+            </ScaledText>
+          </Pressable>
+        ))}
+      </View>
     </View>
-    <ScaledText style={settingsStyles.rowLabel}>{label}</ScaledText>
-    <View style={{ flexDirection: 'row', gap: 6 }}>
-      {options.map((o) => (
-        <Pressable
-          key={o}
-          onPress={() => onChange(o)}
-          style={[
-            styles.choicePill,
-            value === o && { backgroundColor: colors.yellow },
-          ]}
-        >
-          <ScaledText style={[styles.choiceText, ...(value === o ? [{ color: '#000', fontWeight: '700' } as any] : [])]}>
-            {o}
-          </ScaledText>
-        </Pressable>
-      ))}
-    </View>
-  </View>
-);
+  );
+};
 
 export default function AccessibilitySettingsScreen() {
   const { refresh } = useAccessibility();
   const { settings, patch: basePatch } = useSettings();
+  const settingsStyles = useSettingsStyles();
+  const styles = useThemedStyles(makeStyles);
 
   const patch = async (partial: Partial<UserSettings>) => {
     basePatch(partial);
@@ -58,6 +67,16 @@ export default function AccessibilitySettingsScreen() {
     <View style={settingsStyles.wrap}>
       <ScreenHeader title="accessibility" />
       <ScrollView contentContainerStyle={settingsStyles.scroll}>
+        <Section title="appearance">
+          <ChoiceRow
+            icon="color-palette-outline"
+            label="theme"
+            value={s.theme}
+            options={['light', 'dark', 'system']}
+            onChange={(v) => patch({ theme: v as UserSettings['theme'] })}
+          />
+        </Section>
+
         <Section title="feedback">
           <ToggleRow
             icon="hand-left-outline"
@@ -120,13 +139,14 @@ export default function AccessibilitySettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  choicePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  choiceText: { color: colors.textSecondary, fontSize: 11, fontWeight: '500' },
-  hint: { color: colors.textFade, fontSize: 11, lineHeight: 18, textAlign: 'center' },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    choicePill: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceMid,
+    },
+    choiceText: { color: colors.textSecondary, fontSize: 11, fontWeight: '500' },
+    hint: { color: colors.textFade, fontSize: 11, lineHeight: 18, textAlign: 'center' },
+  });

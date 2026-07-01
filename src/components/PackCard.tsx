@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Pack } from '../types/models';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import Mosaic from './Mosaic';
 import ReactionStack from './ReactionStack';
 
@@ -20,7 +22,7 @@ interface Props {
   onLongPress?: () => void;
 }
 
-const matchColor = (s: number) => (s >= 70 ? colors.green : s >= 50 ? colors.amber : 'rgba(255,255,255,0.4)');
+const matchColor = (s: number, colors: Palette) => (s >= 70 ? colors.green : s >= 50 ? colors.amber : colors.textSecondary);
 
 const timeAgo = (iso: string) => {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
@@ -41,6 +43,8 @@ const timeLeft = (iso: string) => {
 };
 
 const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -89,7 +93,7 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
       {/* Bottom row */}
       <View style={styles.bottomRow}>
         <View style={styles.matchWrap}>
-          <View style={[styles.dot, { backgroundColor: matchColor(pack.chemistryScore) }]} />
+          <View style={[styles.dot, { backgroundColor: matchColor(pack.chemistryScore, colors) }]} />
           <Text style={styles.matchText}>{pack.chemistryScore}% match</Text>
         </View>
         <ReactionStack reactions={reactions} maxBubbles={3} />
@@ -98,7 +102,7 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderWidth: StyleSheet.hairlineWidth,

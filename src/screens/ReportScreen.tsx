@@ -3,7 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, ToastAndroid, Platform, 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
 import PillButton from '../components/PillButton';
@@ -19,6 +21,8 @@ const REASONS = [
 ];
 
 export default function ReportScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const route = useRoute<any>();
   const { packs, token } = useAppState();
@@ -79,7 +83,7 @@ export default function ReportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   sectionLabel: { color: colors.textDim, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   row: {

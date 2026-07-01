@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pack } from '../types/models';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface Props {
   visible: boolean;
@@ -20,7 +22,7 @@ interface Factor {
   max: number;
 }
 
-const scoreColor = (s: number) =>
+const scoreColor = (s: number, colors: Palette) =>
   s >= 70 ? colors.green : s >= 50 ? colors.amber : colors.textDim;
 
 // Mirrors the server's chemistry formula so we can explain the score:
@@ -81,9 +83,11 @@ function computeFactors(pack: Pack, hasDailyTopic: boolean): Factor[] {
 }
 
 const ChemistryBreakdown: React.FC<Props> = ({ visible, pack, hasDailyTopic = false, onClose }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const factors = useMemo(() => computeFactors(pack, hasDailyTopic), [pack, hasDailyTopic]);
-  const color = scoreColor(pack.chemistryScore);
+  const color = scoreColor(pack.chemistryScore, colors);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -132,7 +136,7 @@ const ChemistryBreakdown: React.FC<Props> = ({ visible, pack, hasDailyTopic = fa
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.card,

@@ -4,7 +4,10 @@ import Animated, { useSharedValue, useAnimatedStyle, withDelay, withSpring } fro
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pack, PackPhoto, PackMember } from '../types/models';
-import { colors, radius } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
+import { radius } from '../theme/colors';
 import { normalizeFilter } from '../services/filters';
 import FilteredImage from './FilteredImage';
 
@@ -34,6 +37,8 @@ interface CellProps {
 }
 
 const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, index, animate, onPress }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const isPro = member?.isPro;
   const proBorderColor = member?.proBorder || colors.yellow;
   const scale = useSharedValue(animate ? 0.85 : 1);
@@ -145,6 +150,7 @@ const Mosaic: React.FC<Props> = ({
   style,
   onCellPress,
 }) => {
+  const styles = useThemedStyles(makeStyles);
   const photos = pack.photos.slice(0, 4);
   const memberOf = (uid: string) => pack.members.find((m) => m.userId === uid);
   const expired = pack.status === 'expired';
@@ -170,7 +176,7 @@ const Mosaic: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { overflow: 'hidden', backgroundColor: colors.black },
   grid: {
     flex: 1,

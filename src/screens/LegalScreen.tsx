@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 
 type DocKey = 'terms' | 'privacy' | 'guidelines' | 'content' | 'cookies' | 'copyright' | 'data';
@@ -38,6 +40,7 @@ const DOCS: Record<DocKey, { title: string; body: string }> = {
 };
 
 export default function LegalScreen() {
+  const styles = useThemedStyles(makeStyles);
   const route = useRoute<any>();
   const docKey: DocKey = route.params?.doc ?? 'terms';
   const doc = DOCS[docKey] ?? DOCS.terms;
@@ -52,7 +55,7 @@ export default function LegalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   scroll: { padding: 16, paddingBottom: 40 },
   body: { color: colors.textSecondary, fontSize: 12, lineHeight: 20 },

@@ -5,7 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FlashLogo from '../components/FlashLogo';
 import PillButton from '../components/PillButton';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { loadSettings } from '../services/settingsStore';
 import {
   isBiometricAvailable,
@@ -14,6 +16,8 @@ import {
 } from '../services/biometric';
 
 export default function SignInScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
@@ -99,7 +103,7 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   header: { paddingTop: 12, paddingHorizontal: 12 },
   back: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },

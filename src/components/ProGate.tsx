@@ -2,7 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface ProGateProps {
   title: string;
@@ -12,6 +14,8 @@ interface ProGateProps {
 
 const ProGate: React.FC<ProGateProps> = ({ title, subtitle, borderRadius }) => {
   const nav = useNavigation<any>();
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
 
   return (
     <View style={[styles.overlay, borderRadius != null && { borderRadius }]}>
@@ -31,7 +35,7 @@ const ProGate: React.FC<ProGateProps> = ({ title, subtitle, borderRadius }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(10,10,10,0.85)',

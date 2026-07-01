@@ -3,7 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 
@@ -43,6 +45,8 @@ const FEATURES = [
 ];
 
 export default function ProScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const { user, updateProBorder, isOnboarding, setIsOnboarding } = useAppState();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
@@ -185,7 +189,7 @@ export default function ProScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
 
   hero: {

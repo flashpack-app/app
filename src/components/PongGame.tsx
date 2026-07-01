@@ -16,7 +16,9 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 
 const { width: SW, height: SH } = Dimensions.get('window');
@@ -66,6 +68,8 @@ interface Props {
 }
 
 export default function PongGame({ visible, onClose }: Props) {
+  const colors = useColors();
+  const st = useThemedStyles(makeStyles);
   const { awardPongBadge } = useAppState();
   const stateRef = useRef<State>(initState());
   const [renderTick, setRenderTick] = useState(0);
@@ -307,7 +311,7 @@ export default function PongGame({ visible, onClose }: Props) {
   );
 }
 
-const st = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.92)',

@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppState } from '../state/AppState';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { addNotificationReceivedListener, addNotificationResponseReceivedListener } from '../services/pushNotifications';
 import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
@@ -47,16 +49,19 @@ import WelcomeLocationScreen from '../screens/WelcomeLocationScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const navTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.black,
-    card: colors.black,
-    border: 'transparent',
-    primary: colors.yellow,
-    text: colors.white,
-  },
+const makeNavTheme = (colors: Palette): Theme => {
+  const base = colors.name === 'light' ? DefaultTheme : DarkTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: colors.black,
+      card: colors.black,
+      border: 'transparent',
+      primary: colors.yellow,
+      text: colors.white,
+    },
+  };
 };
 
 const COACH_STEPS: CoachStep[] = [
@@ -78,6 +83,8 @@ const COACH_STEPS: CoachStep[] = [
 ];
 
 function Tabs() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { startOnboardingOnce } = useCoachmark();
 
   useEffect(() => {
@@ -95,7 +102,7 @@ function Tabs() {
         tabBarStyle: styles.tabBar,
         tabBarShowLabel: false,
         tabBarActiveTintColor: colors.yellow,
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarIcon: ({ color, size, focused }) => {
           const map: Record<string, keyof typeof Ionicons.glyphMap> = {
             Feed: focused ? 'grid' : 'grid-outline',
@@ -127,6 +134,7 @@ function Tabs() {
 }
 
 function CustomSplash() {
+  const styles = useThemedStyles(makeStyles);
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
@@ -138,6 +146,9 @@ function CustomSplash() {
 }
 
 export default function RootNavigator() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const navTheme = makeNavTheme(colors);
   const { isAuthenticated, isBooting, isOnboarding } = useAppState();
 
   useEffect(() => {
@@ -214,11 +225,11 @@ export default function RootNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   boot: { flex: 1, backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center' },
   tabBar: {
     backgroundColor: colors.black,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: colors.borderSoft,
     borderTopWidth: StyleSheet.hairlineWidth,
     height: 64,
     paddingTop: 8,

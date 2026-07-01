@@ -3,12 +3,17 @@ import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
 import { useNavigation } from '@react-navigation/native';
-import { colors, filterColor } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
+import { filterColor } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { APIService } from '../services/api';
 
 export default function StreakScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const { streak, refreshStreak, user, token } = useAppState();
   const [saving, setSaving] = useState(false);
@@ -96,7 +101,7 @@ export default function StreakScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   hero: {
     alignItems: 'center',
