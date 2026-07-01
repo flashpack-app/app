@@ -22,7 +22,6 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -43,6 +42,7 @@ import ReactionStack from '../components/ReactionStack';
 import FilteredImage from '../components/FilteredImage';
 import { Image } from 'expo-image';
 import ScaledText from '../components/ScaledText';
+import ShareSheet from '../components/ShareSheet';
 import { normalizeFilter } from '../services/filters';
 import ScreenshotWarningModal from './ScreenshotWarningModal';
 import { useScreenshotDetector, usePreventCapture } from '../services/screenshot';
@@ -145,6 +145,8 @@ export default function PackRevealScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showChem, setShowChem] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [shareUri, setShareUri] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -167,15 +169,8 @@ export default function PackRevealScreen() {
         width: 1080,
         height: 1920,
       });
-      const can = await Sharing.isAvailableAsync();
-      if (!can) {
-        Alert.alert('share unavailable', 'sharing is not available on this device.');
-        return;
-      }
-      await Sharing.shareAsync(uri, {
-        mimeType: 'image/png',
-        dialogTitle: 'share to story',
-      });
+      setShareUri(uri);
+      setShareSheetVisible(true);
     } catch (e: any) {
       Alert.alert('share failed', e?.message ?? 'unknown error');
     } finally {
@@ -694,6 +689,12 @@ export default function PackRevealScreen() {
           pack={pack}
           hasDailyTopic={hasDailyTopic}
           onClose={() => setShowChem(false)}
+        />
+        <ShareSheet
+          visible={shareSheetVisible}
+          imageUri={shareUri}
+          packNumber={pack.number}
+          onClose={() => setShareSheetVisible(false)}
         />
 
         <FloatingReactions />
