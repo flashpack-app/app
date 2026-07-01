@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface Props {
   flag: string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 const CountryChip: React.FC<Props> = ({ flag, name, onPress }) => {
+  const styles = useThemedStyles(makeStyles);
   const content = (
     <View style={styles.chip}>
       <Text style={styles.flag}>{flag}</Text>
@@ -25,20 +27,21 @@ const CountryChip: React.FC<Props> = ({ flag, name, onPress }) => {
   return content;
 };
 
-const styles = StyleSheet.create({
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  flag: { fontSize: 12 },
-  name: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.surfaceSofter,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.surfaceMid,
+      borderRadius: 20,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    flag: { fontSize: 12 },
+    name: { color: colors.textSecondary, fontSize: 11 },
+  });
 
 export default CountryChip;

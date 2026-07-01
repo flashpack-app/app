@@ -4,13 +4,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from '../services/haptics';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
 import { ModerationService } from '../services/moderation';
 import { APIService } from '../services/api';
 
 export default function CommentMomentScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const route = useRoute<any>();
   const { packs, user, comments, addComment, token } = useAppState();
   const id = route.params?.packId ?? packs[0]?.id;
@@ -119,7 +123,7 @@ export default function CommentMomentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   body: { padding: 12, gap: 10 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

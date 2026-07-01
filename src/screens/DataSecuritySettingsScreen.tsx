@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Alert } from 'react-native';
-import { colors } from '../theme/colors';
 import { useAppState } from '../state/AppState';
 import { useSettings } from '../hooks/useSettings';
 import {
@@ -11,11 +10,12 @@ import {
 } from '../services/biometric';
 import { clearCache, downloadData, confirmDeleteAccount } from '../services/accountActions';
 import ScreenHeader from '../components/ScreenHeader';
-import { ToggleRow, NavRow, Section, settingsStyles } from '../components/settings';
+import { ToggleRow, NavRow, Section, useSettingsStyles } from '../components/settings';
 
 export default function DataSecuritySettingsScreen() {
   const { user } = useAppState();
   const { settings, patch } = useSettings();
+  const settingsStyles = useSettingsStyles();
   const [bioAvailable, setBioAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface Props {
   reactions: { emoji: string; userId: string }[];
@@ -9,6 +10,7 @@ interface Props {
 }
 
 const ReactionStack: React.FC<Props> = ({ reactions, maxBubbles = 3, onPress }) => {
+  const styles = useThemedStyles(makeStyles);
   const grouped = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of reactions) {
@@ -50,23 +52,23 @@ const ReactionStack: React.FC<Props> = ({ reactions, maxBubbles = 3, onPress }) 
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   bubbles: { flexDirection: 'row', alignItems: 'center' },
   bubble: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.surfaceSoft,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.overlay(0.1),
     alignItems: 'center',
     justifyContent: 'center',
   },
   bubbleOverlap: { marginLeft: -6 },
   countBubble: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.overlay(0.1),
+    borderColor: colors.overlay(0.15),
   },
   countText: { color: colors.white, fontSize: 9, fontWeight: '700' },
   countLabel: { color: colors.textFade, fontSize: 10, fontWeight: '600' },

@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import ProGate from '../components/ProGate';
 import { useAppState } from '../state/AppState';
@@ -22,6 +24,8 @@ function groupByMonth(packs: any[]) {
 }
 
 export default function PackCalendarScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const { packs, user } = useAppState();
   const isPro = user?.isPro ?? false;
@@ -81,7 +85,7 @@ export default function PackCalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   rightBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   empty: { color: colors.textDim, textAlign: 'center', marginTop: 40, fontSize: 12 },

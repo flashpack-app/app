@@ -1,6 +1,8 @@
 import React from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import type { CoachRect, CoachStep } from './CoachmarkContext';
 
 interface Props {
@@ -18,6 +20,7 @@ const TOOLTIP_WIDTH = 280;
 const TOOLTIP_MARGIN = 16;
 
 const CoachmarkOverlay: React.FC<Props> = ({ rect, step, index, total, onNext, onSkip }) => {
+  const styles = useThemedStyles(makeStyles);
   const { width: screenW, height: screenH } = Dimensions.get('window');
   const isLast = index === total - 1;
 
@@ -111,7 +114,7 @@ const CoachmarkOverlay: React.FC<Props> = ({ rect, step, index, total, onNext, o
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   dim: { position: 'absolute', backgroundColor: DIM },
   ring: {
     position: 'absolute',

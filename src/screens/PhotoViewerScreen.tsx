@@ -14,7 +14,9 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { API_URL } from '../config';
 import FilteredImage from '../components/FilteredImage';
@@ -53,6 +55,8 @@ function LiveViewer({ videoURL, style }: { videoURL: string; style?: any }) {
 }
 
 export default function PhotoViewerScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const route = useRoute<any>();
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -321,7 +325,7 @@ export default function PhotoViewerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: '#000' },
   header: {
     flexDirection: 'row',

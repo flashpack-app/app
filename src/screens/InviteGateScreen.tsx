@@ -4,7 +4,9 @@ import * as Haptics from '../services/haptics';
 import { useNavigation } from '@react-navigation/native';
 import FlashLogo from '../components/FlashLogo';
 import PillButton from '../components/PillButton';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
 
 const FORMAT = /^FLASH-[A-Z0-9]{3}-[A-Z0-9]{2}$/;
@@ -31,6 +33,7 @@ const REASON_TEXT: Record<string, string> = {
 };
 
 export default function InviteGateScreen() {
+  const styles = useThemedStyles(makeStyles);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ export default function InviteGateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   center: {
     flex: 1,

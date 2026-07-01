@@ -1,7 +1,9 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import PillButton from '../components/PillButton';
 
 interface Props {
@@ -11,6 +13,8 @@ interface Props {
 }
 
 const ScreenshotWarningModal: React.FC<Props> = ({ visible, onClose, membersCount }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -37,7 +41,7 @@ const ScreenshotWarningModal: React.FC<Props> = ({ visible, onClose, membersCoun
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',

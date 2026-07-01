@@ -8,7 +8,9 @@ import * as Haptics from 'expo-haptics';
 import FlashLogo from '../components/FlashLogo';
 import PackCard from '../components/PackCard';
 import LiquidRefresh from '../components/LiquidRefresh';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import ScaledText from '../components/ScaledText';
 
@@ -31,6 +33,8 @@ function useCountdown(target: Date | null): string {
 }
 
 export default function FeedScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
@@ -216,7 +220,7 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   topBar: {
     flexDirection: 'row',

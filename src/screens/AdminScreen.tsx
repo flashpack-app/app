@@ -18,7 +18,9 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from '../services/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { APIService, AdminReport, AdminNotification } from '../services/api';
 import { AdminStats, AdminUserRow, GenesisCode } from '../types/models';
@@ -27,6 +29,8 @@ import PillButton from '../components/PillButton';
 type Tab = 'reports' | 'users' | 'codes' | 'notifications' | 'test';
 
 export default function AdminScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const { token, user } = useAppState();
   const insets = useSafeAreaInsets();
@@ -739,14 +743,21 @@ const DetailAction: React.FC<{
   label: string;
   color?: string;
   onPress: () => void;
-}> = ({ icon, label, color = colors.white, onPress }) => (
-  <Pressable onPress={onPress} style={styles.detailAction}>
-    <Ionicons name={icon} size={18} color={color} />
-    <Text style={[styles.detailActionText, { color }]}>{label}</Text>
-  </Pressable>
-);
+}> = ({ icon, label, color, onPress }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const resolved = color ?? colors.white;
+  return (
+    <Pressable onPress={onPress} style={styles.detailAction}>
+      <Ionicons name={icon} size={18} color={resolved} />
+      <Text style={[styles.detailActionText, { color: resolved }]}>{label}</Text>
+    </Pressable>
+  );
+};
 
 const TestPanel: React.FC = () => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { token, dailyTopic } = useAppState();
   const [testCode, setTestCode] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -860,20 +871,27 @@ const TestPanel: React.FC = () => {
   );
 };
 
-const Stat: React.FC<{ value?: number; label: string; accent?: string }> = ({ value, label, accent }) => (
-  <View style={styles.stat}>
-    <Text style={[styles.statValue, accent ? { color: accent } : null]}>{value ?? '–'}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
+const Stat: React.FC<{ value?: number; label: string; accent?: string }> = ({ value, label, accent }) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.stat}>
+      <Text style={[styles.statValue, accent ? { color: accent } : null]}>{value ?? '–'}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+};
 
-const TabBtn: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({ label, active, onPress }) => (
-  <Pressable onPress={onPress} style={[styles.tabBtn, active && styles.tabBtnActive]}>
-    <Text style={[styles.tabBtnText, active && { color: colors.yellow }]}>{label}</Text>
-  </Pressable>
-);
+const TabBtn: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({ label, active, onPress }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <Pressable onPress={onPress} style={[styles.tabBtn, active && styles.tabBtnActive]}>
+      <Text style={[styles.tabBtnText, active && { color: colors.yellow }]}>{label}</Text>
+    </Pressable>
+  );
+};
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   header: {
     flexDirection: 'row',

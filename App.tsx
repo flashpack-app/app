@@ -7,9 +7,15 @@ import { AppStateProvider } from './src/state/AppState';
 import { AccessibilityProvider } from './src/services/AccessibilityContext';
 import { CoachmarkProvider } from './src/onboarding/CoachmarkContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import { useColors } from './src/theme/useColors';
 import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
+
+function ThemedStatusBar() {
+  const colors = useColors();
+  return <StatusBar style={colors.name === 'light' ? 'dark' : 'light'} />;
+}
 
 export default function App() {
   return (
@@ -18,7 +24,7 @@ export default function App() {
         <AppStateProvider>
           <AccessibilityProvider>
             <CoachmarkProvider>
-              <StatusBar style="light" />
+              <ThemedStatusBar />
               <RootNavigator />
             </CoachmarkProvider>
           </AccessibilityProvider>

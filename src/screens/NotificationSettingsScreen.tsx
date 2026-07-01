@@ -2,10 +2,11 @@ import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { useSettings } from '../hooks/useSettings';
 import ScreenHeader from '../components/ScreenHeader';
-import { ToggleRow, Section, settingsStyles } from '../components/settings';
+import { ToggleRow, Section, useSettingsStyles } from '../components/settings';
 
 export default function NotificationSettingsScreen() {
   const { settings, patch } = useSettings();
+  const settingsStyles = useSettingsStyles();
 
   const s = settings;
   if (!s) return <View style={settingsStyles.wrap} />;

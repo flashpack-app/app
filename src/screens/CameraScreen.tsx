@@ -8,7 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 import FlashLogo from '../components/FlashLogo';
 import FilterStrip from '../components/FilterStrip';
-import { colors, filterColor } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
+import { filterColor } from '../theme/colors';
 import { useAppState } from '../state/AppState';
 import { VibeFilter, PRO_FILTERS } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
@@ -30,6 +33,8 @@ function lockCountdown(lastPostAt: string | null): string {
 const TIMER_OPTIONS = [0, 3, 5, 10];
 
 export default function CameraScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const [permission, requestPermission] = useCameraPermissions();
   const [micPermission, requestMicPermission] = useMicrophonePermissions();
   const [filter, setFilter] = useState<VibeFilter>('raw');
@@ -454,7 +459,7 @@ export default function CameraScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   topBar: {
     paddingHorizontal: 14,

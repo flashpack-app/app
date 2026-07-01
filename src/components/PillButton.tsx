@@ -1,6 +1,8 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 type Variant = 'yellow' | 'dim' | 'red' | 'white' | 'ghost';
 
@@ -25,7 +27,9 @@ const PillButton: React.FC<Props> = ({
   textStyle,
   children,
 }) => {
-  const v = variants[variant];
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const v = makeVariants(colors)[variant];
   return (
     <Pressable
       onPress={disabled || loading ? undefined : onPress}
@@ -49,7 +53,7 @@ const PillButton: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   base: {
     height: 40,
     borderRadius: 12,
@@ -62,16 +66,16 @@ const styles = StyleSheet.create({
   text: { fontSize: 13, fontWeight: '700' },
 });
 
-const variants: Record<Variant, { container: ViewStyle; text: TextStyle }> = {
+const makeVariants = (colors: Palette): Record<Variant, { container: ViewStyle; text: TextStyle }> => ({
   yellow: {
     container: { backgroundColor: colors.yellow },
     text: { color: '#000' },
   },
   dim: {
     container: {
-      backgroundColor: 'rgba(255,255,255,0.07)',
+      backgroundColor: colors.surfaceSoft,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(255,255,255,0.12)',
+      borderColor: colors.surfaceMid,
     },
     text: { color: colors.white },
   },
@@ -87,6 +91,6 @@ const variants: Record<Variant, { container: ViewStyle; text: TextStyle }> = {
     container: { backgroundColor: 'transparent' },
     text: { color: colors.white },
   },
-};
+});
 
 export default PillButton;

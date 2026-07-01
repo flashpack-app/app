@@ -14,13 +14,17 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FlashLogo from '../components/FlashLogo';
 import PillButton from '../components/PillButton';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
 import { useAppState } from '../state/AppState';
 
 const CORRECT_OTP = '123456';
 
 export default function OTPScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
@@ -150,7 +154,7 @@ export default function OTPScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   header: { paddingTop: 12, paddingHorizontal: 12 },
   back: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },

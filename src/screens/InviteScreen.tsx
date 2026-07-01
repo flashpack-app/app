@@ -4,7 +4,9 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from '../services/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { APIService } from '../services/api';
 import { InviteSlot } from '../types/models';
@@ -12,6 +14,8 @@ import InviteSlotRow from '../components/InviteSlotRow';
 import PillButton from '../components/PillButton';
 
 export default function InviteScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { user, token } = useAppState();
   const insets = useSafeAreaInsets();
   const [copied, setCopied] = useState(false);
@@ -108,7 +112,7 @@ export default function InviteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   title: { color: colors.white, fontSize: 14, fontWeight: '700', padding: 14 },
   section: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },

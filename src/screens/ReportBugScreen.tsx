@@ -11,10 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 
 export default function ReportBugScreen() {
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation();
   const [bug, setBug] = useState('');
   const [steps, setSteps] = useState('');
@@ -87,7 +90,7 @@ export default function ReportBugScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   intro: { color: colors.textDim, fontSize: 12, lineHeight: 18, marginBottom: 6 },
   card: {

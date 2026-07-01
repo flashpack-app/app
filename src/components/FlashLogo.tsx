@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, TextStyle } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { colors } from '../theme/colors';
+import { useColors } from '../theme/useColors';
 import { type } from '../theme/typography';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
 }
 
 const FlashLogo: React.FC<Props> = ({ size = 22, style, isLive }) => {
+  const colors = useColors();
   const anim = useSharedValue(isLive ? 1 : 0);
 
   useEffect(() => {

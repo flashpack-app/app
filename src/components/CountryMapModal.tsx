@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { getCityCoord } from '../data/cityCoords';
 
 interface CityPin {
@@ -68,6 +70,8 @@ function resolveCoord(
 }
 
 const CountryMapModal: React.FC<Props> = ({ visible, onClose, members }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const [region, setRegion] = useState<Region | null>(null);
 
   const { cityPins, countryClusters } = useMemo(() => {
@@ -207,7 +211,7 @@ const CountryMapModal: React.FC<Props> = ({ visible, onClose, members }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.80)',

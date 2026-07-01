@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
-import { loadSettings, saveSettings, UserSettings } from './settingsStore';
+import { loadSettings, saveSettings, UserSettings, DEFAULT_SETTINGS } from './settingsStore';
 
 type Accessibility = Pick<
   UserSettings,
-  'hapticsEnabled' | 'reduceMotion' | 'minimizeAnimations' | 'highContrast' | 'largerText' | 'screenReaderOptimized' | 'buttonSize'
+  'hapticsEnabled' | 'reduceMotion' | 'minimizeAnimations' | 'highContrast' | 'largerText' | 'screenReaderOptimized' | 'buttonSize' | 'theme'
 >;
 
 type ContextValue = Accessibility & { refresh: () => Promise<void> };
@@ -19,6 +19,7 @@ function pickAccessibility(s: UserSettings): Accessibility {
     largerText: s.largerText,
     screenReaderOptimized: s.screenReaderOptimized,
     buttonSize: s.buttonSize,
+    theme: s.theme,
   };
 }
 
@@ -34,8 +35,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     refresh();
   }, [refresh]);
 
-  if (!a11y) return <>{children}</>;
-  const value: ContextValue = { ...a11y, refresh };
+  const value: ContextValue = { ...(a11y ?? pickAccessibility(DEFAULT_SETTINGS)), refresh };
   return <AccessibilityContext.Provider value={value}>{children}</AccessibilityContext.Provider>;
 }
 

@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { Easing, interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface Props {
   score: number; // 0-100
@@ -10,6 +12,8 @@ interface Props {
 }
 
 const ChemistryBar: React.FC<Props> = ({ score, label = 'vibe match', animate = true }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const w = useSharedValue(animate ? 0 : score);
 
   useEffect(() => {
@@ -54,7 +58,7 @@ const ChemistryBar: React.FC<Props> = ({ score, label = 'vibe match', animate = 
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { color: colors.textDim, fontSize: 10, letterSpacing: 0.3 },
   track: {

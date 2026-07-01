@@ -7,7 +7,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from '../services/haptics';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { ALL_FILTERS, FREE_FILTERS, VibeFilter } from '../types/models';
 import { APIService } from '../services/api';
@@ -90,6 +92,8 @@ const streakBadgeStyles = StyleSheet.create({
 });
 
 export default function ProfileScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const { user: me, streak, packs, refreshStreak, refreshPacks, token, updateAvatar } = useAppState();
   const nav = useNavigation<any>();
   const route = useRoute<any>();
@@ -675,20 +679,23 @@ export default function ProfileScreen() {
   );
 }
 
-const Stat = ({ n, l, onPress }: { n: number; l: string; onPress?: () => void }) => (
-  <Pressable onPress={onPress} style={statStyles.wrap} disabled={!onPress}>
-    <ScaledText style={statStyles.n}>{n}</ScaledText>
-    <ScaledText style={statStyles.l}>{l}</ScaledText>
-  </Pressable>
-);
+const Stat = ({ n, l, onPress }: { n: number; l: string; onPress?: () => void }) => {
+  const statStyles = useThemedStyles(makeStatStyles);
+  return (
+    <Pressable onPress={onPress} style={statStyles.wrap} disabled={!onPress}>
+      <ScaledText style={statStyles.n}>{n}</ScaledText>
+      <ScaledText style={statStyles.l}>{l}</ScaledText>
+    </Pressable>
+  );
+};
 
-const statStyles = StyleSheet.create({
+const makeStatStyles = (colors: Palette) => StyleSheet.create({
   wrap: { alignItems: 'center', minWidth: 70 },
   n: { color: colors.white, fontSize: 18, fontWeight: '700' },
   l: { color: colors.textDim, fontSize: 10, marginTop: 2 },
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   topBar: {
     flexDirection: 'row',

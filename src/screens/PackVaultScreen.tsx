@@ -2,13 +2,17 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import ProGate from '../components/ProGate';
 import { useAppState } from '../state/AppState';
 import PackCard from '../components/PackCard';
 
 export default function PackVaultScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const { packs, reactions, user } = useAppState();
   const isPro = user?.isPro ?? false;
@@ -49,7 +53,7 @@ export default function PackVaultScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
   scroll: { padding: 12, paddingBottom: 40 },
   empty: { alignItems: 'center', marginTop: 80, gap: 10 },

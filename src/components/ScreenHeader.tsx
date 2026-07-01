@@ -3,7 +3,9 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import ScaledText from './ScaledText';
 
 interface ScreenHeaderProps {
@@ -15,6 +17,8 @@ interface ScreenHeaderProps {
 const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, onBack, right }) => {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
 
   return (
     <View style={[styles.header, { paddingTop: Math.max(8, insets.top) }]}>
@@ -27,7 +31,7 @@ const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, onBack, right }) => 
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',

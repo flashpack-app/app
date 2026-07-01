@@ -1,7 +1,9 @@
 import React from 'react';
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { ALL_FILTERS, VibeFilter } from '../types/models';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { filterDefs } from '../services/filters';
 
 interface Props {
@@ -11,6 +13,8 @@ interface Props {
 }
 
 const FilterStrip: React.FC<Props> = ({ selected, onSelect, isPro }) => {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const handlePress = (f: VibeFilter) => {
     onSelect(f);
   };
@@ -55,7 +59,7 @@ const FilterStrip: React.FC<Props> = ({ selected, onSelect, isPro }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { paddingVertical: 8 },
   label: {
     color: colors.textDim,

@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { colors, filterColor } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { filterColor } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { VibeFilter } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
 import ScaledText from './ScaledText';
@@ -11,6 +13,7 @@ interface Props {
 }
 
 const VibemeterBar: React.FC<Props> = ({ filter, value }) => {
+  const styles = useThemedStyles(makeStyles);
   const c = filterColor[filter];
   const pct = Math.round(value * 100);
   return (
@@ -26,7 +29,7 @@ const VibemeterBar: React.FC<Props> = ({ filter, value }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
   name: { color: colors.textSecondary, fontSize: 10, width: 56 },
   track: {

@@ -15,11 +15,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useColors } from '../theme/useColors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import FlashLogo from '../components/FlashLogo';
 
 export default function WelcomeLocationScreen() {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { user } = useAppState();
@@ -107,7 +111,7 @@ export default function WelcomeLocationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.black,
