@@ -156,6 +156,21 @@ CREATE TABLE IF NOT EXISTS user_reports (
 CREATE INDEX IF NOT EXISTS idx_user_reports_status ON user_reports(status);
 CREATE INDEX IF NOT EXISTS idx_user_reports_target ON user_reports(target_user_id);
 
+-- Reports against comments
+CREATE TABLE IF NOT EXISTS comment_reports (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  comment_id    UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  reporter_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason        TEXT NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'pending',
+  resolved_by   UUID REFERENCES users(id) ON DELETE SET NULL,
+  resolved_at   TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comment_reports_status ON comment_reports(status);
+CREATE INDEX IF NOT EXISTS idx_comment_reports_comment ON comment_reports(comment_id);
+
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

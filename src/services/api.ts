@@ -249,6 +249,9 @@ export const APIService = {
   async reportPack(token: string, packId: string, reason: string): Promise<void> {
     await http('/reports', { method: 'POST', token, body: { packId, reason } });
   },
+  async reportComment(token: string, commentId: string, reason: string): Promise<void> {
+    await http('/comment-reports', { method: 'POST', token, body: { commentId, reason } });
+  },
   async reportUser(token: string, targetUserId: string, reason: string): Promise<void> {
     await http('/user-reports', { method: 'POST', token, body: { targetUserId, reason } });
   },
@@ -338,7 +341,7 @@ export const APIService = {
     const res = await http<{ reports: any[] }>('/admin/reports', { token });
     return res.reports.map((r) => ({
       id: r.id,
-      packId: r.pack_id,
+      packId: r.pack_id ?? null,
       packNumber: r.pack_number ?? null,
       reporterId: r.reporter_id,
       reporterUsername: r.reporter_username,
@@ -346,6 +349,8 @@ export const APIService = {
       status: r.status,
       createdAt: r.created_at,
       resolvedAt: r.resolved_at ?? null,
+      reportType: r.report_type,
+      commentId: r.comment_id,
     }));
   },
   async adminResolveReport(token: string, id: string, action: 'resolve' | 'dismiss'): Promise<void> {
@@ -454,7 +459,7 @@ export interface AdminNotification {
 
 export interface AdminReport {
   id: string;
-  packId: string;
+  packId: string | null;
   packNumber: number | null;
   reporterId: string;
   reporterUsername: string;
@@ -462,6 +467,8 @@ export interface AdminReport {
   status: 'pending' | 'resolved' | 'dismissed';
   createdAt: string;
   resolvedAt: string | null;
+  reportType?: 'pack' | 'comment';
+  commentId?: string;
 }
 
 export { HTTPError };

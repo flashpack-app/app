@@ -1051,6 +1051,18 @@ app.post('/user-reports', requireUser, async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+app.post('/comment-reports', requireUser, async (req: Request, res: Response) => {
+  const userId = (req as any).userId as string;
+  const { commentId, reason } = req.body ?? {};
+  if (!commentId || typeof commentId !== 'string') return res.status(400).json({ error: 'comment_id_required' });
+  if (!reason || typeof reason !== 'string') return res.status(400).json({ error: 'reason_required' });
+  await query(
+    `INSERT INTO comment_reports(comment_id, reporter_id, reason) VALUES ($1, $2, $3)`,
+    [commentId, userId, reason],
+  );
+  return res.json({ ok: true });
+});
+
 // ---- profile ----
 
 app.patch('/me', requireUser, async (req: Request, res: Response) => {
@@ -1222,7 +1234,7 @@ app.post('/admin/genesis', requireAdmin, async (req: Request, res: Response) => 
 
 // admin: reports
 app.get('/admin/reports', requireAdmin, async (_req: Request, res: Response) => {
-  const rows = await query<{
+  const packRows = await query<{
     id: string;
     pack_id: string;
     reporter_id: string;
@@ -1232,26 +1244,70 @@ app.get('/admin/reports', requireAdmin, async (_req: Request, res: Response) => 
     created_at: string;
     resolved_at: string | null;
     pack_number: number | null;
+    report_type: string;
   }>(
     `SELECT r.id, r.pack_id, r.reporter_id, u.username AS reporter_username,
-            r.reason, r.status, r.created_at, r.resolved_at, p.number AS pack_number
+            r.reason, r.status, r.created_at, r.resolved_at, p.number AS pack_number,
+            'pack' as report_type
        FROM pack_reports r
        JOIN users u ON u.id = r.reporter_id
        LEFT JOIN packs p ON p.id = r.pack_id
        ORDER BY (r.status = 'pending') DESC, r.created_at DESC
        LIMIT 200`,
   );
-  return res.json({ reports: rows });
+
+  const commentRows = await query<{
+    id: string;
+    comment_id: string;
+    reporter_id: string;
+    reporter_username: string;
+    reason: string;
+    status: string;
+    created_at: string;
+    resolved_at: string | null;
+    pack_id: string | null;
+    pack_number: number | null;
+    report_type: string;
+  }>(
+    `SELECT r.id, r.comment_id, r.reporter_id, u.username AS reporter_username,
+            r.reason, r.status, r.created_at, r.resolved_at, p.id AS pack_id, p.number AS pack_number,
+            'comment' as report_type
+       FROM comment_reports r
+       JOIN users u ON u.id = r.reporter_id
+       JOIN comments c ON c.id = r.comment_id
+       LEFT JOIN packs p ON p.id = c.pack_id
+       ORDER BY (r.status = 'pending') DESC, r.created_at DESC
+       LIMIT 200`,
+  );
+
+  const allReports = [...packRows, ...commentRows].sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  return res.json({ reports: allReports });
 });
 
 app.post('/admin/reports/:id/resolve', requireAdmin, async (req: Request, res: Response) => {
   const me = (req as any).adminUser as UserRow;
   const { action } = req.body ?? {}; // 'dismiss' | 'resolve'
   const status = action === 'dismiss' ? 'dismissed' : 'resolved';
-  await query(
-    `UPDATE pack_reports SET status = $1, resolved_by = $2, resolved_at = NOW() WHERE id = $3`,
+  
+  // Try pack_reports first
+  const packResult = await query(
+    `UPDATE pack_reports SET status = $1, resolved_by = $2, resolved_at = NOW() WHERE id = $3 RETURNING id`,
     [status, me.id, req.params.id],
   );
+  
+  // If no rows affected, try comment_reports
+  if (!packResult || packResult.length === 0) {
+    await query(
+      `UPDATE comment_reports SET status = $1, resolved_by = $2, resolved_at = NOW() WHERE id = $3`,
+      [status, me.id, req.params.id],
+    );
+  }
+  
   return res.json({ ok: true });
 });
 

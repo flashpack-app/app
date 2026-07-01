@@ -379,7 +379,7 @@ export default function AdminScreen() {
               <View style={{ flex: 1, gap: 4 }}>
                 <View style={styles.userHeader}>
                   <Text style={styles.userName}>
-                    pack {r.packNumber ? `#${r.packNumber}` : '(deleted)'}
+                    {r.reportType === 'comment' ? 'comment' : 'pack'} {r.packNumber ? `#${r.packNumber}` : ''}
                   </Text>
                   <View
                     style={[
@@ -423,17 +423,17 @@ export default function AdminScreen() {
                     >
                       <Text style={[styles.actionBtnText, { color: colors.green }]}>resolve</Text>
                     </Pressable>
-                    {r.packId && r.packNumber && (
+                    {r.reportType === 'pack' && r.packId && r.packNumber && (
                       <>
                         <Pressable
-                          onPress={() => resetPackTimer(r.packId)}
+                          onPress={() => r.packId && resetPackTimer(r.packId)}
                           style={[styles.actionBtn, { backgroundColor: 'rgba(255,214,10,0.12)' }]}
                         >
                           <Ionicons name="time-outline" size={11} color={colors.yellow} />
                           <Text style={[styles.actionBtnText, { color: colors.yellow, marginLeft: 4 }]}>reset timer</Text>
                         </Pressable>
                         <Pressable
-                          onPress={() => deletePack(r.packId)}
+                          onPress={() => r.packId && deletePack(r.packId)}
                           style={[styles.actionBtn, { backgroundColor: 'rgba(255,69,58,0.12)' }]}
                         >
                           <Ionicons name="trash-outline" size={11} color={colors.red} />

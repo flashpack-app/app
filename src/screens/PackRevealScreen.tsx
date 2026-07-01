@@ -582,6 +582,15 @@ export default function PackRevealScreen() {
                         {c.flag} {c.city} · {Math.max(1, Math.floor((Date.now() - new Date(c.sentAt).getTime()) / 60000))}m ago
                         {isSelf && ' · you'}
                       </ScaledText>
+                      {!isSelf && (
+                        <Pressable
+                          onPress={() => nav.navigate('Report', { packId: pack.id, commentId: c.id })}
+                          style={styles.reportCommentBtn}
+                          hitSlop={8}
+                        >
+                          <Ionicons name="flag-outline" size={11} color={colors.textFade} />
+                        </Pressable>
+                      )}
                     </View>
                     <ScaledText style={styles.commentText}>{c.text}</ScaledText>
                   </View>
@@ -952,6 +961,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.white,
     fontSize: 11,
     fontWeight: '700',
+  },
+  reportCommentBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
   input: {

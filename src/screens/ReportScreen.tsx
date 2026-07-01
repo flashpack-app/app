@@ -25,15 +25,21 @@ export default function ReportScreen() {
   const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const route = useRoute<any>();
-  const { packs, token } = useAppState();
+  const { packs, token, comments } = useAppState();
   const id = route.params?.packId;
+  const commentId = route.params?.commentId;
   const pack = packs.find((p) => p.id === id) ?? packs[0];
+  const comment = commentId ? comments[id]?.find((c) => c.id === commentId) : null;
   const [selected, setSelected] = useState<string | null>(null);
 
   const onSubmit = async () => {
-    if (!selected || !token || !pack) return;
+    if (!selected || !token) return;
     try {
-      await APIService.reportPack(token, pack.id, selected);
+      if (commentId) {
+        await APIService.reportComment(token, commentId, selected);
+      } else if (pack) {
+        await APIService.reportPack(token, pack.id, selected);
+      }
     } catch {}
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (Platform.OS === 'android') ToastAndroid.show('report submitted', ToastAndroid.SHORT);
@@ -43,7 +49,7 @@ export default function ReportScreen() {
 
   return (
     <View style={styles.wrap}>
-      <ScreenHeader title="report pack" />
+      <ScreenHeader title={commentId ? "report comment" : "report pack"} />
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 12 }}>
         {pack && <Mosaic pack={pack} height={88} cellGap={1} showFlags={false} borderRadius={10} />}

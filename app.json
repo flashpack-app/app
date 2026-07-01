@@ -15,7 +15,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "flash. needs your camera to capture photos for your pack.",
         "NSPhotoLibraryAddUsageDescription": "flash. saves your captured packs to your library.",
-        "NSFaceIDUsageDescription": "flash. uses face id to securely sign you in."
+        "NSFaceIDUsageDescription": "flash. uses face id to securely sign you in.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
