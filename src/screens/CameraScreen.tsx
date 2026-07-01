@@ -46,6 +46,7 @@ export default function CameraScreen() {
   const [countdown, setCountdown] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isVideoMode, setIsVideoMode] = useState(false);
+  const [torchActive, setTorchActive] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0); // 0..1 over 3s
   const isRecording = useRef(false);
   const flashOpacity = useRef(new RNAnimated.Value(0)).current;
@@ -107,6 +108,9 @@ export default function CameraScreen() {
     isRecording.current = true;
     setIsCapturing(true);
 
+    // Illuminate with the torch (continuous light) while recording when flash is on.
+    if (flash === 'on') setTorchActive(true);
+
     // Blink flash the screen to indicate recording started (as requested)
     flashOverlayPlay();
 
@@ -154,6 +158,7 @@ export default function CameraScreen() {
       pulse.stop();
       shutterPulse.setValue(1);
       setVideoProgress(0);
+      setTorchActive(false);
       isRecording.current = false;
     }
 
@@ -296,6 +301,7 @@ export default function CameraScreen() {
                 style={StyleSheet.absoluteFill}
                 facing={facing}
                 flash={isVideoMode ? 'off' : flash}
+                enableTorch={torchActive}
                 zoom={zoom}
                 mode={isVideoMode ? 'video' : 'picture'}
               />
