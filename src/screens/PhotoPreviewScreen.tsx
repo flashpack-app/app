@@ -47,6 +47,7 @@ export default function PhotoPreviewScreen() {
   const insets = useSafeAreaInsets();
 
   const [state, setState] = useState<State>('idle');
+  const [duet, setDuet] = useState(false);
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const width = useSharedValue(220);
@@ -74,7 +75,7 @@ export default function PhotoPreviewScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setState('uploading');
     try {
-      const res = await APIService.uploadPhoto(token!, uri, filter, videoUri);
+      const res = await APIService.uploadPhoto(token!, uri, filter, videoUri, duet ? 'duet' : 'squad');
       setPhotoId(res.photoId);
       setLastPostedPhotoId(res.photoId);
       const nowIso = new Date().toISOString();
@@ -138,6 +139,20 @@ export default function PhotoPreviewScreen() {
       <View style={styles.bottom}>
         <Text style={styles.caption}>looks good? send it to your pack.</Text>
 
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setDuet((d) => !d);
+          }}
+          style={[styles.duetToggle, duet && styles.duetToggleOn]}
+        >
+          <Ionicons name="people-outline" size={13} color={duet ? '#000' : colors.textSecondary} />
+          <Text style={[styles.duetText, duet && styles.duetTextOn]}>
+            duet — just you + one person
+          </Text>
+          <View style={[styles.duetDot, duet && styles.duetDotOn]} />
+        </Pressable>
+
         <View style={styles.row}>
           <Pressable
             onPress={() => nav.goBack()}
@@ -197,6 +212,28 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   filterBadgeText: { color: colors.white, fontSize: 10 },
   bottom: { padding: 16, gap: 10 },
   caption: { color: colors.textDim, fontSize: 11, textAlign: 'center' },
+  duetToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  duetToggleOn: { backgroundColor: colors.yellow, borderColor: colors.yellow },
+  duetText: { color: colors.textSecondary, fontSize: 11 },
+  duetTextOn: { color: '#000', fontWeight: '600' },
+  duetDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  duetDotOn: { backgroundColor: '#000' },
   row: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   retake: {
     flex: 1,

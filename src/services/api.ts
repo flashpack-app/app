@@ -98,6 +98,7 @@ function mapPack(p: any): Pack {
       videoURL: absoluteUrl(ph.videoURL),
     })),
     chemistryScore: p.chemistryScore ?? 0,
+    packType: p.packType === 'duet' ? 'duet' : 'squad',
     createdAt: p.createdAt,
     expiresAt: p.expiresAt,
     isSaved: p.status === 'saved',
@@ -190,6 +191,7 @@ export const APIService = {
     uri: string | null,
     filter: VibeFilter,
     videoUri?: string | null,
+    packType?: 'duet' | 'squad',
   ): Promise<{ photoId: string; packId: string; packNumber: number }> {
     // Compress the photo and convert to base64 so the server can host it for the
     // whole pack. The filter is applied at render time, so we store the raw image.
@@ -236,6 +238,7 @@ export const APIService = {
           ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg' }
           : uri ? { imageUrl: uri } : {}),
         ...(videoData ? { videoData, videoMime } : {}),
+        ...(packType === 'duet' ? { packType } : {}),
         filter,
       },
     });

@@ -518,7 +518,11 @@ app.get('/photos/:id/video', async (req: Request, res: Response) => {
 
 app.post('/photos', requireUser, async (req: Request, res: Response) => {
   const userId = (req as any).userId as string;
-  const { filter, imageUrl, imageData, imageMime, videoData, videoMime } = req.body ?? {};
+  const { filter, imageUrl, imageData, imageMime, videoData, videoMime, packType } = req.body ?? {};
+
+  // Duet packs cap at 2 members and only match with other duet posts.
+  const type = packType === 'duet' ? 'duet' : 'squad';
+  const memberCap = type === 'duet' ? 2 : MAX_PACK_MEMBERS;
 
   // Accept either a raw base64 string or a full data URI; store only the base64 payload.
   const base64 =
@@ -586,6 +590,7 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
       `SELECT p.id, p.number FROM packs p
        WHERE p.status = 'open'
          AND p.expires_at > NOW()
+         AND p.pack_type = $3
          AND (
            SELECT COUNT(*) FROM pack_members pm WHERE pm.pack_id = p.id
          ) < $2
@@ -593,7 +598,7 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
            SELECT 1 FROM pack_members pm WHERE pm.pack_id = p.id AND pm.user_id = $1
          )
        LIMIT 1`,
-      [userId, MAX_PACK_MEMBERS],
+      [userId, memberCap, type],
     );
 
     let packId: string;
@@ -604,8 +609,8 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
       const countRes = await client.query<{ max: string }>(`SELECT COALESCE(MAX(number), 0)::text AS max FROM packs`);
       packNumber = parseInt(countRes.rows[0].max, 10) + 1;
       const newPack = await client.query(
-        `INSERT INTO packs(number, status, expires_at) VALUES ($1, 'open', NOW() + INTERVAL '18 hours') RETURNING id`,
-        [packNumber],
+        `INSERT INTO packs(number, status, expires_at, pack_type) VALUES ($1, 'open', NOW() + INTERVAL '18 hours', $2) RETURNING id`,
+        [packNumber, type],
       );
       packId = newPack.rows[0].id;
     } else {
@@ -783,6 +788,7 @@ interface PackBaseRow {
   pack_created_at: string;
   pack_expires_at: string;
   pack_chemistry_score: number;
+  pack_type: string;
 }
 
 // Build the full client-facing pack payload (members, photos + per-photo
@@ -881,6 +887,7 @@ async function buildPack(r: PackBaseRow) {
     createdAt: r.pack_created_at,
     expiresAt: r.pack_expires_at,
     chemistryScore: r.pack_chemistry_score,
+    packType: r.pack_type ?? 'squad',
     members: members.map((m) => ({
       id: m.user_id,
       userId: m.user_id,
@@ -941,7 +948,7 @@ app.get('/packs', requireUser, async (req: Request, res: Response) => {
   const rows = await query<PackBaseRow>(
     `SELECT p.id AS pack_id, p.number AS pack_number, p.status AS pack_status,
             p.created_at AS pack_created_at, p.expires_at AS pack_expires_at,
-            p.chemistry_score AS pack_chemistry_score
+            p.chemistry_score AS pack_chemistry_score, p.pack_type
      FROM packs p
      JOIN pack_members pm ON pm.pack_id = p.id
      WHERE pm.user_id = $1 AND p.status != 'closed'
@@ -961,7 +968,7 @@ app.get('/packs/discover', requireUser, async (req: Request, res: Response) => {
   const rows = await query<PackBaseRow>(
     `SELECT p.id AS pack_id, p.number AS pack_number, p.status AS pack_status,
             p.created_at AS pack_created_at, p.expires_at AS pack_expires_at,
-            p.chemistry_score AS pack_chemistry_score
+            p.chemistry_score AS pack_chemistry_score, p.pack_type
      FROM packs p
      WHERE p.status != 'closed'
        AND p.expires_at > NOW()

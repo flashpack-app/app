@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS packs (
   chemistry_score INT NOT NULL DEFAULT 0
 );
 
+-- Duet packs: 2-person variant rendered as a 1x2 split screen
+ALTER TABLE packs ADD COLUMN IF NOT EXISTS pack_type TEXT NOT NULL DEFAULT 'squad';
+
 -- Which users are in which pack
 CREATE TABLE IF NOT EXISTS pack_members (
   pack_id       UUID NOT NULL REFERENCES packs(id) ON DELETE CASCADE,

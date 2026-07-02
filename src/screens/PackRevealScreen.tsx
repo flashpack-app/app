@@ -64,6 +64,9 @@ function resolveUrl(u?: string): string | undefined {
 const { width: SCREEN_W } = Dimensions.get('window');
 const TILE_GAP = 3;
 const TILE_SIZE = (SCREEN_W - 24 - TILE_GAP) / 2;
+// Duet packs render 1x2: two full-width stacked tiles instead of the 2x2 grid.
+const DUET_TILE_W = SCREEN_W - 24;
+const DUET_TILE_H = TILE_SIZE;
 
 /* Shade-in wrapper for grid tiles */
 function ShadeInTile({
@@ -395,7 +398,7 @@ export default function PackRevealScreen() {
           )}
         </Animated.View>
 
-        {/* Photo grid — staggered shade-in */}
+        {/* Photo grid — staggered shade-in (duet packs stack 1x2 instead) */}
         <View style={[styles.grid, { gap: TILE_GAP, paddingHorizontal: 12 }]}>
           {slots.map((p, i) => {
             if (!p) {
@@ -419,13 +422,14 @@ export default function PackRevealScreen() {
             const isSelf = p.userId === user?.id;
             const isPro = !!member?.isPro;
             const proBorderColor = member?.proBorder || colors.yellow;
+            const isDuet = pack.packType === 'duet';
             return (
               <ShadeInTile
                 key={p.id}
                 ready={ready}
                 index={i}
                 style={[
-                  styles.tile,
+                  isDuet ? styles.tileDuet : styles.tile,
                   isSelf && styles.tileSelf,
                   isPro && { borderWidth: 2.5, borderColor: proBorderColor },
                 ]}
@@ -995,6 +999,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tileDuet: {
+    width: DUET_TILE_W,
+    height: DUET_TILE_H,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#1a1a1a',
+    marginBottom: TILE_GAP,
   },
   tileSelf: {
     borderWidth: 2,

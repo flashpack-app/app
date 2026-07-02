@@ -136,6 +136,8 @@ export interface Pack {
   apartMinutes: number;
   reactions?: { userId: string; emoji: string }[];
   screenshots?: PackScreenshot[];
+  // 'duet' = 2-person pack rendered as a 1×2 split screen; default 'squad'
+  packType?: 'duet' | 'squad';
 }
 
 export interface PackScreenshot {
