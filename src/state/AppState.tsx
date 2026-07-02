@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 import { Pack, User, InviteSlot, CommentMessage } from '../types/models';
 import { mockPacks } from '../data/mock';
 import { Session, loadSession, saveSession, clearSession } from '../services/storage';
@@ -244,6 +245,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (token) {
           APIService.addComment(token, packId, msg.text).catch((e) => {
             console.warn('addComment failed:', e);
+            if ((e as any)?.status === 422) {
+              // Server-side moderation rejected it — roll back the optimistic add.
+              setComments((prev) => ({
+                ...prev,
+                [packId]: (prev[packId] ?? []).filter((c) => c.id !== msg.id),
+              }));
+              Alert.alert("this message can't be sent.");
+            }
           });
         }
       },

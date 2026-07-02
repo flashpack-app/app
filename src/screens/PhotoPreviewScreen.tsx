@@ -10,7 +10,6 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { filterColor } from '../theme/colors';
 import { APIService } from '../services/api';
-import { ModerationService } from '../services/moderation';
 import { VibeFilter } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
 import FilteredImage from '../components/FilteredImage';
@@ -73,11 +72,6 @@ export default function PhotoPreviewScreen() {
 
   const onSend = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const safe = await ModerationService.isImageSafe(uri);
-    if (!safe) {
-      setState('idle');
-      return;
-    }
     setState('uploading');
     try {
       const res = await APIService.uploadPhoto(token!, uri, filter, videoUri);
@@ -93,8 +87,11 @@ export default function PhotoPreviewScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
       }, 500);
-    } catch {
+    } catch (e: any) {
       setState('idle');
+      if (e?.status === 422) {
+        Alert.alert("this photo can't be shared", 'it was flagged by content moderation.');
+      }
     }
   };
 
