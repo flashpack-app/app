@@ -73,3 +73,13 @@ export function addNotificationResponseReceivedListener(
 ) {
   return Notifications.addNotificationResponseReceivedListener(callback);
 }
+
+// Returns the notification tap that launched the app (cold start), if any.
+export function getLastNotificationResponseAsync() {
+  return Notifications.getLastNotificationResponseAsync();
+}
+
+export function extractPackId(response: Notifications.NotificationResponse | null): string | null {
+  const packId = response?.notification.request.content.data?.packId;
+  return typeof packId === 'string' && packId.length > 0 ? packId : null;
+}
