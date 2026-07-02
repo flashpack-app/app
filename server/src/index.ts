@@ -8,6 +8,7 @@ import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
 import { moderateText, moderateImage, recordViolation, shouldAutoBan, checkRateLimit } from './moderation';
 import { cachedJson, packKey, userKey, invalidatePack, invalidateUser } from './cache';
+import { storageEnabled, uploadMedia, deleteMediaByUrl } from './storage';
 
 const MAX_PACK_MEMBERS = 4;
 
@@ -443,6 +444,17 @@ app.get('/me/lineage', requireUser, async (req: Request, res: Response) => {
 // the photo id is an unguessable UUID.
 app.get('/photos/:id/raw', async (req: Request, res: Response) => {
   const photoId = req.params.id;
+
+  // S3-era photos: bytes live behind the CDN, just point the client there.
+  const urlRows = await query<{ image_url: string | null }>(
+    'SELECT image_url FROM photos WHERE id = $1 AND reverted_at IS NULL',
+    [photoId],
+  );
+  if (!urlRows[0]) return res.status(404).end();
+  if (urlRows[0].image_url?.startsWith('http')) {
+    return res.redirect(302, urlRows[0].image_url);
+  }
+
   const cachedFilePath = path.join(UPLOADS_DIR, `raw-${photoId}`);
   const mimePath = cachedFilePath + '.mime';
 
@@ -481,6 +493,16 @@ app.get('/photos/:id/raw', async (req: Request, res: Response) => {
 // Public: serve the flash.live video clip for a photo.
 app.get('/photos/:id/video', async (req: Request, res: Response) => {
   const photoId = req.params.id;
+
+  const urlRows = await query<{ video_url: string | null }>(
+    'SELECT video_url FROM photos WHERE id = $1 AND reverted_at IS NULL',
+    [photoId],
+  );
+  if (!urlRows[0]) return res.status(404).end();
+  if (urlRows[0].video_url?.startsWith('http')) {
+    return res.redirect(302, urlRows[0].video_url);
+  }
+
   const cachedFilePath = path.join(UPLOADS_DIR, `video-${photoId}`);
   const mimePath = cachedFilePath + '.mime';
 
@@ -560,16 +582,41 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
     }
   }
 
+  // When S3 is configured the bytes go there and Postgres only keeps the CDN
+  // URL; otherwise fall back to the legacy base64 columns.
+  let storedImageUrl: string | null = base64 ? null : imageUrl ?? null;
+  let storedVideoUrl: string | null = null;
+  let storedImageData: string | null = base64;
+  let storedVideoData: string | null = videoBase64;
+  if (storageEnabled()) {
+    try {
+      if (base64) {
+        storedImageUrl = await uploadMedia('photo', Buffer.from(base64, 'base64'), imageMime ?? 'image/jpeg');
+        storedImageData = null;
+      }
+      if (videoBase64) {
+        storedVideoUrl = await uploadMedia('video', Buffer.from(videoBase64, 'base64'), videoMime ?? 'video/mp4');
+        storedVideoData = null;
+      }
+    } catch (e) {
+      console.error('[POST /photos] s3 upload failed, falling back to db storage:', e);
+      storedImageUrl = base64 ? null : imageUrl ?? null;
+      storedVideoUrl = null;
+      storedImageData = base64;
+      storedVideoData = videoBase64;
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     // Insert photo (with optional video)
     const photoRes = await client.query(
-      `INSERT INTO photos(user_id, filter, image_url, image_data, image_mime, video_data, video_mime, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + INTERVAL '18 hours')
+      `INSERT INTO photos(user_id, filter, image_url, image_data, image_mime, video_data, video_mime, video_url, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + INTERVAL '18 hours')
        RETURNING id`,
-      [userId, filter ?? 'raw', base64 ? null : imageUrl ?? null, base64, imageMime ?? 'image/jpeg', videoBase64, videoMime ?? null],
+      [userId, filter ?? 'raw', storedImageUrl, storedImageData, imageMime ?? 'image/jpeg', storedVideoData, videoMime ?? null, storedVideoUrl],
     );
     const photoId = photoRes.rows[0].id;
 
@@ -703,8 +750,8 @@ app.post('/photos/:id/revert', requireUser, async (req: Request, res: Response) 
   const userId = (req as any).userId as string;
   const photoId = req.params.id;
 
-  const rows = await query<{ id: string; user_id: string; created_at: string }>(
-    'SELECT id, user_id, created_at FROM photos WHERE id = $1',
+  const rows = await query<{ id: string; user_id: string; created_at: string; image_url: string | null; video_url: string | null }>(
+    'SELECT id, user_id, created_at, image_url, video_url FROM photos WHERE id = $1',
     [photoId],
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
@@ -747,6 +794,10 @@ app.post('/photos/:id/revert', requireUser, async (req: Request, res: Response) 
   } catch (err) {
     console.error('Error unlinking reverted photo caches:', err);
   }
+
+  // Best-effort: drop the S3 objects too so reverted media doesn't linger on the CDN.
+  deleteMediaByUrl(rows[0].image_url);
+  deleteMediaByUrl(rows[0].video_url);
 
   return res.json({ ok: true });
 });
@@ -821,13 +872,14 @@ async function buildPack(r: PackBaseRow) {
     id: string;
     user_id: string;
     image_url: string | null;
+    video_url: string | null;
     has_image: boolean;
     has_video: boolean;
     filter: string;
     created_at: string;
     placeholder: [string, string];
   }>(
-    `SELECT p.id, p.user_id, p.image_url, (p.image_data IS NOT NULL) AS has_image,
+    `SELECT p.id, p.user_id, p.image_url, p.video_url, (p.image_data IS NOT NULL) AS has_image,
             (p.video_data IS NOT NULL) AS has_video,
             p.filter, p.created_at,
             ARRAY['#3b2a4a', '#1a1a2e']::text[] AS placeholder
@@ -900,10 +952,15 @@ async function buildPack(r: PackBaseRow) {
     photos: photos.map((p) => ({
       id: p.id,
       userId: p.user_id,
-      // Prefer the hosted image endpoint; fall back to any legacy stored URL.
-      imageURL: p.has_image ? `/photos/${p.id}/raw` : p.image_url ?? undefined,
+      // S3-era rows carry an absolute CDN URL; legacy rows go through the
+      // hosted endpoint that streams the base64 bytes.
+      imageURL: p.image_url?.startsWith('http')
+        ? p.image_url
+        : p.has_image ? `/photos/${p.id}/raw` : p.image_url ?? undefined,
       // flash.live silent clip (Pro)
-      videoURL: p.has_video ? `/photos/${p.id}/video` : undefined,
+      videoURL: p.video_url?.startsWith('http')
+        ? p.video_url
+        : p.has_video ? `/photos/${p.id}/video` : undefined,
       filter: p.filter,
       capturedAt: p.created_at,
       expiresAt: r.pack_expires_at,

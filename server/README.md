@@ -22,6 +22,7 @@ auth is `invite code → username → user`. The `token` is just the user's UUID
 - **database** — Postgres (Neon in prod), schema in `src/schema.sql`  
 - **cache** — Redis-backed with an in-process TTL fallback (`src/cache.ts`)  
 - **moderation** — OpenAI `omni-moderation-latest` + local heuristic (`src/moderation.ts`)  
+- **media** — base64 in Postgres by default, or S3 + CloudFront when configured (`src/storage.ts`)  
 - **deploy** — Render (`render.yaml`), managed Postgres  
   
 ## what it does  
@@ -90,6 +91,23 @@ the TTL bounds staleness for anything indirect. Set `REDIS_URL` to share the cac
 across instances — without it, an in-process TTL map with identical semantics is  
 used, so local dev needs no Redis. Cache errors fall through to Postgres.  
   
+## media storage  
+  
+With `S3_BUCKET` set, photo/video uploads go to S3 and Postgres stores only the  
+public URL (`photos.image_url` / `photos.video_url`); `/photos/:id/raw` and  
+`/photos/:id/video` 302-redirect to the CDN for those rows. Without it, media  
+keeps living in the base64 columns like before — no AWS needed for local dev.  
+Legacy rows keep streaming from Postgres either way.  
+  
+| Var | Effect |  
+| --- | ------ |  
+| `S3_BUCKET` | enables S3 storage |  
+| `S3_REGION` | falls back to `AWS_REGION`, then `us-east-1` |  
+| `S3_PUBLIC_URL` | CDN base (CloudFront), e.g. `https://dxxxx.cloudfront.net`; defaults to the bucket URL |  
+| `S3_ENDPOINT` | optional, for R2/MinIO-compatible stores |  
+| `S3_KEY_PREFIX` | key prefix, default `media` |  
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | standard AWS credential chain |  
+  
 ## environment  
   
 | Var | Purpose |  
@@ -98,6 +116,7 @@ used, so local dev needs no Redis. Cache errors fall through to Postgres.
 | `REDIS_URL` | shared cache; optional (in-process fallback when unset) |  
 | `OPENAI_API_KEY` / `MODERATION_API_KEY` | ML moderation |  
 | `MODERATION_FAIL_CLOSED` | fail closed on moderation errors |  
+| `S3_BUCKET` + `S3_*` / `AWS_*` | S3/CloudFront media storage (see above); optional |  
   
 > `.env` is gitignored — never commit it. Rotate the Neon string in the Neon console.  
   
@@ -106,5 +125,6 @@ used, so local dev needs no Redis. Cache errors fall through to Postgres.
 - `src/index.ts` — all routes + matching/chemistry logic  
 - `src/moderation.ts` — image/text moderation (OpenAI + heuristic)  
 - `src/cache.ts` — Redis / in-process cache  
+- `src/storage.ts` — S3/CloudFront media upload + delete (no-op fallback)  
 - `src/db.ts` · `src/migrate.ts` · `src/codes.ts` — pool, migrations, invite-code gen  
 - `src/schema.sql` — full schema
