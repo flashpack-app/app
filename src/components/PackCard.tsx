@@ -102,7 +102,16 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
           <View style={[styles.dot, { backgroundColor: matchColor(pack.chemistryScore, colors) }]} />
           <Text style={styles.matchText}>{pack.chemistryScore}% match</Text>
         </View>
-        <ReactionStack reactions={reactions} maxBubbles={3} />
+        <ReactionStack
+          reactions={reactions}
+          users={pack.members.map((m) => ({
+            id: m.id,
+            username: m.username,
+            avatarUrl: m.avatarUrl,
+            avatarColor: m.avatarColor,
+          }))}
+          maxBubbles={3}
+        />
       </View>
     </Pressable>
   );

@@ -6,7 +6,7 @@ import path from 'path';
 import { pool, query } from './db';
 import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
-import { moderateText, moderateImage } from './moderation';
+import { moderateText, moderateImage, recordViolation, shouldAutoBan, checkRateLimit } from './moderation';
 
 const MAX_PACK_MEMBERS = 4;
 
@@ -432,6 +432,22 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
     const verdict = await moderateImage(base64, imageMime ?? 'image/jpeg');
     if (!verdict.safe) {
       console.warn(`[POST /photos] rejected for user=${userId} categories=${verdict.categories.join(',')}`);
+
+      // Record violation
+      for (const category of verdict.categories) {
+        await recordViolation({
+          userId,
+          category,
+          contentType: 'image',
+        });
+      }
+
+      // Auto-ban if threshold reached
+      if (await shouldAutoBan(userId)) {
+        await query('UPDATE users SET banned = TRUE WHERE id = $1', [userId]);
+        return res.status(403).json({ error: 'user_banned' });
+      }
+
       return res.status(422).json({ error: 'image_rejected', categories: verdict.categories });
     }
   }
@@ -915,8 +931,35 @@ app.post('/packs/:id/comment', requireUser, async (req: Request, res: Response) 
   const { text } = req.body ?? {};
   if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text_required' });
 
+  // Check rate limit
+  const rateLimit = checkRateLimit(userId);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ error: 'rate_limit_exceeded', reason: rateLimit.reason });
+  }
+
+  // Check if user should be auto-banned
+  if (await shouldAutoBan(userId)) {
+    return res.status(403).json({ error: 'user_banned' });
+  }
+
   const verdict = await moderateText(text);
   if (!verdict.safe) {
+    // Record violation
+    for (const category of verdict.categories) {
+      await recordViolation({
+        userId,
+        category,
+        contentType: 'text',
+        packId,
+      });
+    }
+
+    // Auto-ban if threshold reached
+    if (await shouldAutoBan(userId)) {
+      await query('UPDATE users SET banned = TRUE WHERE id = $1', [userId]);
+      return res.status(403).json({ error: 'user_banned' });
+    }
+
     return res.status(422).json({ error: 'text_rejected', categories: verdict.categories });
   }
 
@@ -927,6 +970,44 @@ app.post('/packs/:id/comment', requireUser, async (req: Request, res: Response) 
   );
   const u = await query<{ username: string }>('SELECT username FROM users WHERE id = $1', [userId]);
   const author = u[0]?.username ?? 'someone';
+
+  // Fetch pack info for notifications
+  const packInfo = await query<{ number: number }>(
+    'SELECT number FROM packs WHERE id = $1',
+    [packId]
+  );
+
+  // Detect @mentions and send notifications
+  const mentionRegex = /@(\w+)/g;
+  const mentions: string[] = [];
+  let match;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    mentions.push(match[1]);
+  }
+
+  if (mentions.length > 0) {
+    // Find user IDs for mentioned usernames
+    const mentionedUsers = await query<{ id: string; username: string }>(
+      `SELECT id, username FROM users WHERE username = ANY($1)`,
+      [mentions]
+    );
+
+    // Send notifications to mentioned users (excluding the commenter)
+    for (const mentioned of mentionedUsers) {
+      if (mentioned.id !== userId) {
+        await query(
+          `INSERT INTO notifications(user_id, type, title, body, pack_id)
+           VALUES ($1, 'comment', $2, $3, $4)`,
+          [
+            mentioned.id,
+            `@${author} mentioned you`,
+            `in pack #${packInfo[0]?.number}`,
+            packId,
+          ]
+        );
+      }
+    }
+  }
   const recips2 = await query<{ user_id: string }>(
     `SELECT pm.user_id FROM pack_members pm WHERE pm.pack_id = $1 AND pm.user_id <> $2`,
     [packId, userId],

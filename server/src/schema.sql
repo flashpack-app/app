@@ -210,3 +210,22 @@ CREATE TABLE IF NOT EXISTS pack_screenshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pack_screenshots_pack ON pack_screenshots(pack_id);
+
+-- Moderation violations tracking
+CREATE TABLE IF NOT EXISTS moderation_violations (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category      TEXT NOT NULL, -- banned_term, url_link, spam_pattern, image_rejected
+  content_type  TEXT NOT NULL, -- text, image
+  pack_id       UUID REFERENCES packs(id) ON DELETE SET NULL,
+  comment_id    UUID REFERENCES pack_comments(id) ON DELETE SET NULL,
+  photo_id      UUID REFERENCES photos(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_moderation_violations_user ON moderation_violations(user_id);
+CREATE INDEX IF NOT EXISTS idx_moderation_violations_created ON moderation_violations(created_at DESC);
+
+-- Add violation count column to users table
+ALTER TABLE users ADD COLUMN IF NOT EXISTS violation_count INT NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_violation_at TIMESTAMPTZ;

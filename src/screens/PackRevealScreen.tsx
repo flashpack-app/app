@@ -43,6 +43,7 @@ import FilteredImage from '../components/FilteredImage';
 import { Image } from 'expo-image';
 import ScaledText from '../components/ScaledText';
 import liveLogoWhite from '../assets/live_logo_white.webp';
+import MentionText from '../components/MentionText';
 import ShareSheet from '../components/ShareSheet';
 import { normalizeFilter } from '../services/filters';
 import ScreenshotWarningModal from './ScreenshotWarningModal';
@@ -151,6 +152,7 @@ export default function PackRevealScreen() {
   const [draft, setDraft] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showScreenshotModal, setShowScreenshotModal] = useState(false);
+  const [showReactionsModal, setShowReactionsModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const hasDailyTopic = !!dailyTopic && dailyTopic.date === new Date().toISOString().slice(0, 10);
   const storyRef = useRef<View>(null);
@@ -514,7 +516,20 @@ export default function PackRevealScreen() {
         {/* Reaction stack */}
         {packReactions.length > 0 && (
           <View style={styles.reactionsWrap}>
-            <ReactionStack reactions={packReactions} maxBubbles={4} />
+            <ReactionStack
+              reactions={packReactions}
+              users={pack.members.map((m) => ({
+                id: m.userId,
+                username: m.username,
+                avatarUrl: m.avatarUrl,
+                avatarColor: m.avatarColor,
+              }))}
+              maxBubbles={4}
+              onPress={() => {
+                console.log('ReactionStack pressed');
+                setShowReactionsModal(true);
+              }}
+            />
           </View>
         )}
 
@@ -588,7 +603,7 @@ export default function PackRevealScreen() {
                         </Pressable>
                       )}
                     </View>
-                    <ScaledText style={styles.commentText}>{c.text}</ScaledText>
+                    <MentionText text={c.text} style={styles.commentText} />
                   </View>
                 </View>
               </Pressable>
@@ -730,6 +745,75 @@ export default function PackRevealScreen() {
                       </ScaledText>
                     </View>
                   ))}
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Reactions Details Modal */}
+          <Modal
+            visible={showReactionsModal}
+            animationType="slide"
+            transparent
+            statusBarTranslucent
+            onRequestClose={() => setShowReactionsModal(false)}
+          >
+            <View style={StyleSheet.absoluteFill}>
+              <Pressable style={styles.modalBackdrop} onPress={() => setShowReactionsModal(false)} />
+              <View style={[styles.modalContainer, { paddingBottom: Math.max(20, insets.bottom + 10), minHeight: 300 }]}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderTitleRow}>
+                    <Ionicons name="heart" size={16} color={colors.yellow} />
+                    <ScaledText style={styles.modalTitle}>reactions</ScaledText>
+                  </View>
+                  <Pressable
+                    onPressIn={() => setShowReactionsModal(false)}
+                    style={styles.modalCloseBtn}
+                    hitSlop={12}
+                  >
+                    <Ionicons name="close" size={20} color={colors.white} />
+                  </Pressable>
+                </View>
+
+                <View style={{ flex: 1, marginTop: 16 }}>
+                  {packReactions.length === 0 ? (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <ScaledText style={{ color: colors.textFade }}>No reactions yet</ScaledText>
+                    </View>
+                  ) : (
+                    packReactions.map((r, index) => {
+                      const member = pack.members.find((m) => m.userId === r.userId);
+                      const username = member?.username || r.userId?.slice(0, 8) || 'anon';
+                      const avatarUrl = member?.avatarUrl;
+                      const avatarColor = member?.avatarColor;
+                      const initials = username?.charAt(0).toUpperCase() ?? '?';
+
+                      return (
+                        <Pressable
+                          key={`${r.userId}-${index}`}
+                          style={styles.reactionItem}
+                          onPress={() => nav.navigate('PublicProfile', { username })}
+                        >
+                          {avatarUrl ? (
+                            <Image source={{ uri: avatarUrl }} style={styles.reactionAvatar} />
+                          ) : (
+                            <View style={[styles.reactionAvatar, { backgroundColor: avatarColor || '#666' }]}>
+                              <ScaledText style={styles.reactionInitials}>{initials}</ScaledText>
+                            </View>
+                          )}
+                          <View style={styles.reactionInfo}>
+                            <ScaledText style={styles.reactionUsername}>@{username}</ScaledText>
+                            <ScaledText style={styles.reactionMeta}>
+                              {member?.flag || '🌍'} {member?.city || 'Unknown'}
+                            </ScaledText>
+                          </View>
+                          <View style={styles.reactionEmoji}>
+                            <ScaledText style={{ fontSize: 20 }}>{r.emoji}</ScaledText>
+                          </View>
+                        </Pressable>
+                      );
+                    })
+                  )}
                 </View>
               </View>
             </View>
@@ -1098,6 +1182,44 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   modalCloseBtn: {
     padding: 4,
+  },
+  reactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  reactionAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  reactionInitials: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  reactionInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  reactionUsername: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reactionMeta: {
+    color: colors.textFade,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  reactionEmoji: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalHint: {
     color: 'rgba(255,255,255,0.35)',
