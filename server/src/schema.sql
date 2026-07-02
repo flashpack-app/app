@@ -72,6 +72,21 @@ ALTER TABLE photos ADD COLUMN IF NOT EXISTS image_mime TEXT;
 ALTER TABLE photos ADD COLUMN IF NOT EXISTS video_data TEXT;
 ALTER TABLE photos ADD COLUMN IF NOT EXISTS video_mime TEXT;
 
+-- OTP delivery target once phone collection ships (nullable until then)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+
+-- One-time codes for login/signup verification (see src/otp.ts)
+CREATE TABLE IF NOT EXISTS auth_otps (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subject      TEXT NOT NULL,           -- username (login) or invite code (signup)
+  code_hash    TEXT NOT NULL,
+  attempts     INT NOT NULL DEFAULT 0,
+  expires_at   TIMESTAMPTZ NOT NULL,
+  consumed_at  TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_auth_otps_subject ON auth_otps(subject, created_at DESC);
+
 -- Packs (groups of users who posted in same window)
 CREATE TABLE IF NOT EXISTS packs (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

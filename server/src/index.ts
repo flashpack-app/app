@@ -8,6 +8,7 @@ import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
 import { moderateText, moderateImage, recordViolation, shouldAutoBan, checkRateLimit } from './moderation';
 import { cachedJson, packKey, userKey, invalidatePack, invalidateUser } from './cache';
+import { sendOtp, verifyOtp } from './otp';
 
 const MAX_PACK_MEMBERS = 4;
 
@@ -167,9 +168,79 @@ async function sendPushNotifications(userIds: string[], title: string, body: str
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// Username-only login. OTP is intentionally skipped — anyone who knows a
-// username can sign in. Acceptable for the prototype, but tighten before launch.
+// ---- OTP ----
+
+// The auth flow keys OTPs on what it already has: the username for login,
+// the invite code for signup. Phone numbers are used for delivery when
+// present (users.phone) and Twilio is configured; otherwise the code comes
+// back in the response (devCode) so the flow works without an SMS provider.
+function otpSubject(body: any): { subject: string; username?: string } | null {
+  const { username, inviteCode } = body ?? {};
+  if (typeof username === 'string' && username.trim()) {
+    const clean = username.trim().toLowerCase();
+    return { subject: `user:${clean}`, username: clean };
+  }
+  if (typeof inviteCode === 'string' && inviteCode.trim()) {
+    return { subject: `invite:${normalize(inviteCode)}` };
+  }
+  return null;
+}
+
+app.post('/auth/otp/send', async (req: Request, res: Response) => {
+  const ctx = otpSubject(req.body);
+  if (!ctx) return res.status(400).json({ error: 'username_or_invite_required' });
+
+  let phone: string | null = null;
+  if (ctx.username) {
+    const rows = await query<{ phone: string | null }>(
+      'SELECT phone FROM users WHERE username = $1',
+      [ctx.username],
+    );
+    // Same response as the happy path so login sends don't leak whether an
+    // account exists.
+    if (!rows[0]) return res.json({ ok: true });
+    phone = rows[0].phone;
+  }
+
+  const result = await sendOtp(ctx.subject, phone);
+  if (!result.ok) {
+    return res.status(result.reason === 'rate_limited' ? 429 : 502).json({ error: result.reason });
+  }
+  return res.json({ ok: true, ...(result.channel === 'dev' ? { devCode: result.devCode } : {}) });
+});
+
+app.post('/auth/otp/verify', async (req: Request, res: Response) => {
+  const ctx = otpSubject(req.body);
+  const { code } = req.body ?? {};
+  if (!ctx || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+
+  const result = await verifyOtp(ctx.subject, code);
+  if (result !== 'ok') return res.status(400).json({ error: result });
+
+  // Login subjects complete the sign-in here so the username-only /auth/login
+  // can eventually be retired (OTP_REQUIRED=true turns it off).
+  if (ctx.username) {
+    const rows = await query<UserRow & { invited_by_username: string | null }>(
+      `SELECT u.*, inv.username AS invited_by_username
+       FROM users u
+       LEFT JOIN users inv ON inv.id = u.invited_by
+       WHERE u.username = $1`,
+      [ctx.username],
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+    return res.json({ ok: true, user: serializeUser(rows[0]), token: rows[0].id });
+  }
+  return res.json({ ok: true });
+});
+
+// Username-only login. Kept for the prototype flow; set OTP_REQUIRED=true to
+// force clients through /auth/otp/verify instead.
 app.post('/auth/login', async (req: Request, res: Response) => {
+  if (process.env.OTP_REQUIRED === 'true') {
+    return res.status(403).json({ error: 'otp_required' });
+  }
   const { username } = req.body ?? {};
   if (typeof username !== 'string' || !username.trim()) {
     return res.status(400).json({ error: 'missing_username' });

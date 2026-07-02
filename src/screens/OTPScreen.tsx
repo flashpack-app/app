@@ -20,8 +20,6 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
 import { useAppState } from '../state/AppState';
 
-const CORRECT_OTP = '123456';
-
 export default function OTPScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
@@ -36,6 +34,7 @@ export default function OTPScreen() {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const isLogin = !!username;
@@ -47,37 +46,42 @@ export default function OTPScreen() {
     return () => clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    // Request a code for this subject as soon as the screen opens.
+    APIService.sendOTP({ username, inviteCode })
+      .then((res) => {
+        if (res.devCode) setDevCode(res.devCode);
+      })
+      .catch((e: any) => {
+        setError(e?.body?.error === 'rate_limited'
+          ? 'too many codes requested. wait a bit.'
+          : "couldn't send a code. try again.");
+      });
+  }, [username, inviteCode]);
+
   const verifyOtp = async () => {
     if (otp.length !== 6) return;
     setLoading(true);
     setError(null);
 
-    // simulate network delay
-    await new Promise((r) => setTimeout(r, 400));
-
-    if (otp !== CORRECT_OTP) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError('invalid code. try 123456.');
-      setLoading(false);
-      return;
-    }
-
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    if (isLogin && username) {
-      try {
-        const { user, token } = await APIService.login(username);
+    try {
+      const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (isLogin && user && token) {
         await signIn({ user, token });
-      } catch (e: any) {
-        const reason = e?.body?.error ?? '';
-        setError(reason === 'not_found' ? 'user not found.' : 'login failed.');
-        setLoading(false);
-        return;
+      } else if (isSignup && inviteCode) {
+        nav.navigate('Username', { code: inviteCode });
       }
-    } else if (isSignup && inviteCode) {
-      nav.navigate('Username', { code: inviteCode });
+    } catch (e: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const reason = e?.body?.error ?? '';
+      setError(
+        reason === 'expired' ? 'code expired. go back and try again.'
+        : reason === 'too_many_attempts' ? 'too many tries. request a new code.'
+        : reason === 'not_found' ? 'user not found.'
+        : 'invalid code.',
+      );
     }
-
     setLoading(false);
   };
 
@@ -148,7 +152,7 @@ export default function OTPScreen() {
           style={{ width: '100%', height: 44 }}
         />
 
-        <Text style={styles.note}>for now, use code 123456.</Text>
+        {devCode && <Text style={styles.note}>dev build — your code is {devCode}.</Text>}
       </View>
     </KeyboardAvoidingView>
   );
