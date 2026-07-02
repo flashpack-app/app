@@ -12,6 +12,18 @@ services:
           property: connectionString
       - key: NODE_ENV
         value: production
+      # S3/CloudFront media storage — set values in the Render dashboard.
+      # Leave unset to keep storing media in Postgres (dev fallback).
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_PUBLIC_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
     healthCheckPath: /health
 
 databases:
