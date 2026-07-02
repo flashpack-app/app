@@ -47,6 +47,17 @@ Env vars:
 Without a key, text falls back to a word-boundary heuristic and images are allowed —
 same behaviour dev environments had before, just enforced server-side now.
 
+## Caching
+
+Hot reads go through `src/cache.ts`: pack payloads (`shapePack`, 60s TTL) and
+the `/me` user row (120s TTL). Every mutating endpoint invalidates the keys it
+touches; the TTL bounds staleness for anything indirect (e.g. an avatar change
+appearing inside cached pack payloads).
+
+Set `REDIS_URL` to share the cache across instances. Without it an in-process
+TTL map with identical semantics is used, so local dev needs no Redis. Cache
+errors fall through to Postgres — Redis being down slows things, never breaks.
+
 ## Important
 
 The Neon connection string lives in `.env` (gitignored). Rotate it in the Neon console once development settles, and never commit `.env`.

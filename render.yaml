@@ -12,6 +12,11 @@ services:
           property: connectionString
       - key: NODE_ENV
         value: production
+      # Shared cache across instances — set in the Render dashboard
+      # (e.g. a Render Key Value instance's connection string).
+      # Leave unset to run with the in-process fallback cache.
+      - key: REDIS_URL
+        sync: false
     healthCheckPath: /health
 
 databases:
