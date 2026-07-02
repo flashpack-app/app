@@ -105,7 +105,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,  
     borderColor: 'rgba(255,255,255,0.1)',  
     alignItems: 'center',  
-    justifyContent: 'center',  
+    justifyContent: 'center',
     // NOTE: no overflow:'hidden' here — that was clipping the badge  
   },  
   avatarClip: {  

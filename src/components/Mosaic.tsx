@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ViewStyle, Pressable, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pack, PackPhoto, PackMember } from '../types/models';
 import type { Palette } from '../theme/colors';
@@ -10,6 +11,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { radius } from '../theme/colors';
 import { normalizeFilter } from '../services/filters';
 import FilteredImage from './FilteredImage';
+import liveLogo from '../assets/live_logo_white.webp';
 
 interface Props {
   pack: Pack;
@@ -131,12 +133,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
           showLoader
         />
       ) : null}
-      {photo.videoURL && (
-        <View style={styles.liveBadge}>
-          <Ionicons name="flash" size={7} color="#000" />
-          <Text style={styles.liveBadgeText}>LIVE</Text>
-        </View>
-      )}
+      
       {expired && (
         <View style={styles.expiredOverlay}>
           <Ionicons name="time-outline" size={16} color="rgba(255,255,255,0.6)" />
@@ -179,6 +176,7 @@ const Mosaic: React.FC<Props> = ({
 
   return (
     <View style={[styles.wrap, { height, borderRadius }, style]}>
+      <Image source={liveLogo} style={styles.liveLogo} />
       <View style={[styles.grid, { gap: cellGap }]}>
         {photos.map((p, i) => (
           <Cell
@@ -200,6 +198,13 @@ const Mosaic: React.FC<Props> = ({
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { overflow: 'hidden', backgroundColor: colors.black },
+  liveLogo: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 32,
+    height: 12,
+  },
   grid: {
     flex: 1,
     flexDirection: 'row',

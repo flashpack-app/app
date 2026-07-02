@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Haptics from '../services/haptics';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
@@ -23,6 +24,7 @@ import FilteredImage from '../components/FilteredImage';
 import Mosaic from '../components/Mosaic';
 import { usePreventCapture } from '../services/screenshot';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import liveLogo from '../assets/live_logo_white.webp';
 
 const screenW = Dimensions.get('window').width;
 const screenH = Dimensions.get('window').height;
@@ -48,7 +50,7 @@ function LiveViewer({ videoURL, style }: { videoURL: string; style?: any }) {
     <VideoView
       player={player}
       style={[StyleSheet.absoluteFillObject, style]}
-      contentFit="contain"
+      contentFit="cover"
       nativeControls={false}
     />
   );
@@ -269,6 +271,7 @@ export default function PhotoViewerScreen() {
 
       {/* Full image with pinch zoom, free pan, double-tap & swipe-down */}
       <View style={styles.imageWrap}>
+        <Image source={liveLogo} style={styles.liveLogo} />
         {videoUrl ? (
           <GestureDetector gesture={composedGesture}>
             <Animated.View style={[styles.zoomWrap, imageStyle]}>
@@ -276,6 +279,10 @@ export default function PhotoViewerScreen() {
                 videoURL={videoUrl}
                 style={styles.fullImg}
               />
+              <View style={styles.liveBadge}>
+                <Ionicons name="flash" size={7} color="#000" />
+                <Text style={styles.liveBadgeText}>LIVE</Text>
+              </View>
             </Animated.View>
           </GestureDetector>
         ) : imageUrl ? (
@@ -334,6 +341,26 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 6,
   },
+  liveLogo: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    width: 32,
+    height: 12,
+  },
+  liveBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.yellow,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  liveBadgeText: { color: '#000', fontSize: 7, fontWeight: '900', letterSpacing: 0.3 },
   iconBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.white, fontSize: 15, fontWeight: '600' },
   imageWrap: { flex: 1, backgroundColor: '#000' },

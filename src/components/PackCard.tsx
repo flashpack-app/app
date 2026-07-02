@@ -8,6 +8,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import Mosaic from './Mosaic';
 import ReactionStack from './ReactionStack';
+import liveLogo from '../assets/live_logo_white.webp';
 
 interface PackReaction {
   userId: string;
@@ -94,7 +95,10 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
       </View>
 
       {/* Mosaic edge-to-edge */}
-      <Mosaic pack={pack} height={88 * 2} borderRadius={0} cellGap={1} showFlags={false} />
+      <View style={styles.mosaicWrap}>
+        <Mosaic pack={pack} height={252} borderRadius={0} cellGap={3} showFlags={false} />
+        <Image source={liveLogo} style={styles.liveLogo} />
+      </View>
 
       {/* Bottom row */}
       <View style={styles.bottomRow}>
@@ -131,6 +135,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  mosaicWrap: {
+    position: 'relative',
+  },
+  liveLogo: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 32,
+    height: 12,
+    zIndex: 10,
   },
   avatars: { flexDirection: 'row' },
   avatar: {
