@@ -6,6 +6,7 @@ import path from 'path';
 import { pool, query } from './db';
 import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
+import { moderateText, moderateImage } from './moderation';
 
 const MAX_PACK_MEMBERS = 4;
 
@@ -426,6 +427,14 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
     typeof videoData === 'string' ? videoData.replace(/^data:[^;]+;base64,/, '') : null;
 
   console.log(`[POST /photos] user=${userId} hasImage=${!!base64} hasVideo=${!!videoBase64} videoMime=${videoMime ?? 'none'} videoBytes=${videoBase64 ? Math.round(videoBase64.length * 0.75 / 1024) + 'kb' : 0}`);
+
+  if (base64) {
+    const verdict = await moderateImage(base64, imageMime ?? 'image/jpeg');
+    if (!verdict.safe) {
+      console.warn(`[POST /photos] rejected for user=${userId} categories=${verdict.categories.join(',')}`);
+      return res.status(422).json({ error: 'image_rejected', categories: verdict.categories });
+    }
+  }
 
   const client = await pool.connect();
   try {
@@ -905,6 +914,11 @@ app.post('/packs/:id/comment', requireUser, async (req: Request, res: Response) 
   const packId = req.params.id;
   const { text } = req.body ?? {};
   if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text_required' });
+
+  const verdict = await moderateText(text);
+  if (!verdict.safe) {
+    return res.status(422).json({ error: 'text_rejected', categories: verdict.categories });
+  }
 
   await query(
     `INSERT INTO pack_comments(pack_id, user_id, text) VALUES ($1, $2, $3)
