@@ -35,27 +35,6 @@ The client reads `extra.apiUrl` from `app.json`. Defaults:
 5. Client persists session in `AsyncStorage`. Future launches skip the gate.
 6. **Settings** lives at Profile → ⚙. From there: account info, invites, admin panel (admins only), and sign out.
 
-## Admin
-
-Running `npm run migrate` upserts an admin user `@korybantes` (email `toptutanertac@gmail.com`) with 25 invite slots. Sign in by tapping "sign in" on the invite gate and entering `korybantes`.
-
-Admin features (Profile → ⚙ → Admin, or shield icon top-right of Profile):
-
-- Stats: total users, admins, open / used genesis codes
-- Users tab: list, promote/demote admin, delete user
-- Codes tab: list all genesis codes, generate new ones
-
-Endpoints behind `requireAdmin` (Bearer = user id):
-
-```
-GET    /admin/stats
-GET    /admin/users
-DELETE /admin/users/:id
-POST   /admin/users/:id/admin   { value: boolean }
-GET    /admin/genesis
-POST   /admin/genesis           { count: 1..25 }
-```
-
 ## What's included
 
 All 10 screens from `PROMPT.md`, wired through React Navigation:
