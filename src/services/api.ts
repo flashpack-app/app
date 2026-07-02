@@ -351,6 +351,7 @@ export const APIService = {
       resolvedAt: r.resolved_at ?? null,
       reportType: r.report_type,
       commentId: r.comment_id,
+      commentText: r.comment_text,
     }));
   },
   async adminResolveReport(token: string, id: string, action: 'resolve' | 'dismiss'): Promise<void> {
@@ -358,6 +359,9 @@ export const APIService = {
   },
   async adminDeletePack(token: string, id: string): Promise<void> {
     await http(`/admin/packs/${id}`, { method: 'DELETE', token });
+  },
+  async adminDeleteComment(token: string, id: string): Promise<void> {
+    await http(`/admin/comments/${id}`, { method: 'DELETE', token });
   },
   async adminSetBan(token: string, id: string, value: boolean): Promise<User> {
     const res = await http<{ user: any }>(`/admin/users/${id}/ban`, {
@@ -469,6 +473,7 @@ export interface AdminReport {
   resolvedAt: string | null;
   reportType?: 'pack' | 'comment';
   commentId?: string;
+  commentText?: string;
 }
 
 export { HTTPError };

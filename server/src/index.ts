@@ -1268,13 +1268,14 @@ app.get('/admin/reports', requireAdmin, async (_req: Request, res: Response) => 
     pack_id: string | null;
     pack_number: number | null;
     report_type: string;
+    comment_text: string;
   }>(
     `SELECT r.id, r.comment_id, r.reporter_id, u.username AS reporter_username,
             r.reason, r.status, r.created_at, r.resolved_at, p.id AS pack_id, p.number AS pack_number,
-            'comment' as report_type
+            c.text AS comment_text, 'comment' as report_type
        FROM comment_reports r
        JOIN users u ON u.id = r.reporter_id
-       JOIN comments c ON c.id = r.comment_id
+       JOIN pack_comments c ON c.id = r.comment_id
        LEFT JOIN packs p ON p.id = c.pack_id
        ORDER BY (r.status = 'pending') DESC, r.created_at DESC
        LIMIT 200`,
@@ -1313,6 +1314,11 @@ app.post('/admin/reports/:id/resolve', requireAdmin, async (req: Request, res: R
 
 app.delete('/admin/packs/:id', requireAdmin, async (req: Request, res: Response) => {
   await query('DELETE FROM packs WHERE id = $1', [req.params.id]);
+  return res.json({ ok: true });
+});
+
+app.delete('/admin/comments/:id', requireAdmin, async (req: Request, res: Response) => {
+  await query('DELETE FROM pack_comments WHERE id = $1', [req.params.id]);
   return res.json({ ok: true });
 });
 

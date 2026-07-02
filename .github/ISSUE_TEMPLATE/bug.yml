@@ -1,0 +1,38 @@
+name: 🐛 Bug report  
+description: Report something broken in flash.  
+title: "[Bug]: "  
+labels: ["bug"]  
+body:  
+  - type: textarea  
+    id: what-happened  
+    attributes:  
+      label: What happened?  
+      description: Describe the bug and the actual vs expected behavior.  
+    validations:  
+      required: true  
+  - type: textarea  
+    id: repro  
+    attributes:  
+      label: Steps to reproduce  
+      placeholder: |  
+        1. ...  
+        2. ...  
+        3. ...  
+    validations:  
+      required: true  
+  - type: dropdown  
+    id: platform  
+    attributes:  
+      label: Platform  
+      multiple: true  
+      options:  
+        - iOS  
+        - Android  
+        - Server / backend  
+    validations:  
+      required: true  
+  - type: input  
+    id: version  
+    attributes:  
+      label: App version  
+      placeholder: "1.0.0"

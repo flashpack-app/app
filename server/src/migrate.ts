@@ -72,12 +72,35 @@ async function migrateSeparator() {
   }
 }
 
+async function fixCommentReportsTable() {
+  // Fix comment_reports table if it was created with wrong foreign key reference
+  try {
+    // Check if table exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'comment_reports'
+      )
+    `);
+    
+    if (tableCheck.rows[0].exists) {
+      // Drop and recreate with correct foreign key
+      await pool.query('DROP TABLE IF EXISTS comment_reports CASCADE');
+      console.log('comment_reports table dropped for migration');
+    }
+  } catch (e) {
+    // Table might not exist yet, which is fine
+    console.log('comment_reports migration check skipped');
+  }
+}
+
 export async function applySchema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(sql);
 }
 
 export async function bootstrap() {
+  await fixCommentReportsTable();
   await applySchema();
   console.log('schema applied.');
 

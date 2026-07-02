@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
 import { useNavigation } from '@react-navigation/native';
@@ -51,6 +51,7 @@ export default function ProScreen() {
   const nav = useNavigation<any>();
   const { user, updateProBorder, isOnboarding, setIsOnboarding } = useAppState();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
+  const isPro = !!user?.isPro;
 
   const onClose = async () => {
     if (isOnboarding) {
@@ -67,6 +68,32 @@ export default function ProScreen() {
       'thanks for the support 🟡',
       'in-app purchases will be available in the next build. your interest is logged.',
       [{ text: 'ok', onPress: onClose }],
+    );
+  };
+
+  const openPlatformSubscriptions = async () => {
+    const url = Platform.select({
+      ios: 'itms-apps://apps.apple.com/account/subscriptions',
+      android: 'https://play.google.com/store/account/subscriptions',
+    });
+    if (!url) return;
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('unable to open', 'please manage your subscription from your device settings.');
+    }
+  };
+
+  const onManageSubscription = () => {
+    Haptics.selectionAsync();
+    Alert.alert(
+      'cancel subscription?',
+      "you'll keep pro access until your current period ends, then lose flash.live, pro filters, the vault, and streak insurance.",
+      [
+        { text: 'keep pro', style: 'cancel' },
+        { text: 'continue to cancel', style: 'destructive', onPress: openPlatformSubscriptions },
+      ],
     );
   };
 
@@ -91,7 +118,7 @@ export default function ProScreen() {
         </View>
 
         {/* Status */}
-        {user?.isPro ? (
+        {isPro ? (
           <View style={[styles.statusCard, { borderColor: colors.green }]}>
             <Ionicons name="checkmark-circle" size={18} color={colors.green} />
             <Text style={[styles.statusText, { color: colors.green }]}>you're pro. thank you.</Text>
@@ -99,7 +126,7 @@ export default function ProScreen() {
         ) : null}
 
         {/* Pro tile border customization */}
-        {user?.isPro && (
+        {isPro && (
           <>
             <Text style={styles.sectionLabel}>pro tile border</Text>
             <View style={styles.borderCard}>
@@ -138,48 +165,64 @@ export default function ProScreen() {
           ))}
         </View>
 
-        {/* Plans */}
-        <Text style={styles.sectionLabel}>choose your plan</Text>
-        <View style={{ gap: 8 }}>
-          {PLANS.map((p) => {
-            const active = selected === p.id;
-            return (
-              <Pressable
-                key={p.id}
-                onPress={() => { setSelected(p.id); Haptics.selectionAsync(); }}
-                style={[styles.plan, active && styles.planActive]}
-              >
-                <View style={styles.radio}>
-                  {active && <View style={styles.radioInner} />}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.planLabel}>{p.label}</Text>
-                    {p.badge && (
-                      <View style={styles.planBadge}>
-                        <Text style={styles.planBadgeText}>{p.badge}</Text>
+        {/* Plans — only relevant if they're not already subscribed */}
+        {!isPro && (
+          <>
+            <Text style={styles.sectionLabel}>choose your plan</Text>
+            <View style={{ gap: 8 }}>
+              {PLANS.map((p) => {
+                const active = selected === p.id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => { setSelected(p.id); Haptics.selectionAsync(); }}
+                    style={[styles.plan, active && styles.planActive]}
+                  >
+                    <View style={styles.radio}>
+                      {active && <View style={styles.radioInner} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.planLabel}>{p.label}</Text>
+                        {p.badge && (
+                          <View style={styles.planBadge}>
+                            <Text style={styles.planBadgeText}>{p.badge}</Text>
+                          </View>
+                        )}
                       </View>
-                    )}
-                  </View>
-                  <Text style={styles.planPrice}>
-                    <Text style={styles.planPriceBig}>{p.price}</Text>
-                    <Text style={styles.planPer}> {p.per}</Text>
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+                      <Text style={styles.planPrice}>
+                        <Text style={styles.planPriceBig}>{p.price}</Text>
+                        <Text style={styles.planPer}> {p.per}</Text>
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-        {/* CTA */}
-        <Pressable onPress={onSubscribe} style={styles.cta} disabled={user?.isPro}>
-          <Text style={styles.ctaText}>{user?.isPro ? "you're already pro" : 'start pro'}</Text>
-          {!user?.isPro && <Ionicons name="arrow-forward" size={14} color="#000" />}
-        </Pressable>
+            <Pressable onPress={onSubscribe} style={styles.cta}>
+              <Text style={styles.ctaText}>start pro</Text>
+              <Ionicons name="arrow-forward" size={14} color="#000" />
+            </Pressable>
 
-        <Text style={styles.fineprint}>
-          cancel anytime. lifetime is one-time. you'll be charged after a 7-day free trial on yearly plans.
-        </Text>
+            <Text style={styles.fineprint}>
+              cancel anytime. lifetime is one-time. you'll be charged after a 7-day free trial on yearly plans.
+            </Text>
+          </>
+        )}
+
+        {/* Manage / cancel subscription */}
+        {isPro && (
+          <View style={styles.manageCard}>
+            <Text style={styles.sectionLabel}>manage subscription</Text>
+            <Pressable onPress={onManageSubscription} style={styles.cancelBtn}>
+              <Text style={styles.cancelBtnText}>cancel subscription</Text>
+            </Pressable>
+            <Text style={styles.manageHint}>
+              opens your {Platform.OS === 'ios' ? 'App Store' : 'Play Store'} subscription settings.
+            </Text>
+          </View>
+        )}
 
         {isOnboarding && (
           <Pressable onPress={onClose} style={styles.skipLink}>
@@ -226,6 +269,25 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: 'rgba(48,209,88,0.06)',
   },
   statusText: { fontSize: 12, fontWeight: '600' },
+
+  manageCard: {
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  cancelBtn: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,69,58,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: { color: '#FF453A', fontSize: 13, fontWeight: '700' },
+  manageHint: { color: colors.textHint, fontSize: 10, textAlign: 'center' },
 
   sectionLabel: {
     color: colors.textDim,

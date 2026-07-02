@@ -42,6 +42,7 @@ import ReactionStack from '../components/ReactionStack';
 import FilteredImage from '../components/FilteredImage';
 import { Image } from 'expo-image';
 import ScaledText from '../components/ScaledText';
+import liveLogoWhite from '../assets/live_logo_white.webp';
 import ShareSheet from '../components/ShareSheet';
 import { normalizeFilter } from '../services/filters';
 import ScreenshotWarningModal from './ScreenshotWarningModal';
@@ -149,6 +150,7 @@ export default function PackRevealScreen() {
   const [shareUri, setShareUri] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
+  const [showScreenshotModal, setShowScreenshotModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const hasDailyTopic = !!dailyTopic && dailyTopic.date === new Date().toISOString().slice(0, 10);
   const storyRef = useRef<View>(null);
@@ -371,19 +373,21 @@ export default function PackRevealScreen() {
               </Pressable>
             </View>
           </View>
-          <Animated.Text style={[styles.title, titleStyle]}>your pack{'\n'}is here.</Animated.Text>
+          <Animated.Text style={[styles.title, titleStyle]}>your pack{'\n'}is here<Text style={{ color: colors.yellow }}>.</Text></Animated.Text>
           <Animated.Text style={[styles.subtitle, subtitleStyle]}>
             shot {pack.apartMinutes} min apart · {pack.countriesCount} countries
           </Animated.Text>
           {pack.screenshots && pack.screenshots.length > 0 && (
-            <Animated.View style={[styles.screenshotBadge, subtitleStyle]}>
-              <Ionicons name="copy-outline" size={12} color={colors.red} />
-              <ScaledText style={styles.screenshotText}>
-                {pack.screenshots.length === 1
-                  ? `@${pack.screenshots[0].username} screenshotted this pack`
-                  : `${pack.screenshots.length} people screenshotted this pack`}
-              </ScaledText>
-            </Animated.View>
+            <Pressable onPress={() => setShowScreenshotModal(true)} hitSlop={8}>
+              <Animated.View style={[styles.screenshotBadge, subtitleStyle]}>
+                <Ionicons name="copy-outline" size={12} color={colors.red} />
+                <ScaledText style={styles.screenshotText}>
+                  {pack.screenshots.length === 1
+                    ? `@${pack.screenshots[0].username} screenshotted this pack`
+                    : `${pack.screenshots.length} people screenshotted this pack`}
+                </ScaledText>
+              </Animated.View>
+            </Pressable>
           )}
         </Animated.View>
 
@@ -425,8 +429,7 @@ export default function PackRevealScreen() {
                   {/* flash.live badge */}
                   {p.videoURL && (
                     <View style={styles.tileLiveBadge}>
-                      <Ionicons name="flash" size={8} color="#000" />
-                      <ScaledText style={styles.tileLiveText}>flash.live</ScaledText>
+                      <Image source={liveLogoWhite} style={styles.tileLiveLogo} resizeMode="contain" />
                     </View>
                   )}
                   {member && (
@@ -435,13 +438,11 @@ export default function PackRevealScreen() {
                     </View>
                   )}
                   {isSelf && (
-                    <View style={styles.tileYouBadge}>
-                      <ScaledText style={styles.tileYouText}>you</ScaledText>
-                    </View>
-                  )}
-                  {isPro && (
-                    <View style={[styles.tileProBadge, { backgroundColor: proBorderColor }]}>
-                      <Ionicons name="flash" size={8} color="#000" />
+                    <View style={[styles.tileYouBadge, isPro && { backgroundColor: proBorderColor }]}>
+                      <View style={styles.tileYouContent}>
+                        {isPro && <Ionicons name="flash" size={8} color="#000" />}
+                        <ScaledText style={styles.tileYouText}>you</ScaledText>
+                      </View>
                     </View>
                   )}
                 </Pressable>
@@ -683,6 +684,57 @@ export default function PackRevealScreen() {
             </KeyboardAvoidingView>
           </Modal>
 
+          {/* Screenshot Info Modal */}
+          <Modal
+            visible={showScreenshotModal}
+            animationType="slide"
+            transparent
+            statusBarTranslucent
+            onRequestClose={() => setShowScreenshotModal(false)}
+          >
+            <View style={StyleSheet.absoluteFill}>
+              <Pressable style={styles.modalBackdrop} onPress={() => setShowScreenshotModal(false)} />
+              <View style={[styles.modalContainer, { paddingBottom: Math.max(20, insets.bottom + 10) }]}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderTitleRow}>
+                    <Ionicons name="copy-outline" size={16} color={colors.red} />
+                    <ScaledText style={styles.modalTitle}>screenshots</ScaledText>
+                  </View>
+                  <Pressable
+                    onPressIn={() => setShowScreenshotModal(false)}
+                    style={styles.modalCloseBtn}
+                    hitSlop={12}
+                  >
+                    <Ionicons name="close" size={18} color={colors.textFade} />
+                  </Pressable>
+                </View>
+                
+                <ScaledText style={styles.modalHint}>
+                  when someone takes a screenshot of this pack, we track it so the pack knows it was saved.
+                </ScaledText>
+
+                <View style={styles.modalInputRow}>
+                  <ScaledText style={styles.modalExplanation}>
+                    {pack.screenshots?.length === 1
+                      ? `@${pack.screenshots?.[0]?.username} screenshotted this pack`
+                      : `${pack.screenshots?.length || 0} people screenshotted this pack`}
+                  </ScaledText>
+                </View>
+
+                <View style={styles.screenshotList}>
+                  {pack.screenshots?.map((s, i) => (
+                    <View key={i} style={styles.screenshotItem}>
+                      <ScaledText style={styles.screenshotUsername}>@{s.username}</ScaledText>
+                      <ScaledText style={styles.screenshotTime}>
+                        {new Date(s.takenAt).toLocaleString()}
+                      </ScaledText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </Modal>
+
           {userCommented && (
             <View style={[styles.lockBanner, { marginTop: 6 }]}>
               <Ionicons name="lock-closed" size={12} color={colors.textFade} />
@@ -844,6 +896,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 1,
   },
+  tileYouContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
   tileYouText: { color: '#000', fontWeight: '700', fontSize: 8 },
   tileProBadge: {
     position: 'absolute',
@@ -859,15 +916,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     position: 'absolute',
     top: 6,
     left: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
   },
-  tileLiveText: { color: '#000', fontSize: 8, fontWeight: '900', letterSpacing: 0.3 },
+  tileLiveLogo: {
+    width: 32,
+    height: 12,
+  },
   chemWrap: { paddingHorizontal: 14, paddingTop: 14 },
   chemHint: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 5 },
   chemHintText: { color: colors.textFade, fontSize: 10 },
@@ -1066,6 +1119,33 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingVertical: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
+  },
+  modalExplanation: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  screenshotList: {
+    marginTop: 12,
+    gap: 8,
+  },
+  screenshotItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  screenshotUsername: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  screenshotTime: {
+    color: colors.textFade,
+    fontSize: 10,
   },
   modalInput: {
     flex: 1,

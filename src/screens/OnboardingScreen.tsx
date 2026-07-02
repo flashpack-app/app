@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,11 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  withSequence,
+  withRepeat,
+  withDelay,
+  Easing,
   interpolate,
   Extrapolation,
   useAnimatedScrollHandler,
@@ -73,23 +78,65 @@ const STEPS: OnboardingStep[] = [
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
+// Welcome step visual — logo, flag, a personal greeting, and the
+// "you joined from ..." line. No pills here (those moved to other
+// steps), no extra entrance animation — the carousel's own
+// scroll-linked animation already handles motion.
 function WelcomeVisual() {
   const styles = useThemedStyles(makeStyles);
   const { user } = useAppState();
   const flag = user?.flag ?? '🌍';
   const city = (user?.city ?? 'unknown').toLowerCase();
   const country = user?.country ?? '';
+  const username = user?.username ?? '';
+
+  // Pop in with a real spring (slight overshoot, settles naturally), then
+  // ease into a slow, small-amplitude flutter — like the flag is waving,
+  // not just wobbling. The flutter only starts once the pop-in has
+  // basically settled so the two motions don't fight each other.
+  const scale = useSharedValue(0.3);
+  const rotate = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = withSpring(1, { damping: 8, stiffness: 140, mass: 0.7 });
+
+    rotate.value = withDelay(
+      500,
+      withRepeat(
+        withSequence(
+          withTiming(5, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+          withTiming(-5, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+  }, []);
+
+  const flagStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
+  }));
 
   return (
     <View style={styles.welcomeVisual}>
-      <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-      <View style={styles.locationRow}>
-        <Text style={styles.flag}>{flag}</Text>
-        <Text style={styles.locationText}>
+      <View style={styles.iconCircle}>
+        <Animated.Text style={[styles.flagLarge, flagStyle]}>{flag}</Animated.Text>
+      </View>
+
+      {username ? (
+        <Text style={styles.greeting}>
+          welcome, <Text style={styles.greetingHighlight}>@{username}</Text>
+        </Text>
+      ) : null}
+
+      <Text style={styles.locationLine}>
+        you joined from{' '}
+        <Text style={styles.locationHighlight}>
           {city}
           {country ? `, ${country.toLowerCase()}` : ''}
         </Text>
-      </View>
+      </Text>
     </View>
   );
 }
@@ -105,6 +152,7 @@ function StepPage({
 }) {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
+  const isWelcome = step.id === 'welcome';
 
   const visualStyle = useAnimatedStyle(() => {
     const offset = scrollX.value - index * SCREEN_W;
@@ -122,11 +170,15 @@ function StepPage({
 
   return (
     <View style={[styles.page, { width: SCREEN_W }]}>
-      <Animated.View style={[styles.visual, visualStyle]}>
-        {step.id === 'welcome' ? (
+      <Animated.View style={[isWelcome ? styles.welcomeVisualWrap : styles.visual, visualStyle]}>
+        {isWelcome ? (
           <WelcomeVisual />
         ) : (
-          step.icon && <Ionicons name={step.icon} size={52} color={colors.yellow} />
+          step.icon && (
+            <View style={styles.iconCircle}>
+              <Ionicons name={step.icon} size={38} color={colors.yellow} />
+            </View>
+          )
         )}
       </Animated.View>
 
@@ -198,6 +250,8 @@ export default function OnboardingScreen() {
     <View style={[styles.root, { paddingTop: Math.max(16, insets.top) }]}>
       {/* Header */}
       <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
+        <Image source={LOGO} style={styles.headerLogo} resizeMode="contain" />
+
         {!isLast ? (
           <Pressable onPress={onSkip} hitSlop={12}>
             <Text style={styles.skipText}>skip</Text>
@@ -271,9 +325,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: 24,
     height: 32,
+  },
+  headerLogo: {
+    width: 64,
+    height: 20,
   },
   skipText: {
     color: colors.textSecondary,
@@ -291,26 +349,48 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 36,
   },
+  // Welcome step gets its own wrapper since it holds more content
+  // (logo + flag circle + greeting + location line) than the icon-only steps.
+  welcomeVisualWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
   welcomeVisual: {
     alignItems: 'center',
-    gap: 18,
+    gap: 16,
   },
-  logo: {
-    width: 150,
-    height: 48,
-  },
-  locationRow: {
-    flexDirection: 'row',
+  iconCircle: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: 'rgba(255,214,10,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.15)',
     alignItems: 'center',
-    gap: 7,
+    justifyContent: 'center',
   },
-  flag: {
-    fontSize: 16,
+  flagLarge: {
+    fontSize: 52,
   },
-  locationText: {
+  greeting: {
+    color: colors.white,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  greetingHighlight: {
+    color: colors.yellow,
+    fontWeight: '800',
+  },
+  locationLine: {
     color: colors.textSecondary,
     fontSize: 14,
-    letterSpacing: 0.2,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  locationHighlight: {
+    color: colors.yellow,
+    fontWeight: '700',
   },
   textBlock: {
     alignItems: 'center',

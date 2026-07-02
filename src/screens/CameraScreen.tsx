@@ -18,12 +18,12 @@ import { FILTER_LABEL } from '../services/filters';
 
 function isCameraLocked(lastPostAt: string | null): boolean {
   if (!lastPostAt) return false;
-  return Date.now() - new Date(lastPostAt).getTime() < 24 * 3600 * 1000;
+  return Date.now() - new Date(lastPostAt).getTime() < 18 * 3600 * 1000;
 }
 
 function lockCountdown(lastPostAt: string | null): string {
   if (!lastPostAt) return '';
-  const ms = 24 * 3600 * 1000 - (Date.now() - new Date(lastPostAt).getTime());
+  const ms = 18 * 3600 * 1000 - (Date.now() - new Date(lastPostAt).getTime());
   if (ms <= 0) return '';
   const h = Math.floor(ms / 3600_000);
   const m = Math.floor((ms % 3600_000) / 60_000);

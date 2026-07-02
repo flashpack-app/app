@@ -1,0 +1,62 @@
+name: 🚀 Feature / Roadmap item  
+description: Propose a feature for the flash. roadmap board  
+title: "[Feature]: "  
+labels: ["product"]  
+body:  
+  - type: markdown  
+    attributes:  
+      value: "Thanks for adding to the **flash.** roadmap. Fill this in so it drops onto the board cleanly."  
+  - type: textarea  
+    id: problem  
+    attributes:  
+      label: Problem  
+      description: What's broken or missing today? Reference real code/files if you can.  
+      placeholder: "e.g. Images are stored as base64 in Postgres and served through Express with a per-server disk cache."  
+    validations:  
+      required: true  
+  - type: textarea  
+    id: goal  
+    attributes:  
+      label: Goal  
+      description: What outcome do we want?  
+    validations:  
+      required: true  
+  - type: textarea  
+    id: scope  
+    attributes:  
+      label: Scope / files touched  
+      description: Which files or systems are involved?  
+      placeholder: "server/src/index.ts, server/src/schema.sql, src/services/api.ts"  
+    validations:  
+      required: false  
+  - type: dropdown  
+    id: phase  
+    attributes:  
+      label: Phase  
+      options:  
+        - Infra Foundation  
+        - Trust & Monetization  
+        - Product Depth  
+    validations:  
+      required: true  
+  - type: dropdown  
+    id: priority  
+    attributes:  
+      label: Priority  
+      options:  
+        - P0  
+        - P1  
+        - P2  
+    validations:  
+      required: true  
+  - type: dropdown  
+    id: area  
+    attributes:  
+      label: Area  
+      multiple: true  
+      options:  
+        - Backend  
+        - Mobile  
+        - Infra  
+    validations:  
+      required: true

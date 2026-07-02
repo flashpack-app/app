@@ -159,7 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_user_reports_target ON user_reports(target_user_i
 -- Reports against comments
 CREATE TABLE IF NOT EXISTS comment_reports (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  comment_id    UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  comment_id    UUID NOT NULL REFERENCES pack_comments(id) ON DELETE CASCADE,
   reporter_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reason        TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'pending',

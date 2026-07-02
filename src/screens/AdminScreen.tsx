@@ -182,6 +182,26 @@ export default function AdminScreen() {
     ]);
   };
 
+  const deleteComment = (commentId: string) => {
+    if (!token) return;
+    Alert.alert('delete comment?', 'this removes the comment permanently.', [
+      { text: 'cancel', style: 'cancel' },
+      {
+        text: 'delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await APIService.adminDeleteComment(token, commentId);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await load();
+          } catch (e: any) {
+            Alert.alert('failed', e?.message ?? 'unknown');
+          }
+        },
+      },
+    ]);
+  };
+
   const togglePro = (target: AdminUserRow) => {
     if (!token) return;
     (async () => {
@@ -409,6 +429,11 @@ export default function AdminScreen() {
                   </View>
                 </View>
                 <Text style={[styles.userMeta, { color: colors.white }]}>{r.reason}</Text>
+                {r.reportType === 'comment' && r.commentText && (
+                  <Text style={[styles.userMeta, { color: colors.textSecondary, fontStyle: 'italic' }]}>
+                    "{r.commentText}"
+                  </Text>
+                )}
                 <Text style={styles.userMeta}>
                   by @{r.reporterUsername} · {new Date(r.createdAt).toLocaleString()}
                 </Text>
@@ -440,6 +465,15 @@ export default function AdminScreen() {
                           <Text style={[styles.actionBtnText, { color: colors.red, marginLeft: 4 }]}>delete pack</Text>
                         </Pressable>
                       </>
+                    )}
+                    {r.reportType === 'comment' && r.commentId && (
+                      <Pressable
+                        onPress={() => r.commentId && deleteComment(r.commentId)}
+                        style={[styles.actionBtn, { backgroundColor: 'rgba(255,69,58,0.12)' }]}
+                      >
+                        <Ionicons name="trash-outline" size={11} color={colors.red} />
+                        <Text style={[styles.actionBtnText, { color: colors.red, marginLeft: 4 }]}>delete comment</Text>
+                      </Pressable>
                     )}
                   </View>
                 )}
