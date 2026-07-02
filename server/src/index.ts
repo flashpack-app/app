@@ -6,8 +6,15 @@ import path from 'path';
 import { pool, query } from './db';
 import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
+import { cachedJson, packKey, userKey, invalidatePack, invalidateUser } from './cache';
 
 const MAX_PACK_MEMBERS = 4;
+
+// Short TTLs: invalidation covers the endpoints below, the TTL bounds
+// staleness from anything that slips through (e.g. avatar changes showing
+// inside cached pack payloads).
+const PACK_CACHE_TTL = 60;
+const USER_CACHE_TTL = 120;
 
 const app = express();
 app.use(cors());
@@ -285,15 +292,22 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 app.get('/me', requireUser, async (req: Request, res: Response) => {
   const id = (req as any).userId as string;
-  const rows = await query<UserRow & { invited_by_username: string | null }>(
-    `SELECT u.*, inv.username AS invited_by_username
-     FROM users u
-     LEFT JOIN users inv ON inv.id = u.invited_by
-     WHERE u.id = $1`,
-    [id],
+  const row = await cachedJson<(UserRow & { invited_by_username: string | null }) | null>(
+    userKey(id),
+    USER_CACHE_TTL,
+    async () => {
+      const rows = await query<UserRow & { invited_by_username: string | null }>(
+        `SELECT u.*, inv.username AS invited_by_username
+         FROM users u
+         LEFT JOIN users inv ON inv.id = u.invited_by
+         WHERE u.id = $1`,
+        [id],
+      );
+      return rows[0] ?? null;
+    },
   );
-  if (!rows[0]) return res.status(404).json({ error: 'not_found' });
-  return res.json({ user: serializeUser(rows[0]) });
+  if (!row) return res.status(404).json({ error: 'not_found' });
+  return res.json({ user: serializeUser(row) });
 });
 
 app.post('/me/push-token', requireUser, async (req: Request, res: Response) => {
@@ -301,6 +315,7 @@ app.post('/me/push-token', requireUser, async (req: Request, res: Response) => {
   const { token } = req.body ?? {};
   if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token_required' });
   await query('UPDATE users SET push_token = $1 WHERE id = $2', [token, id]);
+  await invalidateUser(id);
   return res.json({ ok: true });
 });
 
@@ -554,6 +569,8 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
     }
 
     await client.query('COMMIT');
+    await invalidatePack(packId);
+    await invalidateUser(userId);
     return res.json({ photoId, packId, packNumber });
   } catch (e: any) {
     await client.query('ROLLBACK');
@@ -587,11 +604,19 @@ app.post('/photos/:id/revert', requireUser, async (req: Request, res: Response) 
     return res.status(400).json({ error: 'revert_window_closed' });
   }
 
+  // Capture pack membership before it's deleted so the cache can be cleared.
+  const packRows = await query<{ pack_id: string }>(
+    'SELECT pack_id FROM pack_members WHERE photo_id = $1',
+    [photoId],
+  );
+
   await query('UPDATE photos SET reverted_at = NOW() WHERE id = $1', [photoId]);
   // Remove from pack
   await query('DELETE FROM pack_members WHERE photo_id = $1', [photoId]);
   // Reset last_post_at so camera unlocks
   await query('UPDATE users SET last_post_at = NULL WHERE id = $1', [userId]);
+  await invalidateUser(userId);
+  for (const p of packRows) await invalidatePack(p.pack_id);
 
   // Delete cached media files from disk
   const cachedFilePath = path.join(UPLOADS_DIR, `raw-${photoId}`);
@@ -623,6 +648,11 @@ app.post('/photos/:id/react', requireUser, async (req: Request, res: Response) =
      ON CONFLICT (photo_id, user_id) DO UPDATE SET emoji = EXCLUDED.emoji, created_at = NOW()`,
     [photoId, userId, emoji],
   );
+  const packRows = await query<{ pack_id: string }>(
+    'SELECT pack_id FROM pack_members WHERE photo_id = $1',
+    [photoId],
+  );
+  for (const p of packRows) await invalidatePack(p.pack_id);
   return res.json({ ok: true });
 });
 
@@ -639,7 +669,12 @@ interface PackBaseRow {
 
 // Build the full client-facing pack payload (members, photos + per-photo
 // reactions, pack reactions, comments) for a single pack base row.
-async function shapePack(r: PackBaseRow) {
+// Cached — mutation endpoints call invalidatePack(packId).
+function shapePack(r: PackBaseRow) {
+  return cachedJson(packKey(r.pack_id), PACK_CACHE_TTL, () => buildPack(r));
+}
+
+async function buildPack(r: PackBaseRow) {
   const members = await query<{
     user_id: string;
     username: string;
@@ -897,6 +932,7 @@ app.post('/packs/:id/react', requireUser, async (req: Request, res: Response) =>
       { packId },
     );
   }
+  await invalidatePack(packId);
   return res.json({ ok: true });
 });
 
@@ -932,6 +968,7 @@ app.post('/packs/:id/comment', requireUser, async (req: Request, res: Response) 
       { packId },
     );
   }
+  await invalidatePack(packId);
   return res.json({ ok: true });
 });
 
@@ -981,6 +1018,7 @@ app.post('/streak/insurance', requireUser, async (req: Request, res: Response) =
   // Save streak: reset last_post_at to 24h ago so the streak window is still open
   const fakeLastPost = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
   await query('UPDATE users SET last_post_at = $1 WHERE id = $2', [fakeLastPost, userId]);
+  await invalidateUser(userId);
   return res.json({ ok: true, message: 'streak saved' });
 });
 
@@ -1093,6 +1131,7 @@ app.patch('/me', requireUser, async (req: Request, res: Response) => {
     values,
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  await invalidateUser(userId);
   return res.json({ user: serializeUser(rows[0]) });
 });
 
@@ -1158,6 +1197,7 @@ app.post('/me/avatar', requireUser, async (req: Request, res: Response) => {
     [imageData, imageMime ?? 'image/jpeg', userId],
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  await invalidateUser(userId);
   return res.json({ ok: true, avatarUrl: `/avatars/${userId}` });
 });
 
@@ -1192,6 +1232,7 @@ app.delete('/admin/users/:id', requireAdmin, async (req: Request, res: Response)
   const me = (req as any).adminUser as UserRow;
   if (req.params.id === me.id) return res.status(400).json({ error: 'cannot_delete_self' });
   await query('DELETE FROM users WHERE id = $1', [req.params.id]);
+  await invalidateUser(req.params.id);
   return res.json({ ok: true });
 });
 
@@ -1203,6 +1244,7 @@ app.post('/admin/users/:id/admin', requireAdmin, async (req: Request, res: Respo
     [value, req.params.id],
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  await invalidateUser(req.params.id);
   return res.json({ user: rows[0] });
 });
 
@@ -1313,6 +1355,7 @@ app.post('/admin/reports/:id/resolve', requireAdmin, async (req: Request, res: R
 
 app.delete('/admin/packs/:id', requireAdmin, async (req: Request, res: Response) => {
   await query('DELETE FROM packs WHERE id = $1', [req.params.id]);
+  await invalidatePack(req.params.id);
   return res.json({ ok: true });
 });
 
@@ -1326,6 +1369,7 @@ app.post('/admin/users/:id/ban', requireAdmin, async (req: Request, res: Respons
     [value, req.params.id],
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  await invalidateUser(req.params.id);
   return res.json({ user: rows[0] });
 });
 
@@ -1360,11 +1404,13 @@ app.post('/admin/notifications', requireAdmin, async (req: Request, res: Respons
 
 app.post('/admin/users/:id/reset-streak', requireAdmin, async (req: Request, res: Response) => {
   await query(`UPDATE users SET streak_days = 0, last_post_at = NULL WHERE id = $1`, [req.params.id]);
+  await invalidateUser(req.params.id);
   return res.json({ ok: true });
 });
 
 app.post('/admin/users/:id/unlock-camera', requireAdmin, async (req: Request, res: Response) => {
   await query(`UPDATE users SET last_post_at = NULL WHERE id = $1`, [req.params.id]);
+  await invalidateUser(req.params.id);
   return res.json({ ok: true });
 });
 
@@ -1382,6 +1428,7 @@ app.post('/admin/packs/:id/reset-timer', requireAdmin, async (req: Request, res:
     [String(hours), req.params.id],
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  await invalidatePack(req.params.id);
   return res.json({ ok: true, expiresAt: rows[0].expires_at });
 });
 
@@ -1393,6 +1440,7 @@ app.post('/admin/users/:id/pro', requireAdmin, async (req: Request, res: Respons
     [value, req.params.id],
   );
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  await invalidateUser(req.params.id);
   return res.json({ user: rows[0] });
 });
 
@@ -1418,6 +1466,7 @@ app.post('/screenshot', requireUser, async (req: Request, res: Response) => {
      ON CONFLICT (pack_id, user_id) DO UPDATE SET created_at = NOW()`,
     [packId, userId, username],
   );
+  await invalidatePack(packId);
 
   const recips3 = await query<{ user_id: string }>(
     `SELECT user_id FROM pack_members WHERE pack_id = $1 AND user_id != $2`,
