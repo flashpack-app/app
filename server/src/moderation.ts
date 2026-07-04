@@ -7,8 +7,9 @@
 // the word-boundary heuristic so dev environments keep working.
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? process.env.MODERATION_API_KEY ?? '';
-const FAIL_CLOSED = process.env.MODERATION_FAIL_CLOSED === 'true';
 const MODERATION_URL = 'https://api.openai.com/v1/moderations';
+// Read at call time so it can be changed via env without redeploying
+const isFailClosed = () => process.env.MODERATION_FAIL_CLOSED === 'true';
 
 import { pool, query } from './db';
 
@@ -242,7 +243,7 @@ function failVerdict(e: unknown): ModerationVerdict {
     console.warn('[moderation] rate-limited by OpenAI — failing open');
     return { safe: true, categories: [], source: 'fail-open' };
   }
-  return FAIL_CLOSED
+  return isFailClosed()
     ? { safe: false, categories: ['moderation_unavailable'], source: 'fail-closed' }
     : { safe: true, categories: [], source: 'fail-open' };
 }

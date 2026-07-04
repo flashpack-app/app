@@ -23,6 +23,7 @@ interface AppStateValue {
   token: string | null;
   isAuthenticated: boolean;
   isBooting: boolean;
+  isConnected: boolean;
   packs: Pack[];
   discoverPacks: Pack[];
   hasPostedFirstPack: boolean;
@@ -35,6 +36,7 @@ interface AppStateValue {
   dailyTopic: { topic: string; date: string } | null;
   isOnboarding: boolean;
   setIsOnboarding: (val: boolean) => void;
+  setIsConnected: (val: boolean) => void;
   signIn: (s: Session, onboarding?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -63,6 +65,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isBooting, setBooting] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [discoverPacks, setDiscoverPacks] = useState<Pack[]>([]);
   const [hasPostedFirstPack, setHasPostedFirstPack] = useState(false);
@@ -111,6 +114,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       token,
       isAuthenticated: user !== null && token !== null,
       isBooting,
+      isConnected,
       packs,
       discoverPacks,
       hasPostedFirstPack,
@@ -123,6 +127,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dailyTopic,
       isOnboarding,
       setIsOnboarding,
+      setIsConnected,
       async signIn(s, onboarding = false) {
         setUser(s.user);
         setToken(s.token);
