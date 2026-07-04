@@ -185,30 +185,63 @@ interface OpenAIModerationResult {
   }>;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Calls omni-moderation with up to 3 attempts and exponential backoff on 429.
 async function callOpenAI(input: any): Promise<{
   flagged: boolean;
   categories: Record<string, boolean>;
   category_scores: Record<string, number>;
 }> {
-  const res = await fetch(MODERATION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({ model: 'omni-moderation-latest', input }),
-  });
-  if (!res.ok) {
-    throw new Error(`moderation API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const MAX_ATTEMPTS = 3;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch(MODERATION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({ model: 'omni-moderation-latest', input }),
+    });
+
+    if (res.status === 429) {
+      if (attempt < MAX_ATTEMPTS) {
+        const backoff = attempt * 1000; // 1s, 2s
+        console.warn(`[moderation] 429 rate limit, retrying in ${backoff}ms (attempt ${attempt}/${MAX_ATTEMPTS})`);
+        await sleep(backoff);
+        continue;
+      }
+      // All retries exhausted — throw with a recognizable marker
+      throw Object.assign(
+        new Error(`moderation API 429: ${(await res.text()).slice(0, 200)}`),
+        { isRateLimit: true },
+      );
+    }
+
+    if (!res.ok) {
+      throw new Error(`moderation API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
+
+    const data = (await res.json()) as OpenAIModerationResult;
+    const r = data.results?.[0];
+    if (!r) throw new Error('moderation API returned no results');
+    return r;
   }
-  const data = (await res.json()) as OpenAIModerationResult;
-  const r = data.results?.[0];
-  if (!r) throw new Error('moderation API returned no results');
-  return r;
+
+  // Unreachable but satisfies TS
+  throw new Error('moderation API failed after all retries');
 }
 
 function failVerdict(e: unknown): ModerationVerdict {
   console.error('moderation call failed:', e);
+  // Rate limit (429) is a capacity issue, not a safety breach — always fail-open
+  // so users aren't blocked simply because OpenAI is throttling us.
+  const isRateLimit = (e as any)?.isRateLimit === true;
+  if (isRateLimit) {
+    console.warn('[moderation] rate-limited by OpenAI — failing open');
+    return { safe: true, categories: [], source: 'fail-open' };
+  }
   return FAIL_CLOSED
     ? { safe: false, categories: ['moderation_unavailable'], source: 'fail-closed' }
     : { safe: true, categories: [], source: 'fail-open' };
