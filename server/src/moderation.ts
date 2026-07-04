@@ -229,12 +229,57 @@ export async function moderateText(text: string): Promise<ModerationVerdict> {
   }
 }
 
+// GPT-4o-mini Vision call — asks specifically whether an image contains
+// exposed genitalia or nipples. Far more accurate than a numeric threshold
+// because the omni-moderation sexual score overlaps between revealing
+// swimwear (~0.88) and explicit nudity (~0.92), making thresholds unreliable.
+async function visionExplicitCheck(base64: string, mime: string): Promise<boolean> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      max_tokens: 5,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Does this image contain exposed genitalia or exposed female nipples? Reply with only YES or NO.',
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mime || 'image/jpeg'};base64,${base64}`,
+                detail: 'low', // cheapest resolution tier, sufficient for nudity detection
+              },
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`vision check ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+
+  const data = (await res.json()) as any;
+  const answer = (data.choices?.[0]?.message?.content ?? '').trim().toUpperCase();
+  return answer.startsWith('YES');
+}
+
 export async function moderateImage(base64: string, mime: string): Promise<ModerationVerdict> {
   if (!OPENAI_API_KEY) {
     // No provider configured: keep the previous allow behaviour in dev.
     return { safe: true, categories: [], source: 'heuristic' };
   }
   try {
+    // Step 1: omni-moderation for all non-sexual categories + sexual/minors zero-tolerance
     const r = await callOpenAI([
       {
         type: 'image_url',
@@ -242,26 +287,37 @@ export async function moderateImage(base64: string, mime: string): Promise<Moder
       },
     ]);
 
-    const sexualThreshold = parseFloat(process.env.MODERATION_SEXUAL_THRESHOLD ?? '0.7');
+    const isSexualMinorsBlocked =
+      r.categories['sexual/minors'] === true || (r.category_scores['sexual/minors'] ?? 0) > 0;
 
-    const isSexualBlocked = (r.category_scores?.sexual ?? 0) >= sexualThreshold;
-    const isSexualMinorsBlocked = r.categories['sexual/minors'] === true || (r.category_scores['sexual/minors'] ?? 0) > 0;
-    const isOtherBlocked = Object.entries(r.categories ?? {})
-      .some(([cat, flagged]) => cat !== 'sexual' && cat !== 'sexual/minors' && flagged);
-
-    const safe = !isSexualBlocked && !isSexualMinorsBlocked && !isOtherBlocked;
+    const isOtherBlocked = Object.entries(r.categories ?? {}).some(
+      ([cat, flagged]) => cat !== 'sexual' && cat !== 'sexual/minors' && flagged,
+    );
 
     const categories: string[] = [];
-    if (isSexualBlocked) categories.push('sexual');
     if (isSexualMinorsBlocked) categories.push('sexual/minors');
     for (const [cat, flagged] of Object.entries(r.categories ?? {})) {
-      if (cat !== 'sexual' && cat !== 'sexual/minors' && flagged) {
-        categories.push(cat);
+      if (cat !== 'sexual' && cat !== 'sexual/minors' && flagged) categories.push(cat);
+    }
+
+    if (isSexualMinorsBlocked || isOtherBlocked) {
+      return { safe: false, categories, source: 'ml' };
+    }
+
+    // Step 2: only run the vision check when omni-moderation suspects sexual content —
+    // saves cost on the vast majority of clean photos.
+    const sexualScore = r.category_scores?.sexual ?? 0;
+    if (sexualScore >= 0.3) {
+      const isExplicit = await visionExplicitCheck(base64, mime);
+      if (isExplicit) {
+        categories.push('sexual');
+        return { safe: false, categories, source: 'ml' };
       }
     }
 
-    return { safe, categories, source: 'ml' };
+    return { safe: true, categories: [], source: 'ml' };
   } catch (e) {
     return failVerdict(e);
   }
 }
+
