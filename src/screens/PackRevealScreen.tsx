@@ -324,6 +324,8 @@ export default function PackRevealScreen() {
   };
 
   const photos = pack.photos.slice(0, 4);
+  // Fixed 4-slot grid — null entries become placeholder tiles
+  const slots = Array.from({ length: 4 }, (_, i) => photos[i] ?? null);
   const memberOf = (uid: string) => pack.members.find((m) => m.userId === uid);
 
   return (
@@ -395,7 +397,24 @@ export default function PackRevealScreen() {
 
         {/* Photo grid — staggered shade-in */}
         <View style={[styles.grid, { gap: TILE_GAP, paddingHorizontal: 12 }]}>
-          {photos.map((p, i) => {
+          {slots.map((p, i) => {
+            if (!p) {
+              // Empty slot — member hasn't posted yet
+              return (
+                <ShadeInTile
+                  key={`empty-${i}`}
+                  ready={ready}
+                  index={i}
+                  style={[styles.tile, styles.emptyTile]}
+                >
+                  <View style={styles.emptyTileInner}>
+                    <View style={{ opacity: 0.15 }}>
+                      <FlashLogo size={20} />
+                    </View>
+                  </View>
+                </ShadeInTile>
+              );
+            }
             const member = memberOf(p.userId);
             const isSelf = p.userId === user?.id;
             const isPro = !!member?.isPro;
@@ -965,6 +984,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',
     marginBottom: TILE_GAP,
+  },
+  emptyTile: {
+    backgroundColor: '#0e0e0e',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    borderStyle: 'dashed',
+  },
+  emptyTileInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tileSelf: {
     borderWidth: 2,

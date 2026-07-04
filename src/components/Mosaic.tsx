@@ -11,6 +11,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { radius } from '../theme/colors';
 import { normalizeFilter } from '../services/filters';
 import FilteredImage from './FilteredImage';
+import FlashLogo from './FlashLogo';
 import liveLogo from '../assets/live_logo_white.webp';
 
 interface Props {
@@ -37,6 +38,34 @@ interface CellProps {
   animate: boolean;
   onPress?: () => void;
 }
+
+// Placeholder cell shown when a pack member hasn't posted yet
+const EmptyCell: React.FC<{ index: number; animate: boolean }> = ({ index, animate }) => {
+  const styles = useThemedStyles(makeStyles);
+  const scale = useSharedValue(animate ? 0.85 : 1);
+  const opacity = useSharedValue(animate ? 0 : 1);
+
+  useEffect(() => {
+    if (!animate) return;
+    scale.value = withDelay(index * 80, withSpring(1, { damping: 14, stiffness: 140 }));
+    opacity.value = withDelay(index * 80, withSpring(1, { damping: 14, stiffness: 140 }));
+  }, [animate]);
+
+  const aStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={[styles.cell, styles.emptyCell, aStyle]}>
+      <View style={styles.emptyCellInner}>
+        <View style={{ opacity: 0.18 }}>
+          <FlashLogo size={13} />
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
 
 const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, index, animate, onPress }) => {
   const colors = useColors();
@@ -171,6 +200,9 @@ const Mosaic: React.FC<Props> = ({
 }) => {
   const styles = useThemedStyles(makeStyles);
   const photos = pack.photos.slice(0, 4);
+  // Build a fixed 4-slot grid: real photos first, then empty placeholders
+  const totalSlots = Math.max(4, photos.length);
+  const slots = Array.from({ length: Math.min(totalSlots, 4) }, (_, i) => photos[i] ?? null);
   const memberOf = (uid: string) => pack.members.find((m) => m.userId === uid);
   const expired = pack.status === 'expired';
 
@@ -178,19 +210,23 @@ const Mosaic: React.FC<Props> = ({
     <View style={[styles.wrap, { height, borderRadius }, style]}>
       <Image source={liveLogo} style={styles.liveLogo} />
       <View style={[styles.grid, { gap: cellGap }]}>
-        {photos.map((p, i) => (
-          <Cell
-            key={p.id}
-            photo={p}
-            member={memberOf(p.userId)}
-            expired={expired}
-            showFlag={showFlags}
-            isSelf={highlightSelf && p.userId === selfUserId}
-            index={i}
-            animate={animateOnMount}
-            onPress={onCellPress ? () => onCellPress(p.id) : undefined}
-          />
-        ))}
+        {slots.map((p, i) =>
+          p ? (
+            <Cell
+              key={p.id}
+              photo={p}
+              member={memberOf(p.userId)}
+              expired={expired}
+              showFlag={showFlags}
+              isSelf={highlightSelf && p.userId === selfUserId}
+              index={i}
+              animate={animateOnMount}
+              onPress={onCellPress ? () => onCellPress(p.id) : undefined}
+            />
+          ) : (
+            <EmptyCell key={`empty-${i}`} index={i} animate={animateOnMount} />
+          )
+        )}
       </View>
     </View>
   );
@@ -198,6 +234,17 @@ const Mosaic: React.FC<Props> = ({
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { overflow: 'hidden', backgroundColor: colors.black },
+  emptyCell: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderStyle: 'dashed',
+  },
+  emptyCellInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   liveLogo: {
     position: 'absolute',
     top: 8,

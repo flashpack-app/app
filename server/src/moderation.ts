@@ -181,10 +181,15 @@ interface OpenAIModerationResult {
   results: Array<{
     flagged: boolean;
     categories: Record<string, boolean>;
+    category_scores: Record<string, number>;
   }>;
 }
 
-async function callOpenAI(input: any): Promise<ModerationVerdict> {
+async function callOpenAI(input: any): Promise<{
+  flagged: boolean;
+  categories: Record<string, boolean>;
+  category_scores: Record<string, number>;
+}> {
   const res = await fetch(MODERATION_URL, {
     method: 'POST',
     headers: {
@@ -199,10 +204,7 @@ async function callOpenAI(input: any): Promise<ModerationVerdict> {
   const data = (await res.json()) as OpenAIModerationResult;
   const r = data.results?.[0];
   if (!r) throw new Error('moderation API returned no results');
-  const categories = Object.entries(r.categories ?? {})
-    .filter(([, v]) => v)
-    .map(([k]) => k);
-  return { safe: !r.flagged, categories, source: 'ml' };
+  return r;
 }
 
 function failVerdict(e: unknown): ModerationVerdict {
@@ -217,7 +219,11 @@ export async function moderateText(text: string): Promise<ModerationVerdict> {
   if (!heuristic.safe) return heuristic;
   if (!OPENAI_API_KEY) return heuristic;
   try {
-    return await callOpenAI(text);
+    const r = await callOpenAI(text);
+    const categories = Object.entries(r.categories ?? {})
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+    return { safe: !r.flagged, categories, source: 'ml' };
   } catch (e) {
     return failVerdict(e);
   }
@@ -229,12 +235,32 @@ export async function moderateImage(base64: string, mime: string): Promise<Moder
     return { safe: true, categories: [], source: 'heuristic' };
   }
   try {
-    return await callOpenAI([
+    const r = await callOpenAI([
       {
         type: 'image_url',
         image_url: { url: `data:${mime || 'image/jpeg'};base64,${base64}` },
       },
     ]);
+
+    const sexualThreshold = parseFloat(process.env.MODERATION_SEXUAL_THRESHOLD ?? '0.7');
+
+    const isSexualBlocked = (r.category_scores?.sexual ?? 0) >= sexualThreshold;
+    const isSexualMinorsBlocked = r.categories['sexual/minors'] === true || (r.category_scores['sexual/minors'] ?? 0) > 0;
+    const isOtherBlocked = Object.entries(r.categories ?? {})
+      .some(([cat, flagged]) => cat !== 'sexual' && cat !== 'sexual/minors' && flagged);
+
+    const safe = !isSexualBlocked && !isSexualMinorsBlocked && !isOtherBlocked;
+
+    const categories: string[] = [];
+    if (isSexualBlocked) categories.push('sexual');
+    if (isSexualMinorsBlocked) categories.push('sexual/minors');
+    for (const [cat, flagged] of Object.entries(r.categories ?? {})) {
+      if (cat !== 'sexual' && cat !== 'sexual/minors' && flagged) {
+        categories.push(cat);
+      }
+    }
+
+    return { safe, categories, source: 'ml' };
   } catch (e) {
     return failVerdict(e);
   }

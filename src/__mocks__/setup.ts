@@ -1,4 +1,6 @@
 // Mock React Native modules that aren't available in Node test env
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://mock:mock@localhost:5432/mock';
+
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios', select: (opts: any) => opts.ios ?? opts.default },
   TextStyle: {},

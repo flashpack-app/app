@@ -273,9 +273,16 @@ app.post('/invite/redeem', async (req: Request, res: Response) => {
   }
 });
 
-function requireUser(req: Request, res: Response, next: NextFunction) {
+async function requireUser(req: Request, res: Response, next: NextFunction) {
   const token = (req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   if (!token) return res.status(401).json({ error: 'missing_token' });
+  
+  // Verify that the user is not banned in the database
+  const result = await query<{ banned: boolean }>('SELECT banned FROM users WHERE id = $1', [token]);
+  if (result.length && result[0].banned) {
+    return res.status(403).json({ error: 'user_banned' });
+  }
+
   (req as any).userId = token;
   next();
 }
@@ -531,6 +538,12 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
           category,
           contentType: 'image',
         });
+      }
+
+      // Zero-tolerance policy: immediately ban user if sexual/minors category detected
+      if (verdict.categories.includes('sexual/minors')) {
+        await query('UPDATE users SET banned = TRUE WHERE id = $1', [userId]);
+        return res.status(403).json({ error: 'user_banned' });
       }
 
       // Auto-ban if threshold reached
@@ -1064,6 +1077,12 @@ app.post('/packs/:id/comment', requireUser, async (req: Request, res: Response) 
         contentType: 'text',
         packId,
       });
+    }
+
+    // Zero-tolerance policy: immediately ban user if sexual/minors category detected
+    if (verdict.categories.includes('sexual/minors')) {
+      await query('UPDATE users SET banned = TRUE WHERE id = $1', [userId]);
+      return res.status(403).json({ error: 'user_banned' });
     }
 
     // Auto-ban if threshold reached
