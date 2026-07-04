@@ -349,6 +349,82 @@ app.get('/invite/slots', requireUser, async (req: Request, res: Response) => {
   return res.json({ code: me.invite_code, slots, effectiveSlots });
 });
 
+// Invite lineage: the chain of people above you (who invited whom, up to the
+// root) and the tree of people below you (who you invited, and so on).
+const LINEAGE_FIELDS = `u.id, u.username, u.city, u.flag, u.is_pro, u.created_at, u.invited_by,
+            u.avatar_url, (u.avatar_data IS NOT NULL) AS has_avatar`;
+
+interface LineageRow {
+  id: string;
+  username: string;
+  city: string;
+  flag: string;
+  is_pro: boolean;
+  created_at: string;
+  invited_by: string | null;
+  avatar_url: string | null;
+  has_avatar: boolean;
+  depth: number;
+}
+
+function lineageNode(r: LineageRow) {
+  return {
+    id: r.id,
+    username: r.username,
+    city: r.city,
+    flag: r.flag,
+    isPro: r.is_pro,
+    joinedAt: r.created_at,
+    invitedBy: r.invited_by ?? undefined,
+    avatarUrl: r.has_avatar ? `/avatars/${r.id}` : r.avatar_url ?? undefined,
+    depth: r.depth,
+  };
+}
+
+app.get('/me/lineage', requireUser, async (req: Request, res: Response) => {
+  const id = (req as any).userId as string;
+
+  const meRows = await query<LineageRow>(
+    `SELECT ${LINEAGE_FIELDS}, 0 AS depth FROM users u WHERE u.id = $1`,
+    [id],
+  );
+  if (!meRows[0]) return res.status(404).json({ error: 'not_found' });
+
+  // Walk up the invited_by chain (root comes back first).
+  const ancestors = await query<LineageRow>(
+    `WITH RECURSIVE up AS (
+       SELECT ${LINEAGE_FIELDS}, 1 AS depth
+       FROM users u WHERE u.id = (SELECT invited_by FROM users WHERE id = $1)
+       UNION ALL
+       SELECT ${LINEAGE_FIELDS}, up.depth + 1
+       FROM users u JOIN up ON u.id = up.invited_by
+       WHERE up.depth < 20
+     )
+     SELECT * FROM up ORDER BY depth DESC`,
+    [id],
+  );
+
+  // Walk down through invitees, a few generations deep, capped for safety.
+  const descendants = await query<LineageRow>(
+    `WITH RECURSIVE down AS (
+       SELECT ${LINEAGE_FIELDS}, 1 AS depth
+       FROM users u WHERE u.invited_by = $1
+       UNION ALL
+       SELECT ${LINEAGE_FIELDS}, down.depth + 1
+       FROM users u JOIN down ON u.invited_by = down.id
+       WHERE down.depth < 4
+     )
+     SELECT * FROM down ORDER BY depth, created_at LIMIT 500`,
+    [id],
+  );
+
+  return res.json({
+    self: lineageNode(meRows[0]),
+    ancestors: ancestors.map(lineageNode),
+    descendants: descendants.map(lineageNode),
+  });
+});
+
 // ---- photos ----
 
 // Public: serve the raw image bytes for a photo so any pack member can load it.

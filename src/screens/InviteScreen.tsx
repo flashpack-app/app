@@ -4,6 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from '../services/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -17,6 +18,7 @@ export default function InviteScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const { user, token } = useAppState();
+  const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [copied, setCopied] = useState(false);
   const [slots, setSlots] = useState<InviteSlot[] | null>(null);
@@ -108,6 +110,12 @@ export default function InviteScreen() {
           <Ionicons name="share-outline" size={14} color="#000" />
         </PillButton>
       </View>
+
+      <Pressable onPress={() => nav.navigate('FamilyTree')} style={styles.treeLink}>
+        <Ionicons name="git-branch-outline" size={14} color={colors.textSecondary} />
+        <Text style={styles.treeLinkText}>see your flash family tree</Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+      </Pressable>
     </ScrollView>
   );
 }
@@ -148,4 +156,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginTop: 8,
   },
   warningText: { color: colors.textFade, fontSize: 11, flex: 1, lineHeight: 16 },
+  treeLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  treeLinkText: { color: colors.textSecondary, fontSize: 11, flex: 1 },
 });
