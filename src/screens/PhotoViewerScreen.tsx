@@ -279,10 +279,7 @@ export default function PhotoViewerScreen() {
                 videoURL={videoUrl}
                 style={styles.fullImg}
               />
-              <View style={styles.liveBadge}>
-                <Ionicons name="flash" size={7} color="#000" />
-                <Text style={styles.liveBadgeText}>LIVE</Text>
-              </View>
+              <Image source={liveLogo} style={styles.videoLiveLogo} />
             </Animated.View>
           </GestureDetector>
         ) : imageUrl ? (
@@ -348,19 +345,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     width: 32,
     height: 12,
   },
-  liveBadge: {
+  videoLiveLogo: {
     position: 'absolute',
     top: 8,
     left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
+    width: 32,
+    height: 12,
   },
-  liveBadgeText: { color: '#000', fontSize: 7, fontWeight: '900', letterSpacing: 0.3 },
   iconBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.white, fontSize: 15, fontWeight: '600' },
   imageWrap: { flex: 1, backgroundColor: '#000' },
