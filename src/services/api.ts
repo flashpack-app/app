@@ -124,6 +124,24 @@ export interface VerifyResult {
   reason?: string;
 }
 
+export interface LineageNode {
+  id: string;
+  username: string;
+  city: string;
+  flag: string;
+  isPro: boolean;
+  joinedAt: string;
+  invitedBy?: string;
+  avatarUrl?: string;
+  depth: number;
+}
+
+export interface Lineage {
+  self: LineageNode;
+  ancestors: LineageNode[];
+  descendants: LineageNode[];
+}
+
 export const APIService = {
   async login(username: string): Promise<{ user: User; token: string }> {
     const res = await http<{ user: any; token: string }>('/auth/login', {
@@ -156,6 +174,12 @@ export const APIService = {
 
   async getInviteSlots(token: string): Promise<{ code: string; slots: InviteSlot[] }> {
     return http('/invite/slots', { token });
+  },
+
+  async getLineage(token: string): Promise<Lineage> {
+    const res = await http<Lineage>('/me/lineage', { token });
+    const abs = (n: LineageNode): LineageNode => ({ ...n, avatarUrl: avatarUrlAbsolute(n.avatarUrl) });
+    return { self: abs(res.self), ancestors: res.ancestors.map(abs), descendants: res.descendants.map(abs) };
   },
 
   async sendOTP(_phone: string) { /* removed */ },

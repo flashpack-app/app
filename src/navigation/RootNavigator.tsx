@@ -42,6 +42,7 @@ import DataSecuritySettingsScreen from '../screens/DataSecuritySettingsScreen';
 import ContactUsScreen from '../screens/ContactUsScreen';
 import ReportBugScreen from '../screens/ReportBugScreen';
 import PackVaultScreen from '../screens/PackVaultScreen';
+import FamilyTreeScreen from '../screens/FamilyTreeScreen';
 import CountriesScreen from '../screens/CountriesScreen';
 import PackCalendarScreen from '../screens/PackCalendarScreen';
 import WelcomeLocationScreen from '../screens/WelcomeLocationScreen';
@@ -205,6 +206,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Streak" component={StreakScreen} />
             <Stack.Screen name="Pro" component={ProScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="Invite" component={InviteScreen} />
+            <Stack.Screen name="FamilyTree" component={FamilyTreeScreen} />
             <Stack.Screen name="Admin" component={AdminScreen} />
             <Stack.Screen name="Report" component={ReportScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="LegalMenu" component={LegalMenuScreen} options={{ presentation: 'modal' }} />
