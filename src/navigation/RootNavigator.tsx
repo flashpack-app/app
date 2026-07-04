@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View, Pressable } from 'react-native';
 import { NavigationContainer, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import NetInfo from '@react-native-community/netinfo';
 import { useAppState } from '../state/AppState';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
@@ -12,6 +13,7 @@ import { addNotificationReceivedListener, addNotificationResponseReceivedListene
 import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
 import FlashLogo from '../components/FlashLogo';
+import OfflineBanner from '../components/OfflineBanner';
 import * as SplashScreen from 'expo-splash-screen';
 
 import InviteGateScreen from '../screens/InviteGateScreen';
@@ -151,7 +153,24 @@ export default function RootNavigator() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const navTheme = makeNavTheme(colors);
-  const { isAuthenticated, isBooting, isOnboarding } = useAppState();
+  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover } = useAppState();
+  const wasConnected = useRef<boolean | null>(null);
+
+  // Subscribe to connectivity changes
+  useEffect(() => {
+    const unsub = NetInfo.addEventListener((state) => {
+      const connected = state.isConnected ?? true;
+      setIsConnected(connected);
+
+      // Re-fetch when coming back online after being offline
+      if (wasConnected.current === false && connected) {
+        refreshPacks().catch(() => {});
+        refreshDiscover?.().catch(() => {});
+      }
+      wasConnected.current = connected;
+    });
+    return unsub;
+  }, [setIsConnected, refreshPacks, refreshDiscover]);
 
   useEffect(() => {
     const received = addNotificationReceivedListener((notification) => {
@@ -174,61 +193,65 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.black },
-        }}
-      >
-        {!isAuthenticated ? (
-          <>
-            <Stack.Screen name="InviteGate" component={InviteGateScreen} />
-            <Stack.Screen name="OTPScreen" component={OTPScreen} />
-            <Stack.Screen name="Username" component={UsernameScreen} />
-            <Stack.Screen name="SignIn" component={SignInScreen} />
-          </>
-        ) : isOnboarding ? (
-          <>
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
-            <Stack.Screen name="OnboardingPro" component={ProScreen} options={{ animation: 'slide_from_bottom' }} />
-          </>
-        ) : (
-          <>
-            <Stack.Screen name="Tabs" component={Tabs} />
-            <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
-            <Stack.Screen name="PackReveal" component={PackRevealScreen} />
-            <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'modal', animation: 'fade' }} />
-            <Stack.Screen name="PackLifecycle" component={PackLifecycleScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="Comment" component={CommentMomentScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Streak" component={StreakScreen} />
-            <Stack.Screen name="Pro" component={ProScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="Invite" component={InviteScreen} />
-            <Stack.Screen name="FamilyTree" component={FamilyTreeScreen} />
-            <Stack.Screen name="Admin" component={AdminScreen} />
-            <Stack.Screen name="Report" component={ReportScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="LegalMenu" component={LegalMenuScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="Legal" component={LegalScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="AccessibilitySettings" component={AccessibilitySettingsScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="DataSecuritySettings" component={DataSecuritySettingsScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="ContactUs" component={ContactUsScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="ReportBug" component={ReportBugScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="PackVault" component={PackVaultScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="Countries" component={CountriesScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="PackCalendar" component={PackCalendarScreen} options={{ presentation: 'modal' }} />
-            <Stack.Screen name="PublicProfile" component={ProfileScreen} />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <View style={styles.root}>
+      <NavigationContainer theme={navTheme}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.black },
+          }}
+        >
+          {!isAuthenticated ? (
+            <>
+              <Stack.Screen name="InviteGate" component={InviteGateScreen} />
+              <Stack.Screen name="OTPScreen" component={OTPScreen} />
+              <Stack.Screen name="Username" component={UsernameScreen} />
+              <Stack.Screen name="SignIn" component={SignInScreen} />
+            </>
+          ) : isOnboarding ? (
+            <>
+              <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
+              <Stack.Screen name="OnboardingPro" component={ProScreen} options={{ animation: 'slide_from_bottom' }} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="Tabs" component={Tabs} />
+              <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
+              <Stack.Screen name="PackReveal" component={PackRevealScreen} />
+              <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'modal', animation: 'fade' }} />
+              <Stack.Screen name="PackLifecycle" component={PackLifecycleScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="Comment" component={CommentMomentScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
+              <Stack.Screen name="Streak" component={StreakScreen} />
+              <Stack.Screen name="Pro" component={ProScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="Invite" component={InviteScreen} />
+              <Stack.Screen name="FamilyTree" component={FamilyTreeScreen} />
+              <Stack.Screen name="Admin" component={AdminScreen} />
+              <Stack.Screen name="Report" component={ReportScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="LegalMenu" component={LegalMenuScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="Legal" component={LegalScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="AccessibilitySettings" component={AccessibilitySettingsScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="DataSecuritySettings" component={DataSecuritySettingsScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="ContactUs" component={ContactUsScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="ReportBug" component={ReportBugScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="PackVault" component={PackVaultScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="Countries" component={CountriesScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="PackCalendar" component={PackCalendarScreen} options={{ presentation: 'modal' }} />
+              <Stack.Screen name="PublicProfile" component={ProfileScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+      <OfflineBanner visible={!isConnected} />
+    </View>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  root: { flex: 1 },
   boot: { flex: 1, backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center' },
   tabBar: {
     backgroundColor: colors.black,
