@@ -28,6 +28,7 @@ import type { SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from '../services/haptics';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
@@ -69,6 +70,11 @@ const STEPS: OnboardingStep[] = [
     body: 'post daily to keep your streak alive. react to packs and discover moments from around the world.',
   },
   {
+    id: 'invite',
+    title: 'invite your\nfriends.',
+    body: 'flash. grows by invite only. copy your invite link to bring in your crew.',
+  },
+  {
     id: 'go',
     icon: 'sparkles-outline',
     title: "you're\nready.",
@@ -90,10 +96,6 @@ function WelcomeVisual() {
   const country = user?.country ?? '';
   const username = user?.username ?? '';
 
-  // Pop in with a real spring (slight overshoot, settles naturally), then
-  // ease into a slow, small-amplitude flutter — like the flag is waving,
-  // not just wobbling. The flutter only starts once the pop-in has
-  // basically settled so the two motions don't fight each other.
   const scale = useSharedValue(0.3);
   const rotate = useSharedValue(0);
 
@@ -141,6 +143,49 @@ function WelcomeVisual() {
   );
 }
 
+function InviteVisual() {
+  const styles = useThemedStyles(makeStyles);
+  const colors = useColors();
+  const { user } = useAppState();
+  const code = user?.inviteCode ?? 'FLASH-INVITE';
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async () => {
+    const msg = `join me on flash. — ${code}\nflash://invite?code=${encodeURIComponent(code)}`;
+    await Clipboard.setStringAsync(msg);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <View style={styles.inviteVisual}>
+      <View style={styles.inviteCard}>
+        <Text style={styles.inviteCode}>{code}</Text>
+        <Pressable
+          onPress={onCopy}
+          style={({ pressed }) => [
+            styles.inviteCopyBtn,
+            pressed && { opacity: 0.7 },
+            copied && { backgroundColor: 'rgba(46, 204, 113, 0.15)' },
+          ]}
+        >
+          <Ionicons
+            name={copied ? 'checkmark' : 'copy-outline'}
+            size={18}
+            color={copied ? colors.green : colors.yellow}
+          />
+        </Pressable>
+      </View>
+      {copied && (
+        <View style={styles.copiedBadge}>
+          <Text style={styles.copiedText}>invite message copied!</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function StepPage({
   step,
   index,
@@ -153,6 +198,7 @@ function StepPage({
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const isWelcome = step.id === 'welcome';
+  const isInvite = step.id === 'invite';
 
   const visualStyle = useAnimatedStyle(() => {
     const offset = scrollX.value - index * SCREEN_W;
@@ -170,9 +216,11 @@ function StepPage({
 
   return (
     <View style={[styles.page, { width: SCREEN_W }]}>
-      <Animated.View style={[isWelcome ? styles.welcomeVisualWrap : styles.visual, visualStyle]}>
+      <Animated.View style={[isWelcome ? styles.welcomeVisualWrap : isInvite ? styles.inviteVisualWrap : styles.visual, visualStyle]}>
         {isWelcome ? (
           <WelcomeVisual />
+        ) : isInvite ? (
+          <InviteVisual />
         ) : (
           step.icon && (
             <View style={styles.iconCircle}>
@@ -359,6 +407,54 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   welcomeVisual: {
     alignItems: 'center',
     gap: 16,
+  },
+  inviteVisualWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+    width: '100%',
+  },
+  inviteVisual: {
+    alignItems: 'center',
+    gap: 12,
+    width: SCREEN_W - 72,
+  },
+  inviteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    width: '100%',
+  },
+  inviteCode: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  inviteCopyBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copiedBadge: {
+    backgroundColor: 'rgba(46, 204, 113, 0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  copiedText: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: '600',
   },
   iconCircle: {
     width: 92,
