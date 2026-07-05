@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Share, ActivityIndicator } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from '../services/haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,10 +58,31 @@ export default function InviteScreen() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const onShare = () => {
-    Share.share({
-      message: `join me on flash. — https://flsh.pl/${code}`,
-    });
+  const onShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const message = `hey! join me on flash. 📸\nhttps://flsh.pl/${code}\n\nyou'll get 3 invites to bring your own people too.`;
+
+    const isAvailable = await Sharing.isAvailableAsync();
+    if (isAvailable) {
+      // Copy the bundled og.jpg to a writable cache path so expo-sharing can access it
+      const ogSrc = require('../assets/og.jpg');
+      const localUri = `${FileSystem.cacheDirectory}flash_invite.jpg`;
+      // expo-asset resolves the require to a URI we can copy from
+      const { Asset } = await import('expo-asset');
+      const [asset] = await Asset.loadAsync(ogSrc);
+      if (asset.localUri) {
+        await FileSystem.copyAsync({ from: asset.localUri, to: localUri });
+        await Sharing.shareAsync(localUri, {
+          dialogTitle: message,
+          mimeType: 'image/jpeg',
+          UTI: 'public.jpeg',
+        });
+        return;
+      }
+    }
+
+    // Fallback: plain text share sheet
+    Share.share({ message });
   };
 
   const slotsCount = slots?.length ?? user?.inviteSlots ?? 3;
