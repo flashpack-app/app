@@ -58,7 +58,7 @@ export default function InviteScreen() {
 
   const onShare = () => {
     Share.share({
-      message: `join me on flash. — ${code}\nflash://invite?code=${encodeURIComponent(code)}`,
+      message: `join me on flash. — https://flsh.pl/${code}`,
     });
   };
 
