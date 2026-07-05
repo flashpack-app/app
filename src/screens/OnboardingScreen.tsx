@@ -151,7 +151,7 @@ function InviteVisual() {
   const [copied, setCopied] = useState(false);
 
   const onCopy = async () => {
-    const msg = `join me on flash. — ${code}\nflash://invite?code=${encodeURIComponent(code)}`;
+    const msg = `join me on flash. — https://flsh.pl/${code}`;
     await Clipboard.setStringAsync(msg);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCopied(true);

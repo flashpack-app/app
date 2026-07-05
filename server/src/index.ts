@@ -191,7 +191,11 @@ app.post('/invite/verify', async (req: Request, res: Response) => {
   if (typeof code !== 'string') return res.status(400).json({ valid: false, reason: 'missing_code' });
   const ctx = await getInviteContext(code);
   if (!ctx.ok) return res.json({ valid: false, reason: ctx.reason });
-  return res.json({ valid: true, kind: ctx.kind });
+  return res.json({
+    valid: true,
+    kind: ctx.kind,
+    username: ctx.kind === 'user' ? (ctx.owner as any).username : null,
+  });
 });
 
 app.post('/invite/redeem', async (req: Request, res: Response) => {
@@ -1792,6 +1796,220 @@ const BANNER = `
     ██║     ███████╗██║  ██║███████║██║  ██║${Y}.${R}
     ╚═╝     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝${Y}.${R}
 `;
+
+// Deep-linking invite landing page for shortened flsh.pl urls
+app.get('/:code', async (req: Request, res: Response) => {
+  const code = req.params.code.trim().toUpperCase();
+
+  // Skip static files or API endpoints that might not have been matched
+  if (code.includes('.') || ['HEALTH', 'DAILY-TOPIC', 'REGISTER', 'SIGN-IN', 'ME', 'STREAK', 'PACKS', 'REPORTS', 'SCREENSHOT'].includes(code)) {
+    return res.status(404).send('Not Found');
+  }
+
+  try {
+    const userRows = await query<UserRow>('SELECT username FROM users WHERE UPPER(invite_code) = $1', [code]);
+    const genesisRows = await query('SELECT code FROM genesis_codes WHERE UPPER(code) = $1', [code]);
+
+    const inviter = userRows.length > 0 ? `@${userRows[0].username}` : null;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>you're invited to flash.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+    .background-glow {
+      position: absolute;
+      top: -10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(255, 214, 10, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .container {
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      z-index: 2;
+      animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .logo-container {
+      margin-bottom: 32px;
+      animation: pulse 3s infinite ease-in-out;
+    }
+    .logo {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      color: #ffffff;
+    }
+    .logo span {
+      color: #FFD60A;
+    }
+    .card {
+      background-color: #121212;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 24px;
+      padding: 32px 24px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      margin-bottom: 24px;
+    }
+    .invited-by {
+      color: #FFD60A;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      color: #a0a0a0;
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+    .code-box {
+      background-color: rgba(255, 214, 10, 0.03);
+      border: 1px dashed rgba(255, 214, 10, 0.3);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+    .code-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #a0a0a0;
+      font-weight: 600;
+    }
+    .code-value {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: #FFD60A;
+    }
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 56px;
+      background-color: #FFD60A;
+      color: #000000;
+      font-size: 16px;
+      font-weight: 800;
+      text-decoration: none;
+      border-radius: 16px;
+      transition: transform 0.2s ease, background-color 0.2s ease;
+      box-shadow: 0 4px 20px rgba(255, 214, 10, 0.25);
+    }
+    .cta-button:active {
+      transform: scale(0.98);
+      background-color: #e5c009;
+    }
+    .footer {
+      color: #606060;
+      font-size: 12px;
+      margin-top: 16px;
+    }
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.03);
+      }
+    }
+  </style>
+  <script>
+    // Try to auto deep link when loading page on mobile
+    window.onload = function() {
+      const deepLink = "flash://invite?code=" + encodeURIComponent("${code}");
+      setTimeout(function() {
+        window.location.href = deepLink;
+      }, 500);
+    };
+  </script>
+</head>
+<body>
+  <div class="background-glow"></div>
+  <div class="container">
+    <div class="logo-container">
+      <div class="logo">flash<span>.</span></div>
+    </div>
+    
+    <div class="card">
+      \${inviter ? \`<div class="invited-by">\${inviter} invited you</div>\` : ''}
+      <div class="title">you're invited to flash.</div>
+      <div class="subtitle">real moments, real people. no followers, no likes. just you and your crew sharing one photo daily.</div>
+      
+      <div class="code-box">
+        <div class="code-label">your invite code</div>
+        <div class="code-value">\${code}</div>
+      </div>
+      
+      <a href="flash://invite?code=\${encodeURIComponent(code)}" class="cta-button">open flash.</a>
+    </div>
+    
+    <div class="footer">
+      click open to launch the app or sign up.
+    </div>
+  </div>
+</body>
+</html>\`;
+
+    return res.send(html);
+  } catch (e) {
+    console.error('failed to render landing page:', e);
+    return res.status(500).send('Internal Server Error');
+  }
+});
 
 // Global error handler for unhandled async route errors
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
