@@ -23,6 +23,7 @@ interface AppStateValue {
   token: string | null;
   isAuthenticated: boolean;
   isBooting: boolean;
+  isConnected: boolean;
   packs: Pack[];
   discoverPacks: Pack[];
   hasPostedFirstPack: boolean;
@@ -34,7 +35,9 @@ interface AppStateValue {
   streak: StreakInfo | null;
   dailyTopic: { topic: string; date: string } | null;
   isOnboarding: boolean;
+  streakAtRisk: boolean;
   setIsOnboarding: (val: boolean) => void;
+  setIsConnected: (val: boolean) => void;
   signIn: (s: Session, onboarding?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -63,6 +66,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isBooting, setBooting] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [discoverPacks, setDiscoverPacks] = useState<Pack[]>([]);
   const [hasPostedFirstPack, setHasPostedFirstPack] = useState(false);
@@ -74,6 +78,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [dailyTopic, setDailyTopic] = useState<{ topic: string; date: string } | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
+
+  // Compute streak at-risk state: server uses 48h window, so at-risk when > 24h since last post
+  const streakAtRisk = useMemo(() => {
+    if (!lastPostAt || !streak || streak.streakDays < 1) return false;
+    const hoursSinceLastPost = (Date.now() - new Date(lastPostAt).getTime()) / (1000 * 60 * 60);
+    // At risk if more than 24 hours have passed (halfway to 48h cutoff)
+    return hoursSinceLastPost > 24;
+  }, [lastPostAt, streak]);
 
   useEffect(() => {
     (async () => {
@@ -111,6 +123,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       token,
       isAuthenticated: user !== null && token !== null,
       isBooting,
+      isConnected,
       packs,
       discoverPacks,
       hasPostedFirstPack,
@@ -122,7 +135,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       streak,
       dailyTopic,
       isOnboarding,
+      streakAtRisk,
       setIsOnboarding,
+      setIsConnected,
       async signIn(s, onboarding = false) {
         setUser(s.user);
         setToken(s.token);
@@ -325,7 +340,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
     }),
-    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, setIsOnboarding],
+    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, streakAtRisk, setIsOnboarding],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

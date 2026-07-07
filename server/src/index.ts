@@ -191,7 +191,11 @@ app.post('/invite/verify', async (req: Request, res: Response) => {
   if (typeof code !== 'string') return res.status(400).json({ valid: false, reason: 'missing_code' });
   const ctx = await getInviteContext(code);
   if (!ctx.ok) return res.json({ valid: false, reason: ctx.reason });
-  return res.json({ valid: true, kind: ctx.kind });
+  return res.json({
+    valid: true,
+    kind: ctx.kind,
+    username: ctx.kind === 'user' ? (ctx.owner as any).username : null,
+  });
 });
 
 app.post('/invite/redeem', async (req: Request, res: Response) => {

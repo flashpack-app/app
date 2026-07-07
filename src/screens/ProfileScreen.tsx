@@ -175,12 +175,29 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [vibeExpanded, setVibeExpanded] = useState(false);
 
+  const [openInvitesCount, setOpenInvitesCount] = useState<number | null>(null);
+
+  const fetchInviteCount = useCallback(async () => {
+    if (!isOwnProfile || !token) return;
+    try {
+      const res = await APIService.getInviteSlots(token);
+      const openCount = (res.slots ?? []).filter((s: any) => s.status === 'open').length;
+      setOpenInvitesCount(openCount);
+    } catch (e) {
+      console.warn('failed to load invite slots for profile banner:', e);
+      if (me) {
+        setOpenInvitesCount(me.inviteSlots);
+      }
+    }
+  }, [isOwnProfile, token, me]);
+
   useEffect(() => {
     if (isOwnProfile) {
       refreshStreak();
       refreshPacks();
+      fetchInviteCount();
     }
-  }, [isOwnProfile]);
+  }, [isOwnProfile, fetchInviteCount]);
 
   useEffect(() => {
     if (!isOwnProfile && targetUsername) {
@@ -200,7 +217,7 @@ export default function ProfileScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefreshing(true);
     if (isOwnProfile) {
-      await Promise.all([refreshStreak(), refreshPacks()]);
+      await Promise.all([refreshStreak(), refreshPacks(), fetchInviteCount()]);
     } else if (targetUsername) {
       setLoading(true);
       await APIService.getPublicProfile(targetUsername)
@@ -214,7 +231,7 @@ export default function ProfileScreen() {
     triggeredRef.current = false;
     progress.value = 0;
     scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
-  }, [isOwnProfile, targetUsername, refreshStreak, refreshPacks]);
+  }, [isOwnProfile, targetUsername, refreshStreak, refreshPacks, fetchInviteCount]);
 
   const displayUser = isOwnProfile ? me : publicProfile;
   const isPro = displayUser?.isPro ?? false;
@@ -585,6 +602,52 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* INVITES — own profile only */}
+      {isOwnProfile && openInvitesCount !== null && (
+        <View style={styles.section}>
+          <ScaledText style={styles.sectionLabel}>invites</ScaledText>
+          {openInvitesCount > 0 ? (
+            <Pressable
+              onPress={() => nav.navigate('Invite')}
+              style={styles.inviteBannerCard}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.inviteIconCircle}>
+                  <Ionicons name="people" size={16} color={colors.yellow} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <ScaledText style={styles.inviteBannerTitle}>
+                    you have {openInvitesCount} more invite{openInvitesCount === 1 ? '' : 's'}
+                  </ScaledText>
+                  <ScaledText style={styles.inviteBannerSubtitle}>
+                    invite some friends to build your crew
+                  </ScaledText>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={colors.textFade} />
+              </View>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => (!me?.isPro ? nav.navigate('Pro') : nav.navigate('Invite'))}
+              style={styles.inviteBannerCard}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={[styles.inviteIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <Ionicons name="lock-closed" size={14} color={colors.textFade} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <ScaledText style={styles.inviteBannerTitle}>no invites left</ScaledText>
+                  <ScaledText style={styles.inviteBannerSubtitle}>
+                    {!me?.isPro ? 'upgrade to pro to get +2 more invites' : 'you have used all your invite slots'}
+                  </ScaledText>
+                </View>
+                {!me?.isPro && <Ionicons name="chevron-forward" size={14} color={colors.textFade} />}
+              </View>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {/* COUNTRIES */}
       {countryList.length > 0 && (
         <View style={styles.section}>
@@ -895,6 +958,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   invitedByText: { color: colors.textDim, fontSize: 11 },
   invitedByAt: { color: colors.yellow, fontWeight: '600' },
+  inviteBannerCard: {
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  inviteIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 214, 10, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteBannerTitle: { color: colors.white, fontSize: 13, fontWeight: '700' },
+  inviteBannerSubtitle: { color: colors.textSecondary, fontSize: 11 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#1e1e1e', marginHorizontal: 12, marginVertical: 6 },
   section: { paddingHorizontal: 12, paddingTop: 10, gap: 6 },
   sectionLabel: { color: colors.textDim, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
