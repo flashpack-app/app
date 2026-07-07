@@ -200,16 +200,6 @@ export default function PackRevealScreen() {
     scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
   }, [refreshPacks, refreshDiscover]);
 
-  if (!pack) return (
-    <View style={[styles.wrap, { justifyContent: 'center', alignItems: 'center' }]}>
-      <Pressable onPress={() => nav.goBack()} style={{ position: 'absolute', top: Math.max(12, insets.top), left: 12, padding: 8 }}>
-        <Ionicons name="chevron-back" size={22} color={colors.white} />
-      </Pressable>
-      <Ionicons name="layers-outline" size={40} color={colors.textFade} />
-      <ScaledText style={{ color: colors.textFade, marginTop: 12, fontSize: 14 }}>pack not found</ScaledText>
-    </View>
-  );
-
   // ── reveal animation ──
   const ready = useSharedValue(0);
   useEffect(() => {
@@ -260,6 +250,19 @@ export default function PackRevealScreen() {
       { translateY: interpolate(ready.value, [0.65, 0.95], [40, 0], Extrapolation.CLAMP) },
     ],
   }));
+
+  // Guard AFTER all hooks so hook order stays stable when the pack list is
+  // empty (e.g. right after a revert, or while a fetch is failing). Returning
+  // before the hooks above would render fewer hooks and crash React.
+  if (!pack) return (
+    <View style={[styles.wrap, { justifyContent: 'center', alignItems: 'center' }]}>
+      <Pressable onPress={() => nav.goBack()} style={{ position: 'absolute', top: Math.max(12, insets.top), left: 12, padding: 8 }}>
+        <Ionicons name="chevron-back" size={22} color={colors.white} />
+      </Pressable>
+      <Ionicons name="layers-outline" size={40} color={colors.textFade} />
+      <ScaledText style={{ color: colors.textFade, marginTop: 12, fontSize: 14 }}>pack not found</ScaledText>
+    </View>
+  );
 
   const isExpired = pack.status === 'expired' || new Date(pack.expiresAt).getTime() <= Date.now();
   if (isExpired && !user?.isPro) {
