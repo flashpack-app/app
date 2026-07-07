@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import FlashLogo from '../components/FlashLogo';
 import PackCard from '../components/PackCard';
 import LiquidRefresh from '../components/LiquidRefresh';
+import StreakWarningBanner from '../components/StreakWarningBanner';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -125,6 +126,8 @@ export default function FeedScreen() {
           </Pressable>
         </View>
       </View>
+
+      <StreakWarningBanner />
 
       {hasPostedFirstPack ? (
         isForming ? (

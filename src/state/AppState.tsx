@@ -34,6 +34,7 @@ interface AppStateValue {
   streak: StreakInfo | null;
   dailyTopic: { topic: string; date: string } | null;
   isOnboarding: boolean;
+  streakAtRisk: boolean;
   setIsOnboarding: (val: boolean) => void;
   signIn: (s: Session, onboarding?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
@@ -74,6 +75,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [dailyTopic, setDailyTopic] = useState<{ topic: string; date: string } | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
+
+  // Compute streak at-risk state: server uses 48h window, so at-risk when > 24h since last post
+  const streakAtRisk = useMemo(() => {
+    if (!lastPostAt || !streak || streak.streakDays < 1) return false;
+    const hoursSinceLastPost = (Date.now() - new Date(lastPostAt).getTime()) / (1000 * 60 * 60);
+    // At risk if more than 24 hours have passed (halfway to 48h cutoff)
+    return hoursSinceLastPost > 24;
+  }, [lastPostAt, streak]);
 
   useEffect(() => {
     (async () => {
@@ -122,6 +131,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       streak,
       dailyTopic,
       isOnboarding,
+      streakAtRisk,
       setIsOnboarding,
       async signIn(s, onboarding = false) {
         setUser(s.user);
@@ -325,7 +335,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
     }),
-    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, setIsOnboarding],
+    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, streakAtRisk, setIsOnboarding],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

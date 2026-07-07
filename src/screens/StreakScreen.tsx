@@ -29,6 +29,24 @@ export default function StreakScreen() {
   const lastPostAt = streak?.lastPostAt ?? user?.lastPostAt;
   const isStreakAtRisk = lastPostAt ? Date.now() - new Date(lastPostAt).getTime() > 24 * 3600 * 1000 : days === 0;
 
+  const onFreezeStreak = async () => {
+    if (!token || !isPro) {
+      Alert.alert('pro feature', 'streak freeze is available with flash. pro.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await APIService.useStreakInsurance(token);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('streak frozen ❄️', res.message);
+      refreshStreak();
+    } catch (e: any) {
+      Alert.alert('error', e?.body?.error === 'pro_required' ? 'pro required' : 'could not freeze streak.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const onSaveStreak = async () => {
     if (!token || !isPro) {
       Alert.alert('pro feature', 'streak insurance is available with flash. pro.');
@@ -64,7 +82,7 @@ export default function StreakScreen() {
           </View>
         </View>
 
-        {/* Streak insurance */}
+        {/* Streak insurance - at risk */}
         {isPro && isStreakAtRisk && (
           <Pressable onPress={onSaveStreak} style={styles.insuranceCard} disabled={saving}>
             <Ionicons name="shield-checkmark" size={18} color={colors.yellow} />
@@ -73,6 +91,18 @@ export default function StreakScreen() {
               <Text style={styles.insuranceBody}>tap to use your streak insurance save.</Text>
             </View>
             {saving ? <ActivityIndicator color={colors.yellow} /> : <Ionicons name="flash" size={16} color={colors.yellow} />}
+          </Pressable>
+        )}
+
+        {/* Pro streak freeze - always available for Pro users with active streaks */}
+        {isPro && days > 0 && !isStreakAtRisk && (
+          <Pressable onPress={onFreezeStreak} style={styles.freezeCard} disabled={saving}>
+            <Ionicons name="snow" size={18} color={colors.green} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.freezeTitle}>freeze streak</Text>
+              <Text style={styles.freezeBody}>pause your streak timer with pro freeze.</Text>
+            </View>
+            {saving ? <ActivityIndicator color={colors.green} /> : <Ionicons name="chevron-forward" size={16} color={colors.textFade} />}
           </Pressable>
         )}
 
@@ -156,4 +186,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   insuranceTitle: { color: colors.yellow, fontSize: 13, fontWeight: '700' },
   insuranceBody: { color: colors.textDim, fontSize: 11 },
+  freezeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(48,209,88,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(48,209,88,0.25)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  freezeTitle: { color: colors.green, fontSize: 13, fontWeight: '700' },
+  freezeBody: { color: colors.textDim, fontSize: 11 },
 });
