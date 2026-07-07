@@ -1206,22 +1206,14 @@ app.post('/streak/insurance', requireUser, async (req: Request, res: Response) =
   if (!userRows[0].is_pro) return res.status(403).json({ error: 'pro_required' });
 
   const lastPost = userRows[0].last_post_at ? new Date(userRows[0].last_post_at).getTime() : 0;
-  const hoursSinceLastPost = lastPost > 0 ? (Date.now() - lastPost) / (1000 * 60 * 60) : 999;
+  const withinWindow = lastPost > 0 && Date.now() - lastPost < 48 * 3600 * 1000;
+  if (withinWindow) return res.json({ ok: true, message: 'streak is safe' });
 
-  // If streak is already broken (>48h), save it by resetting to 12h ago
-  if (hoursSinceLastPost >= 48) {
-    const fakeLastPost = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-    await query('UPDATE users SET last_post_at = $1 WHERE id = $2', [fakeLastPost, userId]);
-    await invalidateUser(userId);
-    return res.json({ ok: true, message: 'streak saved' });
-  }
-
-  // If streak is safe but user wants to freeze, extend the window by resetting last_post_at
-  // This effectively gives them another 48h window from now
-  const frozenLastPost = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-  await query('UPDATE users SET last_post_at = $1 WHERE id = $2', [frozenLastPost, userId]);
+  // Save streak: reset last_post_at to 24h ago so the streak window is still open
+  const fakeLastPost = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+  await query('UPDATE users SET last_post_at = $1 WHERE id = $2', [fakeLastPost, userId]);
   await invalidateUser(userId);
-  return res.json({ ok: true, message: 'streak frozen' });
+  return res.json({ ok: true, message: 'streak saved' });
 });
 
 // ---- notifications ----

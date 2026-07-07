@@ -94,10 +94,10 @@ export default function StreakScreen() {
           </Pressable>
         )}
 
-        {/* Pro streak freeze - always available for Pro users with active streaks */}
-        {isPro && days > 0 && !isStreakAtRisk && (
+        {/* Pro streak freeze - available when streak is at risk */}
+        {isPro && days > 0 && isStreakAtRisk && (
           <Pressable onPress={onFreezeStreak} style={styles.freezeCard} disabled={saving}>
-            <Ionicons name="snow" size={18} color={colors.green} />
+            <Ionicons name="snow-outline" size={18} color={colors.green} />
             <View style={{ flex: 1 }}>
               <Text style={styles.freezeTitle}>freeze streak</Text>
               <Text style={styles.freezeBody}>pause your streak timer with pro freeze.</Text>
