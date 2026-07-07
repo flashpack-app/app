@@ -8,6 +8,7 @@ import { generateInviteCode, isValidFormat, normalize } from './codes';
 import { bootstrap, showGenesisCodes } from './migrate';
 import { moderateText, moderateImage, recordViolation, shouldAutoBan, checkRateLimit } from './moderation';
 import { cachedJson, packKey, userKey, invalidatePack, invalidateUser } from './cache';
+import { analyzeImageQuality } from './imageQuality';
 
 const MAX_PACK_MEMBERS = 4;
 
@@ -529,6 +530,19 @@ app.post('/photos', requireUser, async (req: Request, res: Response) => {
     typeof videoData === 'string' ? videoData.replace(/^data:[^;]+;base64,/, '') : null;
 
   console.log(`[POST /photos] user=${userId} hasImage=${!!base64} hasVideo=${!!videoBase64} videoMime=${videoMime ?? 'none'} videoBytes=${videoBase64 ? Math.round(videoBase64.length * 0.75 / 1024) + 'kb' : 0}`);
+
+  if (base64) {
+    // Quality gate first — reject plain black / blank / flat-colour frames
+    // (lens-cap or accidental shots) before spending a moderation API call.
+    const quality = analyzeImageQuality(Buffer.from(base64, 'base64'));
+    if (!quality.ok) {
+      console.warn(
+        `[POST /photos] quality reject user=${userId} reason=${quality.reason} ` +
+          `luma=${quality.meanLuma.toFixed(1)} var=${quality.variance.toFixed(1)}`,
+      );
+      return res.status(422).json({ error: quality.reason, categories: [quality.reason!] });
+    }
+  }
 
   if (base64) {
     const verdict = await moderateImage(base64, imageMime ?? 'image/jpeg');
