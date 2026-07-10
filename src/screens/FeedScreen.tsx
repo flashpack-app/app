@@ -10,6 +10,7 @@ import PackCard from '../components/PackCard';
 import LiquidRefresh from '../components/LiquidRefresh';
 import StreakWarningBanner from '../components/StreakWarningBanner';
 import LeftMenu from '../ui/LeftMenu';
+import LoadErrorBanner from '../components/LoadErrorBanner';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -37,7 +38,7 @@ function useCountdown(target: Date | null): string {
 export default function FeedScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt } = useAppState();
+  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -139,6 +140,11 @@ export default function FeedScreen() {
       </View>
 
       <StreakWarningBanner />
+
+      <LoadErrorBanner
+        visible={!!(loadErrors.packs || loadErrors.discover)}
+        onRetry={onRefresh}
+      />
 
       {hasPostedFirstPack ? (
         isForming ? (
