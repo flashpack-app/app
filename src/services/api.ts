@@ -182,8 +182,20 @@ export const APIService = {
     return { self: abs(res.self), ancestors: res.ancestors.map(abs), descendants: res.descendants.map(abs) };
   },
 
-  async sendOTP(_phone: string) { /* removed */ },
-  async verifyOTP(_phone: string, _otp: string): Promise<string> { return 'mock'; },
+  // OTP is keyed on the username (login) or invite code (signup). When the
+  // server has no SMS provider configured it returns the code as devCode so
+  // the flow still works end-to-end.
+  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string }): Promise<{ devCode?: string }> {
+    return http('/auth/otp/send', { method: 'POST', body: params });
+  },
+
+  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
+    const res = await http<{ ok: boolean; user?: any; token?: string }>('/auth/otp/verify', {
+      method: 'POST',
+      body: params,
+    });
+    return { user: res.user ? mapUser(res.user) : undefined, token: res.token };
+  },
 
   async uploadPhoto(
     token: string,

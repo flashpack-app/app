@@ -9,6 +9,7 @@ import FlashLogo from '../components/FlashLogo';
 import PackCard from '../components/PackCard';
 import LiquidRefresh from '../components/LiquidRefresh';
 import StreakWarningBanner from '../components/StreakWarningBanner';
+import LeftMenu from '../ui/LeftMenu';
 import LoadErrorBanner from '../components/LoadErrorBanner';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
@@ -40,6 +41,7 @@ export default function FeedScreen() {
   const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
@@ -104,9 +106,18 @@ export default function FeedScreen() {
   const expiresCountdown = useCountdown(expiresTarget);
 
   return (
-    <View style={styles.wrap}>
+    <LeftMenu
+      isOpen={isMenuOpen}
+      onOpenChange={setIsMenuOpen}
+      onForYouPress={() => nav.navigate('Tabs', { screen: 'Feed' })}
+      onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
+      onSettingsPress={() => nav.navigate('Settings')}
+    >
+      <View style={styles.wrap}>
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
-        <FlashLogo size={22} />
+        <Pressable onPress={() => setIsMenuOpen(true)} hitSlop={12} style={styles.logoButton}>
+          <FlashLogo size={22} />
+        </Pressable>
         <View style={styles.topRight}>
           {expiresCountdown ? (
             <Pressable
@@ -225,12 +236,18 @@ export default function FeedScreen() {
           </Pressable>
         </View>
       )}
-    </View>
+      </View>
+    </LeftMenu>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
+  logoButton: {
+    minWidth: 84,
+    minHeight: 34,
+    justifyContent: 'center',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

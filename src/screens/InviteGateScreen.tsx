@@ -57,7 +57,7 @@ export default function InviteGateScreen() {
         return;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      nav.navigate('OTPScreen', { inviteCode: code });
+      nav.navigate('Username', { code });
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(e?.message ?? 'network error. is the server running?');

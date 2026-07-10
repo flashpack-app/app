@@ -59,7 +59,7 @@ export default function InviteScreen() {
   const onShare = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Share.share({
-      message: `hey! join me on flash. 📸\nhttps://flsh.pl/${code}\n\nyou'll get 3 invites to bring your own people too.`,
+      message: `hey! join me on flash. 📸\nhttps://flsh.pw/${code}\n\nyou'll get 3 invites to bring your own people too.`,
     });
   };
 
