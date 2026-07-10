@@ -143,7 +143,7 @@ export default function LeftMenu({
 
         <Pressable onPress={handleProfile} style={styles.profileButton}>
           <Ionicons name="person-outline" size={24} color={colors.white} />
-          <ScaledText style={styles.profileButtonText}>Profile</ScaledText>
+          <ScaledText style={styles.profileButtonText}>profile</ScaledText>
         </Pressable>
 
         {expiryCountdown && (
@@ -156,8 +156,8 @@ export default function LeftMenu({
         <View style={styles.menuCard}>
           <Pressable onPress={handleForYou} style={styles.menuRow}>
             <View>
-              <ScaledText style={styles.menuTitle}>For you</ScaledText>
-              <ScaledText style={styles.menuSub}>Around the globe</ScaledText>
+              <ScaledText style={styles.menuTitle}>for you.</ScaledText>
+              <ScaledText style={styles.menuSub}>around the globe</ScaledText>
             </View>
             <Ionicons name="earth-outline" size={24} color={colors.white} />
           </Pressable>
