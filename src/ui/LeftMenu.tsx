@@ -24,6 +24,8 @@ type Props = {
   onProfilePress: () => void;
   onSettingsPress: () => void;
   children: React.ReactNode;
+  expiryCountdown?: string;
+  onExpiryPress?: () => void;
 };
 
 const TIMING = { duration: 220 };
@@ -35,6 +37,8 @@ export default function LeftMenu({
   onProfilePress,
   onSettingsPress,
   children,
+  expiryCountdown,
+  onExpiryPress,
 }: Props) {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
@@ -43,6 +47,25 @@ export default function LeftMenu({
   const drawerWidth = Math.min(width * 0.76, 310);
   const progress = useSharedValue(isOpen ? 1 : 0);
   const startProgress = useSharedValue(isOpen ? 1 : 0);
+
+  // Determine color based on countdown
+  const getExpiryColor = () => {
+    if (!expiryCountdown) return colors.red;
+    // Parse hours from format like "16h 30m" or "45m"
+    const hoursMatch = expiryCountdown.match(/(\d+)h/);
+    const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+    if (hours < 1) return '#4ade80'; // green
+    if (hours <= 10) return '#f97316'; // orange
+    return colors.red;
+  };
+
+  const getExpiryText = () => {
+    if (!expiryCountdown) return '';
+    const hoursMatch = expiryCountdown.match(/(\d+)h/);
+    const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+    if (hours < 1) return 'get ready';
+    return `${expiryCountdown} left for your next flash.`;
+  };
 
   useEffect(() => {
     progress.value = withTiming(isOpen ? 1 : 0, TIMING);
@@ -123,6 +146,13 @@ export default function LeftMenu({
           <ScaledText style={styles.profileButtonText}>Profile</ScaledText>
         </Pressable>
 
+        {expiryCountdown && (
+          <Pressable onPress={onExpiryPress} style={[styles.expiryBanner, { backgroundColor: getExpiryColor() + '22', borderColor: getExpiryColor() }]}>
+            <Ionicons name="time-outline" size={14} color={getExpiryColor()} />
+            <ScaledText style={[styles.expiryBannerText, { color: getExpiryColor() }]}>{getExpiryText()}</ScaledText>
+          </Pressable>
+        )}
+
         <View style={styles.menuCard}>
           <Pressable onPress={handleForYou} style={styles.menuRow}>
             <View>
@@ -198,6 +228,20 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     fontWeight: '700',
+  },
+  expiryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  expiryBannerText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   menuCard: {
     marginTop: 16,
