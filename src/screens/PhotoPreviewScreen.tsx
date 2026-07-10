@@ -90,7 +90,14 @@ export default function PhotoPreviewScreen() {
     } catch (e: any) {
       setState('idle');
       if (e?.status === 422) {
-        Alert.alert("this photo can't be shared", 'it was flagged by content moderation.');
+        const code = e?.body?.error;
+        if (code === 'image_too_dark') {
+          Alert.alert("that's too dark to share", 'we couldn\'t see anything in this shot. try again with more light.');
+        } else if (code === 'image_blank') {
+          Alert.alert("that looks blank", 'this photo is a flat, empty frame. take a real one and try again.');
+        } else {
+          Alert.alert("this photo can't be shared", 'it was flagged by content moderation.');
+        }
       }
     }
   };
