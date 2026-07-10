@@ -26,7 +26,12 @@ function useCountdown(target: Date | null): string {
       if (ms <= 0) { setTxt(''); return; }
       const m = Math.floor(ms / 60_000);
       const h = Math.floor(m / 60);
-      setTxt(`${h}h ${m % 60}m`);
+      // Show hours and minutes
+      if (h >= 1) {
+        setTxt(`${h}h ${m % 60}m`);
+      } else {
+        setTxt(`${m}m`);
+      }
     };
     tick();
     const id = setInterval(tick, 60_000);
@@ -112,22 +117,18 @@ export default function FeedScreen() {
       onForYouPress={() => nav.navigate('Tabs', { screen: 'Feed' })}
       onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
       onSettingsPress={() => nav.navigate('Settings')}
+      expiryCountdown={expiresCountdown}
+      onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activePacks[0]?.id })}
     >
       <View style={styles.wrap}>
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
-        <Pressable onPress={() => setIsMenuOpen(true)} hitSlop={12} style={styles.logoButton}>
-          <FlashLogo size={22} />
+        <Pressable onPress={() => setIsMenuOpen(true)} hitSlop={12} style={styles.menuButton}>
+          <Ionicons name="menu-outline" size={28} color={colors.textSecondary} />
         </Pressable>
+        <View style={styles.logoCenter}>
+          <FlashLogo size={22} />
+        </View>
         <View style={styles.topRight}>
-          {expiresCountdown ? (
-            <Pressable
-              onPress={() => nav.navigate('PackLifecycle', { packId: activePacks[0]?.id })}
-              style={styles.expiry}
-            >
-              <Ionicons name="time-outline" size={14} color={colors.red} />
-              <ScaledText style={styles.expiryText}>{expiresCountdown} left</ScaledText>
-            </Pressable>
-          ) : null}
           <Pressable onPress={() => nav.navigate('Notifications')} style={styles.bell}>
             <Ionicons name="notifications-outline" size={18} color={colors.white} />
             {unreadCount > 0 && (
@@ -243,9 +244,16 @@ export default function FeedScreen() {
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
-  logoButton: {
-    minWidth: 84,
-    minHeight: 34,
+  menuButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoCenter: {
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   topBar: {
