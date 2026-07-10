@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  TouchableOpacity,
 } from 'react-native';
 import * as Haptics from '../services/haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,8 +21,6 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
 import { useAppState } from '../state/AppState';
 
-const CORRECT_OTP = '123456';
-
 export default function OTPScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
@@ -32,10 +31,14 @@ export default function OTPScreen() {
 
   const username = route.params?.username as string | undefined;
   const inviteCode = route.params?.inviteCode as string | undefined;
+  const phone = route.params?.phone as string | undefined;
+  const extras = route.params?.extras as { city?: string; country?: string; flag?: string } | undefined;
 
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const inputRef = useRef<TextInput>(null);
 
   const isLogin = !!username;
@@ -47,37 +50,73 @@ export default function OTPScreen() {
     return () => clearTimeout(t);
   }, []);
 
+  // Cooldown timer for resend
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  useEffect(() => {
+    // Request a code for this subject as soon as the screen opens.
+    console.log('[OTPScreen] Requesting OTP with:', { username, inviteCode, phone });
+    APIService.sendOTP({ username, inviteCode, phone })
+      .then((res) => {
+        console.log('[OTPScreen] OTP send response:', res);
+        if (res.devCode) setDevCode(res.devCode);
+        // Start 60-second cooldown after successful send
+        setResendCooldown(60);
+      })
+      .catch((e: any) => {
+        console.error('[OTPScreen] OTP send error:', e);
+        setError(e?.body?.error === 'rate_limited'
+          ? 'too many codes requested. wait a bit.'
+          : "couldn't send a code. try again.");
+      });
+  }, [username, inviteCode, phone]);
+
+  const resendCode = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await APIService.sendOTP({ username, inviteCode, phone });
+      if (res.devCode) setDevCode(res.devCode);
+      setResendCooldown(60);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(e?.body?.error === 'rate_limited'
+        ? 'too many codes requested. wait a bit.'
+        : "couldn't send a code. try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const verifyOtp = async () => {
     if (otp.length !== 6) return;
     setLoading(true);
     setError(null);
 
-    // simulate network delay
-    await new Promise((r) => setTimeout(r, 400));
-
-    if (otp !== CORRECT_OTP) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError('invalid code. try 123456.');
-      setLoading(false);
-      return;
-    }
-
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    if (isLogin && username) {
-      try {
-        const { user, token } = await APIService.login(username);
+    try {
+      const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp, phone, ...extras });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (user && token) {
         await signIn({ user, token });
-      } catch (e: any) {
-        const reason = e?.body?.error ?? '';
-        setError(reason === 'not_found' ? 'user not found.' : 'login failed.');
-        setLoading(false);
-        return;
       }
-    } else if (isSignup && inviteCode) {
-      nav.navigate('Username', { code: inviteCode });
+    } catch (e: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const reason = e?.body?.error ?? '';
+      setError(
+        reason === 'expired' ? 'code expired. go back and try again.'
+        : reason === 'too_many_attempts' ? 'too many tries. request a new code.'
+        : reason === 'not_found' ? 'user not found.'
+        : reason === 'username_taken' ? 'that username is taken.'
+        : 'invalid code.',
+      );
     }
-
     setLoading(false);
   };
 
@@ -148,7 +187,17 @@ export default function OTPScreen() {
           style={{ width: '100%', height: 44 }}
         />
 
-        <Text style={styles.note}>for now, use code 123456.</Text>
+        <TouchableOpacity
+          onPress={resendCode}
+          disabled={resendCooldown > 0 || loading}
+          style={styles.resendButton}
+        >
+          <Text style={[styles.resendText, resendCooldown > 0 && styles.resendTextDisabled]}>
+            {resendCooldown > 0 ? `resend in ${resendCooldown}s` : 'resend code'}
+          </Text>
+        </TouchableOpacity>
+
+        {devCode && <Text style={styles.note}>dev build — your code is {devCode}.</Text>}
       </View>
     </KeyboardAvoidingView>
   );
@@ -211,5 +260,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontSize: 9,
     marginTop: 12,
     textAlign: 'center',
+  },
+  resendButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  resendText: {
+    color: colors.yellow,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  resendTextDisabled: {
+    color: colors.textHint,
   },
 });

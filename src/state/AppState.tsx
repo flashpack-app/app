@@ -36,6 +36,10 @@ interface AppStateValue {
   dailyTopic: { topic: string; date: string } | null;
   isOnboarding: boolean;
   streakAtRisk: boolean;
+  // Per-fetch failure flags (keyed by 'packs' | 'discover' | 'streak' |
+  // 'notifications'); true after a load fails, cleared on the next success.
+  // Surfaces an inline error + retry instead of silently swallowing the error.
+  loadErrors: Record<string, boolean>;
   setIsOnboarding: (val: boolean) => void;
   setIsConnected: (val: boolean) => void;
   signIn: (s: Session, onboarding?: boolean) => Promise<void>;
@@ -78,6 +82,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [dailyTopic, setDailyTopic] = useState<{ topic: string; date: string } | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [loadErrors, setLoadErrors] = useState<Record<string, boolean>>({});
+  const markLoad = (key: string, failed: boolean) =>
+    setLoadErrors((prev) => (prev[key] === failed ? prev : { ...prev, [key]: failed }));
 
   // Compute streak at-risk state: server uses 48h window, so at-risk when > 24h since last post
   const streakAtRisk = useMemo(() => {
@@ -136,6 +143,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dailyTopic,
       isOnboarding,
       streakAtRisk,
+      loadErrors,
       setIsOnboarding,
       setIsConnected,
       async signIn(s, onboarding = false) {
@@ -197,8 +205,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return next;
           });
           if (loaded.length > 0) setHasPostedFirstPack(true);
+          markLoad('packs', false);
         } catch (e) {
           console.warn('refreshPacks failed:', e);
+          markLoad('packs', true);
         }
       },
       async refreshDiscover() {
@@ -229,8 +239,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
             return next;
           });
+          markLoad('discover', false);
         } catch (e) {
           console.warn('refreshDiscover failed:', e);
+          markLoad('discover', true);
         }
       },
       markAllRead: () => setUnreadCount(0),
@@ -313,8 +325,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setStreak(s);
           if (s.lastPostAt) setLastPostAt(s.lastPostAt);
           setUser((prev) => (prev ? { ...prev, streakDays: s.streakDays } : prev));
+          markLoad('streak', false);
         } catch (e) {
           console.warn('refreshStreak failed:', e);
+          markLoad('streak', true);
         }
       },
       async refreshNotifications() {
@@ -322,8 +336,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           const list = await APIService.getNotifications(token);
           setUnreadCount(list.filter((n) => !n.readAt).length);
+          markLoad('notifications', false);
         } catch (e) {
           console.warn('refreshNotifications failed:', e);
+          markLoad('notifications', true);
         }
       },
       async awardPongBadge() {
@@ -340,7 +356,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
     }),
-    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, streakAtRisk, setIsOnboarding],
+    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, streakAtRisk, loadErrors, setIsOnboarding],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

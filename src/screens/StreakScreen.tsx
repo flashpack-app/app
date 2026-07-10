@@ -8,6 +8,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { filterColor } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import LoadErrorBanner from '../components/LoadErrorBanner';
 import { useAppState } from '../state/AppState';
 import { APIService } from '../services/api';
 
@@ -15,7 +16,7 @@ export default function StreakScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
-  const { streak, refreshStreak, user, token } = useAppState();
+  const { streak, refreshStreak, user, token, loadErrors } = useAppState();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,6 +71,11 @@ export default function StreakScreen() {
       <ScreenHeader title="streak" />
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
+        <LoadErrorBanner
+          visible={!!loadErrors.streak && !streak}
+          onRetry={refreshStreak}
+          message="couldn't load your streak."
+        />
         {/* Big streak number */}
         <View style={styles.hero}>
           <Text style={styles.heroNumber}>{days}</Text>
