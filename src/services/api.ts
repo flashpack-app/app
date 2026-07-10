@@ -185,11 +185,11 @@ export const APIService = {
   // OTP is keyed on the username (login) or invite code (signup). When the
   // server has no SMS provider configured it returns the code as devCode so
   // the flow still works end-to-end.
-  async sendOTP(params: { username?: string; inviteCode?: string }): Promise<{ devCode?: string }> {
+  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string }): Promise<{ devCode?: string }> {
     return http('/auth/otp/send', { method: 'POST', body: params });
   },
 
-  async verifyOTP(params: { username?: string; inviteCode?: string; code: string }): Promise<{ user?: User; token?: string }> {
+  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
     const res = await http<{ ok: boolean; user?: any; token?: string }>('/auth/otp/verify', {
       method: 'POST',
       body: params,

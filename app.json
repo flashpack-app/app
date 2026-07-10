@@ -40,7 +40,8 @@
     "plugins": [
       "expo-camera",
       "expo-notifications",
-      "expo-video"
+      "expo-video",
+      "@lottiefiles/dotlottie-react-native/plugins/withDotLottie"
     ],
     "extra": {
       "apiUrl": "",

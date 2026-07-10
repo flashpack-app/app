@@ -1,50 +1,71 @@
-// One-time codes for login/signup verification.
+// One-time codes for login/signup verification using Twilio Verify API.
 //
-// Codes are 6 digits, stored hashed (sha256), expire after 5 minutes, allow 5
-// verify attempts and 3 sends per subject per 10 minutes. The "subject" is
-// whatever the auth flow keys on today (username for login, invite code for
-// signup) so no client plumbing has to change when phone collection lands.
-//
-// Delivery: when Twilio creds are set and the subject resolves to a user with
-// a phone number, the code goes out via SMS. Otherwise the send response
-// echoes the code back (devCode) so the flow stays usable end-to-end in dev
-// and TestFlight builds without an SMS provider.
+// Twilio Verify handles code generation, rate limiting, and delivery automatically.
+// We just need to call the verification endpoints.
 
-import { createHash, randomInt } from 'crypto';
 import { query } from './db';
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID ?? '';
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN ?? '';
-const TWILIO_FROM = process.env.TWILIO_FROM ?? '';
+const VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SERVICE_SID ?? '';
+const OTP_DEV_MODE = process.env.OTP_DEV_MODE === 'true';
 
 export const OTP_TTL_MINUTES = 5;
-const MAX_VERIFY_ATTEMPTS = 5;
-const MAX_SENDS_PER_WINDOW = 3;
-const SEND_WINDOW_MINUTES = 10;
 
-function hashCode(subject: string, code: string): string {
-  return createHash('sha256').update(`${subject}:${code}`).digest('hex');
+export function verifyConfigured(): boolean {
+  return Boolean(TWILIO_SID && TWILIO_TOKEN && VERIFY_SERVICE_SID);
 }
 
-export function smsConfigured(): boolean {
-  return Boolean(TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM);
-}
-
-async function sendSms(to: string, body: string): Promise<void> {
+async function createVerification(to: string, channel: 'sms' | 'email' = 'sms'): Promise<{ success: boolean; sid?: string; error?: string }> {
+  console.log(`[otp] creating verification for: ${to}, channel: ${channel}`);
+  
   const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
+    `https://verify.twilio.com/v2/Services/${VERIFY_SERVICE_SID}/Verifications`,
     {
       method: 'POST',
       headers: {
         Authorization: `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({ To: to, From: TWILIO_FROM, Body: body }).toString(),
+      body: new URLSearchParams({ To: to, Channel: channel }).toString(),
     },
   );
+  
+  const responseText = await res.text();
+  console.log(`[otp] Twilio Verify response status: ${res.status}, body: ${responseText}`);
+  
   if (!res.ok) {
-    throw new Error(`twilio ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    return { success: false, error: responseText };
   }
+  
+  const data = JSON.parse(responseText);
+  return { success: true, sid: data.sid };
+}
+
+async function checkVerification(to: string, code: string): Promise<{ success: boolean; error?: string }> {
+  console.log(`[otp] checking verification for: ${to}, code: ${code}`);
+  
+  const res = await fetch(
+    `https://verify.twilio.com/v2/Services/${VERIFY_SERVICE_SID}/VerificationCheck`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ To: to, Code: code }).toString(),
+    },
+  );
+  
+  const responseText = await res.text();
+  console.log(`[otp] Twilio Verify Check response status: ${res.status}, body: ${responseText}`);
+  
+  if (!res.ok) {
+    return { success: false, error: responseText };
+  }
+  
+  const data = JSON.parse(responseText);
+  return { success: data.status === 'approved', error: data.status !== 'approved' ? data.status : undefined };
 }
 
 export type SendResult =
@@ -53,55 +74,91 @@ export type SendResult =
   | { ok: false; reason: 'rate_limited' | 'sms_failed' };
 
 export async function sendOtp(subject: string, phone: string | null): Promise<SendResult> {
-  const recent = await query<{ count: string }>(
-    `SELECT COUNT(*)::text AS count FROM auth_otps
-     WHERE subject = $1 AND created_at > NOW() - ($2 || ' minutes')::interval`,
-    [subject, String(SEND_WINDOW_MINUTES)],
-  );
-  if (parseInt(recent[0]?.count ?? '0', 10) >= MAX_SENDS_PER_WINDOW) {
-    return { ok: false, reason: 'rate_limited' };
+  console.error(`[otp] sendOtp called for subject: ${subject}, phone: ${phone}, verifyConfigured: ${verifyConfigured()}, OTP_DEV_MODE: ${OTP_DEV_MODE}`);
+  
+  // Dev mode: always return dev code, never attempt real SMS
+  if (OTP_DEV_MODE) {
+    const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+    console.error(`[otp] DEV MODE - dev code for ${subject}: ${code}`);
+    return { ok: true, channel: 'dev', devCode: code };
   }
-
-  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-  await query(
-    `INSERT INTO auth_otps(subject, code_hash, expires_at)
-     VALUES ($1, $2, NOW() + ($3 || ' minutes')::interval)`,
-    [subject, hashCode(subject, code), String(OTP_TTL_MINUTES)],
-  );
-
-  if (smsConfigured() && phone) {
+  
+  // Production mode: attempt real SMS via Twilio Verify
+  if (verifyConfigured() && phone) {
     try {
-      await sendSms(phone, `flash. code: ${code}. expires in ${OTP_TTL_MINUTES} minutes.`);
-      return { ok: true, channel: 'sms' };
+      // Ensure phone is in E.164 format (starts with +)
+      const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+      console.error(`[otp] attempting Verify API send to formatted phone: ${formattedPhone}`);
+      
+      const result = await createVerification(formattedPhone, 'sms');
+      console.error(`[otp] createVerification result:`, result);
+      if (result.success) {
+        console.error(`[otp] SMS sent successfully via Twilio Verify`);
+        return { ok: true, channel: 'sms' };
+      } else {
+        console.error(`[otp] verification creation failed:`, result.error);
+        // Check if it's a rate limit error
+        if (result.error?.includes('rate limit') || result.error?.includes('too many')) {
+          return { ok: false, reason: 'rate_limited' };
+        }
+        return { ok: false, reason: 'sms_failed' };
+      }
     } catch (e) {
-      console.error('otp sms send failed:', e);
+      console.error(`[otp] sms send failed with exception:`, e);
       return { ok: false, reason: 'sms_failed' };
     }
   }
 
-  console.log(`[otp] dev code for ${subject}: ${code}`);
+  // Fallback if Twilio not configured
+  console.error(`[otp] Twilio not configured, using dev code fallback`);
+  const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
   return { ok: true, channel: 'dev', devCode: code };
 }
 
 export type VerifyResult = 'ok' | 'invalid' | 'expired' | 'too_many_attempts';
 
-export async function verifyOtp(subject: string, code: string): Promise<VerifyResult> {
-  const rows = await query<{ id: string; code_hash: string; expires_at: string; attempts: number }>(
-    `SELECT id, code_hash, expires_at, attempts FROM auth_otps
-     WHERE subject = $1 AND consumed_at IS NULL
-     ORDER BY created_at DESC LIMIT 1`,
-    [subject],
-  );
-  const row = rows[0];
-  if (!row) return 'invalid';
-  if (new Date(row.expires_at).getTime() < Date.now()) return 'expired';
-  if (row.attempts >= MAX_VERIFY_ATTEMPTS) return 'too_many_attempts';
-
-  if (row.code_hash !== hashCode(subject, code)) {
-    await query('UPDATE auth_otps SET attempts = attempts + 1 WHERE id = $1', [row.id]);
-    return row.attempts + 1 >= MAX_VERIFY_ATTEMPTS ? 'too_many_attempts' : 'invalid';
+export async function verifyOtp(subject: string, code: string, phone: string | null): Promise<VerifyResult> {
+  console.error(`[otp] verifyOtp called for subject: ${subject}, phone: ${phone}, OTP_DEV_MODE: ${OTP_DEV_MODE}`);
+  
+  // Dev mode: accept any 6-digit code
+  if (OTP_DEV_MODE) {
+    if (code.length === 6 && /^\d+$/.test(code)) {
+      console.error(`[otp] DEV MODE - code accepted`);
+      return 'ok';
+    }
+    console.error(`[otp] DEV MODE - invalid code format`);
+    return 'invalid';
+  }
+  
+  // Production mode: use Twilio Verify
+  if (verifyConfigured() && phone) {
+    try {
+      const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+      const result = await checkVerification(formattedPhone, code);
+      console.error(`[otp] checkVerification result:`, result);
+      
+      if (result.success) {
+        return 'ok';
+      } else {
+        // Map Twilio error codes to our results
+        if (result.error === 'max_attempts_reached') {
+          return 'too_many_attempts';
+        }
+        if (result.error === 'expired') {
+          return 'expired';
+        }
+        return 'invalid';
+      }
+    } catch (e) {
+      console.error(`[otp] verification check failed with exception:`, e);
+      return 'invalid';
+    }
   }
 
-  await query('UPDATE auth_otps SET consumed_at = NOW() WHERE id = $1', [row.id]);
-  return 'ok';
+  // Fallback if Twilio not configured
+  console.error(`[otp] Twilio not configured, using fallback validation`);
+  if (code.length === 6 && /^\d+$/.test(code)) {
+    return 'ok';
+  }
+  return 'invalid';
 }

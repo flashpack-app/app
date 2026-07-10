@@ -191,6 +191,11 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
   if (!ctx) return res.status(400).json({ error: 'username_or_invite_required' });
 
   let phone: string | null = null;
+  // For signup, accept phone from request body
+  if (!ctx.username && req.body.phone) {
+    phone = req.body.phone;
+  }
+  // For login, look up phone from database
   if (ctx.username) {
     const rows = await query<{ phone: string | null }>(
       'SELECT phone FROM users WHERE username = $1',
@@ -211,16 +216,15 @@ app.post('/auth/otp/send', async (req: Request, res: Response) => {
 
 app.post('/auth/otp/verify', async (req: Request, res: Response) => {
   const ctx = otpSubject(req.body);
-  const { code } = req.body ?? {};
+  const { code, phone, username, city, country, flag } = req.body ?? {};
   if (!ctx || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
     return res.status(400).json({ error: 'invalid_request' });
   }
 
-  const result = await verifyOtp(ctx.subject, code);
+  const result = await verifyOtp(ctx.subject, code, phone);
   if (result !== 'ok') return res.status(400).json({ error: result });
 
-  // Login subjects complete the sign-in here so the username-only /auth/login
-  // can eventually be retired (OTP_REQUIRED=true turns it off).
+  // Login: return user and token
   if (ctx.username) {
     const rows = await query<UserRow & { invited_by_username: string | null }>(
       `SELECT u.*, inv.username AS invited_by_username
@@ -232,6 +236,83 @@ app.post('/auth/otp/verify', async (req: Request, res: Response) => {
     if (!rows[0]) return res.status(404).json({ error: 'not_found' });
     return res.json({ ok: true, user: serializeUser(rows[0]), token: rows[0].id });
   }
+
+  // Signup: create user and return user/token
+  if (ctx.subject.startsWith('invite:') && username && typeof username === 'string') {
+    const inviteCode = ctx.subject.replace('invite:', '');
+    const cleanName = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+    if (cleanName.length < 2 || cleanName.length > 20) {
+      return res.status(400).json({ error: 'username must be 2–20 chars (a-z, 0-9, _.-)' });
+    }
+
+    const inviteCtx = await getInviteContext(inviteCode);
+    if (!inviteCtx.ok) return res.status(400).json({ error: inviteCtx.reason });
+
+    const taken = await query<{ id: string }>('SELECT id FROM users WHERE username = $1', [cleanName]);
+    if (taken.length) return res.status(409).json({ error: 'username_taken' });
+
+    // Try IP-based geolocation if client didn't send location
+    let userCity = city;
+    let userCountry = country;
+    let userFlag = flag;
+    if (!userCity || !userCountry) {
+      try {
+        const ipRes = await fetch(`https://ipapi.co/${req.ip ?? ''}/json/`);
+        const ipData = (await ipRes.json()) as any;
+        userCity = userCity ?? ipData?.city ?? 'unknown';
+        userCountry = userCountry ?? ipData?.country_code ?? 'UN';
+        userFlag = userFlag ?? ipData?.country_flag ?? '🌍';
+      } catch (e) {
+        console.warn('IP geolocation failed:', e);
+        userCity = userCity ?? 'unknown';
+        userCountry = userCountry ?? 'UN';
+        userFlag = userFlag ?? '🌍';
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      let newCode = generateInviteCode();
+      for (let i = 0; i < 5; i++) {
+        const exists = await client.query(
+          'SELECT 1 FROM users WHERE invite_code = $1 UNION SELECT 1 FROM genesis_codes WHERE code = $1',
+          [newCode],
+        );
+        if (exists.rowCount === 0) break;
+        newCode = generateInviteCode();
+      }
+
+      const invitedBy = inviteCtx.kind === 'user' ? inviteCtx.owner.id : null;
+      const coords = await geocodeCity(userCity, userCountry);
+      const insert = await client.query<UserRow>(
+        `INSERT INTO users(username, invite_code, invited_by, city, country, flag, lat, lng, phone)
+         VALUES ($1, $2, $3, COALESCE($4, 'unknown'), COALESCE($5, 'UN'), COALESCE($6, '🌍'), $7, $8, $9)
+         RETURNING *`,
+        [cleanName, newCode, invitedBy, userCity, userCountry, userFlag, coords?.lat ?? null, coords?.lng ?? null, phone ?? null],
+      );
+      const user = insert.rows[0];
+
+      if (inviteCtx.kind === 'genesis') {
+        await client.query(
+          `UPDATE genesis_codes SET used = TRUE, used_by = $1, used_at = NOW() WHERE code = $2`,
+          [user.id, inviteCtx.code],
+        );
+      }
+
+      await client.query('COMMIT');
+      const invitedByUsername = inviteCtx.kind === 'user' ? inviteCtx.owner.username : null;
+      return res.json({ ok: true, user: { ...serializeUser(user), invited_by_username: invitedByUsername }, token: user.id });
+    } catch (e: any) {
+      await client.query('ROLLBACK');
+      console.error('signup after otp failed', e);
+      return res.status(500).json({ error: 'server_error', detail: e?.message });
+    } finally {
+      client.release();
+    }
+  }
+
   return res.json({ ok: true });
 });
 
@@ -270,7 +351,7 @@ app.post('/invite/verify', async (req: Request, res: Response) => {
 });
 
 app.post('/invite/redeem', async (req: Request, res: Response) => {
-  const { code, username, city, country, flag } = req.body ?? {};
+  const { code, username, city, country, flag, phone } = req.body ?? {};
   if (typeof code !== 'string' || typeof username !== 'string') {
     return res.status(400).json({ error: 'code and username are required' });
   }
@@ -322,10 +403,10 @@ app.post('/invite/redeem', async (req: Request, res: Response) => {
     const invitedBy = ctx.kind === 'user' ? ctx.owner.id : null;
     const coords = await geocodeCity(userCity, userCountry);
     const insert = await client.query<UserRow>(
-      `INSERT INTO users(username, invite_code, invited_by, city, country, flag, lat, lng)
-       VALUES ($1, $2, $3, COALESCE($4, 'unknown'), COALESCE($5, 'UN'), COALESCE($6, '�'), $7, $8)
+      `INSERT INTO users(username, invite_code, invited_by, city, country, flag, lat, lng, phone)
+       VALUES ($1, $2, $3, COALESCE($4, 'unknown'), COALESCE($5, 'UN'), COALESCE($6, '🌍'), $7, $8, $9)
        RETURNING *`,
-      [cleanName, newCode, invitedBy, userCity, userCountry, userFlag, coords?.lat ?? null, coords?.lng ?? null],
+      [cleanName, newCode, invitedBy, userCity, userCountry, userFlag, coords?.lat ?? null, coords?.lng ?? null, phone ?? null],
     );
     const user = insert.rows[0];
 
