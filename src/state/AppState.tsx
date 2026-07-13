@@ -37,6 +37,12 @@ interface AppStateValue {
   isOnboarding: boolean;
   streakAtRisk: boolean;
   streakAdvancedTo: number | null;
+  liveNotification: {
+    title: string;
+    body?: string;
+    type?: string;
+    packId?: string;
+  } | null;
   // Per-fetch failure flags (keyed by 'packs' | 'discover' | 'streak' |
   // 'notifications'); true after a load fails, cleared on the next success.
   // Surfaces an inline error + retry instead of silently swallowing the error.
@@ -44,6 +50,7 @@ interface AppStateValue {
   setIsOnboarding: (val: boolean) => void;
   setIsConnected: (val: boolean) => void;
   clearStreakAdvanced: () => void;
+  setLiveNotification: (notification: { title: string; body?: string; type?: string; packId?: string } | null) => void;
   signIn: (s: Session, onboarding?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -86,6 +93,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [streakAdvancedTo, setStreakAdvancedTo] = useState<number | null>(null);
   const [loadErrors, setLoadErrors] = useState<Record<string, boolean>>({});
+  const [liveNotification, setLiveNotification] = useState<{
+    title: string;
+    body?: string;
+    type?: string;
+    packId?: string;
+  } | null>(null);
   const markLoad = (key: string, failed: boolean) =>
     setLoadErrors((prev) => (prev[key] === failed ? prev : { ...prev, [key]: failed }));
 
@@ -161,10 +174,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       isOnboarding,
       streakAtRisk,
       streakAdvancedTo,
+      liveNotification,
       loadErrors,
       setIsOnboarding,
       setIsConnected,
       clearStreakAdvanced: () => setStreakAdvancedTo(null),
+      setLiveNotification,
       async signIn(s, onboarding = false) {
         setUser(s.user);
         setToken(s.token);

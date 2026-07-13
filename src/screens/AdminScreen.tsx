@@ -33,7 +33,7 @@ export default function AdminScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
-  const { token, user } = useAppState();
+  const { token, user, setLiveNotification } = useAppState();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('reports');
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -793,7 +793,7 @@ const DetailAction: React.FC<{
 const TestPanel: React.FC = () => {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { token, dailyTopic, streak } = useAppState();
+  const { token, dailyTopic, streak, setLiveNotification, user } = useAppState();
   const [testCode, setTestCode] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [topicInput, setTopicInput] = useState('');
@@ -892,6 +892,24 @@ const TestPanel: React.FC = () => {
         style={{ height: 40 }}
       >
         <Ionicons name="flame-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="trigger live notification toast"
+        onPress={() => {
+          setLiveNotification({
+            title: 'Test Notification',
+            body: 'This is a test notification from the admin panel',
+            type: 'pack',
+            packId: 'test-pack-id',
+          });
+          setTestResult('live notification toast triggered');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="notifications-outline" size={14} color={colors.white} />
       </PillButton>
 
       <Text style={{ color: colors.textDim, fontSize: 11, marginTop: 8 }}>
