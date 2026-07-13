@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View, Pressable } from 'react-native';
 import { NavigationContainer, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -15,6 +15,7 @@ import CoachTabButton from '../onboarding/CoachTabButton';
 import FlashLogo from '../components/FlashLogo';
 import OfflineBanner from '../components/OfflineBanner';
 import StreakCelebrationToast from '../components/StreakCelebrationToast';
+import LiveNotificationToast from '../components/LiveNotificationToast';
 import * as SplashScreen from 'expo-splash-screen';
 
 import InviteGateScreen from '../screens/InviteGateScreen';
@@ -156,9 +157,15 @@ export default function RootNavigator() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const navTheme = makeNavTheme(colors);
-  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, streakAdvancedTo, clearStreakAdvanced } = useAppState();
+  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, refreshNotifications, streakAdvancedTo, clearStreakAdvanced } = useAppState();
   const wasConnected = useRef<boolean | null>(null);
   const navigationRef = useRef<any>(null);
+  const [liveNotification, setLiveNotification] = useState<{
+    title: string;
+    body?: string;
+    type?: string;
+    packId?: string;
+  } | null>(null);
 
   // Subscribe to connectivity changes
   useEffect(() => {
@@ -178,7 +185,19 @@ export default function RootNavigator() {
 
   useEffect(() => {
     const received = addNotificationReceivedListener((notification) => {
-      console.log('push received in foreground', notification.request.content);
+      const content = notification.request.content;
+      console.log('push received in foreground', content);
+
+      // Refresh notifications to update unread count
+      refreshNotifications?.();
+
+      // Show live notification toast
+      setLiveNotification({
+        title: content.title || 'New notification',
+        body: content.body || undefined,
+        type: content.data?.type as string,
+        packId: content.data?.packId as string | undefined,
+      });
     });
     const response = addNotificationResponseReceivedListener((response) => {
       const packId = response.notification.request.content.data?.packId as string | undefined;
@@ -190,7 +209,7 @@ export default function RootNavigator() {
       received.remove();
       response.remove();
     };
-  }, []);
+  }, [refreshNotifications]);
 
   if (isBooting) {
     return <CustomSplash />;
@@ -257,6 +276,20 @@ export default function RootNavigator() {
         days={streakAdvancedTo ?? 0}
         onDismiss={clearStreakAdvanced}
         onPress={() => navigationRef.current?.navigate('Streak')}
+      />
+      <LiveNotificationToast
+        visible={liveNotification !== null}
+        title={liveNotification?.title || ''}
+        body={liveNotification?.body}
+        type={liveNotification?.type}
+        packId={liveNotification?.packId}
+        onDismiss={() => setLiveNotification(null)}
+        onPress={() => {
+          if (liveNotification?.packId) {
+            navigationRef.current?.navigate('PackReveal', { packId: liveNotification.packId });
+          }
+          setLiveNotification(null);
+        }}
       />
     </View>
   );
