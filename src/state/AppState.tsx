@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { Alert } from 'react-native';
 import { Pack, User, InviteSlot, CommentMessage } from '../types/models';
 import { mockPacks } from '../data/mock';
-import { Session, loadSession, saveSession, clearSession } from '../services/storage';
+import { Session, loadSession, saveSession, clearSession, loadLastStreakDays, saveLastStreakDays } from '../services/storage';
 import { APIService } from '../services/api';
 import { registerForPushNotificationsAsync } from '../services/pushNotifications';
 
@@ -36,12 +36,14 @@ interface AppStateValue {
   dailyTopic: { topic: string; date: string } | null;
   isOnboarding: boolean;
   streakAtRisk: boolean;
+  streakAdvancedTo: number | null;
   // Per-fetch failure flags (keyed by 'packs' | 'discover' | 'streak' |
   // 'notifications'); true after a load fails, cleared on the next success.
   // Surfaces an inline error + retry instead of silently swallowing the error.
   loadErrors: Record<string, boolean>;
   setIsOnboarding: (val: boolean) => void;
   setIsConnected: (val: boolean) => void;
+  clearStreakAdvanced: () => void;
   signIn: (s: Session, onboarding?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -82,6 +84,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [dailyTopic, setDailyTopic] = useState<{ topic: string; date: string } | null>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [streakAdvancedTo, setStreakAdvancedTo] = useState<number | null>(null);
   const [loadErrors, setLoadErrors] = useState<Record<string, boolean>>({});
   const markLoad = (key: string, failed: boolean) =>
     setLoadErrors((prev) => (prev[key] === failed ? prev : { ...prev, [key]: failed }));
@@ -124,6 +127,20 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })();
   }, []);
 
+  // Check streak advancement after streak is loaded
+  useEffect(() => {
+    (async () => {
+      if (streak && token) {
+        const lastStreakDays = await loadLastStreakDays();
+        const currentStreakDays = streak.streakDays;
+        if (lastStreakDays !== null && currentStreakDays > lastStreakDays) {
+          setStreakAdvancedTo(currentStreakDays);
+        }
+        await saveLastStreakDays(currentStreakDays);
+      }
+    })();
+  }, [streak, token]);
+
   const value = useMemo<AppStateValue>(
     () => ({
       user,
@@ -143,9 +160,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dailyTopic,
       isOnboarding,
       streakAtRisk,
+      streakAdvancedTo,
       loadErrors,
       setIsOnboarding,
       setIsConnected,
+      clearStreakAdvanced: () => setStreakAdvancedTo(null),
       async signIn(s, onboarding = false) {
         setUser(s.user);
         setToken(s.token);
