@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   runOnJS,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -54,6 +55,14 @@ export default function StreakCelebrationToast({ days, visible, onDismiss, onPre
     }
   }, [visible, reduceMotion, minimizeAnimations, onDismiss]);
 
+  // Swipe up to dismiss
+  const swipeUpGesture = Gesture.Pan()
+    .onEnd((event: any) => {
+      if (event.translationY < -30) {
+        runOnJS(onDismiss)();
+      }
+    });
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -62,16 +71,18 @@ export default function StreakCelebrationToast({ days, visible, onDismiss, onPre
 
   return (
     <Animated.View style={[styles.container, { top: insets.top + 8 }, animatedStyle]}>
-      <Pressable onPress={onPress} style={styles.toast}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="flame" size={20} color={colors.yellow} />
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>streak!</Text>
-          <Text style={styles.subtitle}>{days} day streak</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.textFade} />
-      </Pressable>
+      <GestureDetector gesture={swipeUpGesture}>
+        <Pressable onPress={onPress} style={styles.toast}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="flame" size={20} color={colors.yellow} />
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={styles.title}>streak!</Text>
+            <Text style={styles.subtitle}>{days} day streak</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textFade} />
+        </Pressable>
+      </GestureDetector>
     </Animated.View>
   );
 }
