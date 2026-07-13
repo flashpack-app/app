@@ -14,6 +14,7 @@ import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
 import FlashLogo from '../components/FlashLogo';
 import OfflineBanner from '../components/OfflineBanner';
+import StreakCelebrationToast from '../components/StreakCelebrationToast';
 import * as SplashScreen from 'expo-splash-screen';
 
 import InviteGateScreen from '../screens/InviteGateScreen';
@@ -155,8 +156,9 @@ export default function RootNavigator() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const navTheme = makeNavTheme(colors);
-  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover } = useAppState();
+  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, streakAdvancedTo, clearStreakAdvanced } = useAppState();
   const wasConnected = useRef<boolean | null>(null);
+  const navigationRef = useRef<any>(null);
 
   // Subscribe to connectivity changes
   useEffect(() => {
@@ -196,7 +198,7 @@ export default function RootNavigator() {
 
   return (
     <View style={styles.root}>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer theme={navTheme} ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
@@ -250,6 +252,12 @@ export default function RootNavigator() {
         </Stack.Navigator>
       </NavigationContainer>
       <OfflineBanner visible={!isConnected} />
+      <StreakCelebrationToast
+        visible={streakAdvancedTo !== null}
+        days={streakAdvancedTo ?? 0}
+        onDismiss={clearStreakAdvanced}
+        onPress={() => navigationRef.current?.navigate('Streak')}
+      />
     </View>
   );
 }
