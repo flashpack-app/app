@@ -25,6 +25,7 @@ import { useAppState } from '../state/AppState';
 import { APIService, AdminReport, AdminNotification } from '../services/api';
 import { AdminStats, AdminUserRow, GenesisCode } from '../types/models';
 import PillButton from '../components/PillButton';
+import { saveLastStreakDays } from '../services/storage';
 
 type Tab = 'reports' | 'users' | 'codes' | 'notifications' | 'test';
 
@@ -792,7 +793,7 @@ const DetailAction: React.FC<{
 const TestPanel: React.FC = () => {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { token, dailyTopic } = useAppState();
+  const { token, dailyTopic, streak } = useAppState();
   const [testCode, setTestCode] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [topicInput, setTopicInput] = useState('');
@@ -832,6 +833,22 @@ const TestPanel: React.FC = () => {
     }
   };
 
+  const triggerStreakToast = async () => {
+    try {
+      const currentDays = streak?.streakDays ?? 0;
+      // Save a lower value to simulate streak advancement
+      if (currentDays > 0) {
+        await saveLastStreakDays(currentDays - 1);
+        setTestResult(`streak toast will trigger on next streak load (saved ${currentDays - 1}, current is ${currentDays})`);
+      } else {
+        setTestResult(`streak is 0, cannot simulate advancement`);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      setTestResult(`failed: ${e?.message ?? 'unknown'}`);
+    }
+  };
+
   return (
     <View style={{ gap: 10 }}>
       <Text style={{ color: colors.textDim, fontSize: 11, marginBottom: 4 }}>tools for testing app features</Text>
@@ -866,6 +883,15 @@ const TestPanel: React.FC = () => {
         style={{ height: 40 }}
       >
         <Ionicons name="notifications-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="trigger streak toast"
+        onPress={triggerStreakToast}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="flame-outline" size={14} color={colors.white} />
       </PillButton>
 
       <Text style={{ color: colors.textDim, fontSize: 11, marginTop: 8 }}>

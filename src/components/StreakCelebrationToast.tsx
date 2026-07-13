@@ -29,7 +29,7 @@ export default function StreakCelebrationToast({ days, visible, onDismiss, onPre
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const { reduceMotion, minimizeAnimations } = useAccessibility();
-  
+
   const translateY = useSharedValue(-200);
 
   useEffect(() => {
@@ -49,8 +49,8 @@ export default function StreakCelebrationToast({ days, visible, onDismiss, onPre
         );
       }
     } else {
-      // Animate out
-      translateY.value = withTiming(-200, { duration: reduceMotion || minimizeAnimations ? 200 : ANIMATION_DURATION });
+      // Animate out immediately
+      translateY.value = -200;
     }
   }, [visible, reduceMotion, minimizeAnimations, onDismiss]);
 
@@ -86,18 +86,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,204,0,0.12)',
+    backgroundColor: 'rgb(31, 25, 0)',
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,204,0,0.3)',
+    borderColor: 'rgba(255,204,0,0.35)',
   },
   iconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,204,0,0.15)',
+    backgroundColor: 'rgba(255,204,0,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
