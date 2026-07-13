@@ -106,6 +106,7 @@ function mapPack(p: any): Pack {
     apartMinutes: p.apartMinutes ?? 0,
     reactions: p.reactions ?? [],
     screenshots: p.screenshots ?? [],
+    packType: p.packType === 'duet' ? 'duet' : 'squad',
     comment: p.comments?.length
       ? {
           messages: p.comments.map((c: any) => ({
@@ -202,6 +203,7 @@ export const APIService = {
     uri: string | null,
     filter: VibeFilter,
     videoUri?: string | null,
+    packType?: 'duet' | 'squad',
   ): Promise<{ photoId: string; packId: string; packNumber: number }> {
     // Compress the photo and convert to base64 so the server can host it for the
     // whole pack. The filter is applied at render time, so we store the raw image.
@@ -248,6 +250,7 @@ export const APIService = {
           ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg' }
           : uri ? { imageUrl: uri } : {}),
         ...(videoData ? { videoData, videoMime } : {}),
+        ...(packType === 'duet' ? { packType } : {}),
         filter,
       },
     });

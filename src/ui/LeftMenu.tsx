@@ -21,6 +21,7 @@ type Props = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onForYouPress: () => void;
+  onDuetPress: () => void;
   onProfilePress: () => void;
   onSettingsPress: () => void;
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export default function LeftMenu({
   isOpen,
   onOpenChange,
   onForYouPress,
+  onDuetPress,
   onProfilePress,
   onSettingsPress,
   children,
@@ -111,6 +113,11 @@ export default function LeftMenu({
     onOpenChange(false);
   };
 
+  const handleDuet = () => {
+    onDuetPress();
+    onOpenChange(false);
+  };
+
   const handleProfile = () => {
     onProfilePress();
     onOpenChange(false);
@@ -160,6 +167,14 @@ export default function LeftMenu({
               <ScaledText style={styles.menuSub}>around the globe</ScaledText>
             </View>
             <Ionicons name="earth-outline" size={24} color={colors.white} />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={handleDuet} style={styles.menuRow}>
+            <View>
+              <ScaledText style={styles.menuTitle}>duets.</ScaledText>
+              <ScaledText style={styles.menuSub}>just you + one person</ScaledText>
+            </View>
+            <Ionicons name="people-outline" size={24} color={colors.white} />
           </Pressable>
         </View>
 
@@ -270,6 +285,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 6,
     textTransform: 'lowercase',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
   },
   spacer: {
     flex: 1,

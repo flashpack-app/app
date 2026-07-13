@@ -22,6 +22,7 @@ import PhoneNumberScreen from '../screens/PhoneNumberScreen';
 import SignInScreen from '../screens/SignInScreen';
 import OTPScreen from '../screens/OTPScreen';
 import FeedScreen from '../screens/FeedScreen';
+import DuetFeedScreen from '../screens/DuetFeedScreen';
 import CameraScreen from '../screens/CameraScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PhotoPreviewScreen from '../screens/PhotoPreviewScreen';
@@ -218,6 +219,7 @@ export default function RootNavigator() {
           ) : (
             <>
               <Stack.Screen name="Tabs" component={Tabs} />
+              <Stack.Screen name="DuetFeed" component={DuetFeedScreen} />
               <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
               <Stack.Screen name="PackReveal" component={PackRevealScreen} />
               <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'modal', animation: 'fade' }} />

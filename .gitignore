@@ -1,5 +1,4 @@
 node_modules/
-server/
 .expo/
 .expo-shared/
 dist/
@@ -9,3 +8,4 @@ web-build/
 .DS_Store
 ios/
 android/
+dev/

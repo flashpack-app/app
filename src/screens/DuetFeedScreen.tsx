@@ -40,7 +40,7 @@ function useCountdown(target: Date | null): string {
   return txt;
 }
 
-export default function FeedScreen() {
+export default function DuetFeedScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors } = useAppState();
@@ -53,20 +53,17 @@ export default function FeedScreen() {
   const triggeredRef = useRef(false);
   const isFocused = useIsFocused();
   const scrollRef = useRef<FlatList<any>>(null);
-  // Note: do NOT call usePreventCapture here — toggling FLAG_SECURE on tab
-  // focus/blur causes the black screen on Android. Screenshot blocking is
-  // handled inside PhotoViewerScreen for other people's photos only.
 
-  // Show every pack that is still alive (not expired). The 18h expiry window
-  // naturally hides old packs, so we don't filter by calendar day — otherwise a
-  // pack you joined late last night would vanish at midnight while still active.
-  const activePacks = packs.filter(
-    (p) => p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now(),
+  // Filter for duet packs only
+  const activeDuetPacks = packs.filter(
+    (p) => p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now() && p.packType === 'duet',
   );
+
+  const discoverDuetPacks = discoverPacks.filter((p) => p.packType === 'duet');
 
   // Show forming animation for 2h after posting while waiting for pack
   useEffect(() => {
-    if (hasPostedFirstPack && packs.length === 0 && lastPostAt) {
+    if (hasPostedFirstPack && activeDuetPacks.length === 0 && lastPostAt) {
       const posted = new Date(lastPostAt).getTime();
       if (Date.now() - posted < 2 * 3600 * 1000) {
         setIsForming(true);
@@ -75,7 +72,7 @@ export default function FeedScreen() {
       }
     }
     setIsForming(false);
-  }, [hasPostedFirstPack, packs.length, lastPostAt]);
+  }, [hasPostedFirstPack, activeDuetPacks.length, lastPostAt]);
 
   // Load real packs on mount
   useEffect(() => {
@@ -107,7 +104,7 @@ export default function FeedScreen() {
 
   const formingTarget = lastPostAt ? new Date(new Date(lastPostAt).getTime() + 2 * 3600 * 1000) : null;
   const formingCountdown = useCountdown(formingTarget);
-  const expiresTarget = activePacks[0]?.expiresAt ? new Date(activePacks[0].expiresAt) : null;
+  const expiresTarget = activeDuetPacks[0]?.expiresAt ? new Date(activeDuetPacks[0].expiresAt) : null;
   const expiresCountdown = useCountdown(expiresTarget);
 
   return (
@@ -119,7 +116,7 @@ export default function FeedScreen() {
       onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
       onSettingsPress={() => nav.navigate('Settings')}
       expiryCountdown={expiresCountdown}
-      onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activePacks[0]?.id })}
+      onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activeDuetPacks[0]?.id })}
     >
       <View style={styles.wrap}>
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
@@ -154,35 +151,35 @@ export default function FeedScreen() {
             <Ionicons name="flash" size={40} color={colors.yellow} />
             <ScaledText style={styles.lockedTitle}>flashing your lights...</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              {'your photo is out there.\nmatching you with your pack.\nforming in ' + (formingCountdown || 'a moment') + '.'}
+              {'your photo is out there.\nmatching you with your duet partner.\nforming in ' + (formingCountdown || 'a moment') + '.'}
             </ScaledText>
           </View>
-        ) : activePacks.length === 0 ? (
+        ) : activeDuetPacks.length === 0 ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
-            <ScaledText style={styles.lockedTitle}>no active pack right now</ScaledText>
+            <ScaledText style={styles.lockedTitle}>no active duet right now</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              flash again to start a new pack.{'\n'}the globe unlocks once you're in a pack.
+              start a duet to connect with just one person.{'\n'}perfect for intimate moments.
             </ScaledText>
             <Pressable
               onPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
               style={styles.lockedBtn}
             >
               <Ionicons name="camera" size={16} color="#000" />
-              <ScaledText style={styles.lockedBtnText}>take a flash</ScaledText>
+              <ScaledText style={styles.lockedBtnText}>start a duet</ScaledText>
             </Pressable>
           </View>
         ) : (
           <FlatList
-            data={discoverPacks}
+            data={discoverDuetPacks}
             keyExtractor={(p) => p.id}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             ListHeaderComponent={
               <View>
                 <LiquidRefresh progress={progress} />
-                <ScaledText style={styles.sectionLabel}>your pack</ScaledText>
-                {activePacks.map((item) => (
+                <ScaledText style={styles.sectionLabel}>your duet</ScaledText>
+                {activeDuetPacks.map((item) => (
                   <View key={item.id} style={{ marginBottom: 8 }}>
                     <PackCard
                       pack={item}
@@ -192,10 +189,10 @@ export default function FeedScreen() {
                     />
                   </View>
                 ))}
-                {discoverPacks.length > 0 ? (
+                {discoverDuetPacks.length > 0 ? (
                   <View style={styles.discoverHeader}>
-                    <Ionicons name="earth" size={14} color={colors.textDim} />
-                    <ScaledText style={styles.sectionLabel}>around the globe</ScaledText>
+                    <Ionicons name="people-outline" size={14} color={colors.textDim} />
+                    <ScaledText style={styles.sectionLabel}>duets around the world</ScaledText>
                   </View>
                 ) : null}
               </View>
@@ -225,9 +222,9 @@ export default function FeedScreen() {
       ) : (
         <View style={styles.locked}>
           <Ionicons name="lock-closed" size={40} color={colors.textHint} />
-          <ScaledText style={styles.lockedTitle}>your pack is forming.</ScaledText>
+          <ScaledText style={styles.lockedTitle}>your duet is forming.</ScaledText>
           <ScaledText style={styles.lockedSub}>
-            take your first photo to unlock the feed.{'\n'}once you flash, your pack appears.
+            take your first photo to unlock duets.{'\n'}connect intimately with one person.
           </ScaledText>
           <Pressable
             onPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
