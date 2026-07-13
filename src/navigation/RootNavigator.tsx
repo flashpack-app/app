@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View, Pressable } from 'react-native';
 import { NavigationContainer, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -157,15 +157,9 @@ export default function RootNavigator() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const navTheme = makeNavTheme(colors);
-  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, refreshNotifications, streakAdvancedTo, clearStreakAdvanced } = useAppState();
+  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, refreshNotifications, streakAdvancedTo, clearStreakAdvanced, liveNotification, setLiveNotification } = useAppState();
   const wasConnected = useRef<boolean | null>(null);
   const navigationRef = useRef<any>(null);
-  const [liveNotification, setLiveNotification] = useState<{
-    title: string;
-    body?: string;
-    type?: string;
-    packId?: string;
-  } | null>(null);
 
   // Subscribe to connectivity changes
   useEffect(() => {
@@ -209,7 +203,7 @@ export default function RootNavigator() {
       received.remove();
       response.remove();
     };
-  }, [refreshNotifications]);
+  }, [refreshNotifications, setLiveNotification]);
 
   if (isBooting) {
     return <CustomSplash />;
