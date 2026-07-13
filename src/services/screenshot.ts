@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as ScreenCapture from 'expo-screen-capture';
 import { APIService } from './api';
 
@@ -41,4 +41,30 @@ export function useScreenshotDetector(token: string | null, packId: string | und
       sub.remove();
     };
   }, [packId, token]);
+}
+
+// Detects screenshot attempts and returns whether to show overlay
+// Shows overlay for 3 seconds after a screenshot is detected
+export function useCaptureBlockOverlay(active: boolean): boolean {
+  const [showOverlay, setShowOverlay] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const sub = ScreenCapture.addScreenshotListener(() => {
+      setShowOverlay(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        setShowOverlay(false);
+      }, 3000);
+    });
+
+    return () => {
+      sub.remove();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [active]);
+
+  return showOverlay;
 }
