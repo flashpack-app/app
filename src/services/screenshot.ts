@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as ScreenCapture from 'expo-screen-capture';
 import { APIService } from './api';
 
@@ -7,11 +7,6 @@ import { APIService } from './api';
 // iOS: prevents content from appearing in screen recordings.
 export function usePreventCapture(active: boolean) {
   useEffect(() => {
-    if (__DEV__) {
-      // In development/testing, preventScreenCaptureAsync makes screen-mirroring
-      // tools (Scrcpy, Vysor, and emulator feeds) go completely black.
-      return;
-    }
     if (!active) return;
     const key = 'flash-prevent-' + Math.random().toString(36).slice(2);
     ScreenCapture.preventScreenCaptureAsync(key).catch((e) => {
@@ -41,4 +36,41 @@ export function useScreenshotDetector(token: string | null, packId: string | und
       sub.remove();
     };
   }, [packId, token]);
+}
+
+// Detects screenshot attempts and returns whether to show overlay
+// Shows overlay briefly on mount to catch early screenshots, then on screenshot detection
+export function useCaptureBlockOverlay(active: boolean): boolean {
+  const [showOverlay, setShowOverlay] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!active) {
+      setShowOverlay(false);
+      return;
+    }
+
+    // Show overlay briefly on mount (500ms) to catch immediate screenshot attempts
+    setShowOverlay(true);
+    const mountTimeout = setTimeout(() => {
+      setShowOverlay(false);
+    }, 500);
+
+    const sub = ScreenCapture.addScreenshotListener(() => {
+      // Show overlay when screenshot is detected and keep it for 3 seconds
+      setShowOverlay(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        setShowOverlay(false);
+      }, 3000);
+    });
+
+    return () => {
+      clearTimeout(mountTimeout);
+      sub.remove();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [active]);
+
+  return showOverlay;
 }

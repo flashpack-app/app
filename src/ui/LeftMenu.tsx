@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -24,6 +24,7 @@ type Props = {
   onDuetPress: () => void;
   onProfilePress: () => void;
   onSettingsPress: () => void;
+  onCameraPress: () => void;
   children: React.ReactNode;
   expiryCountdown?: string;
   onExpiryPress?: () => void;
@@ -38,6 +39,7 @@ export default function LeftMenu({
   onDuetPress,
   onProfilePress,
   onSettingsPress,
+  onCameraPress,
   children,
   expiryCountdown,
   onExpiryPress,
@@ -128,6 +130,11 @@ export default function LeftMenu({
     onOpenChange(false);
   };
 
+  const handleCamera = () => {
+    onCameraPress();
+    onOpenChange(false);
+  };
+
   return (
     <View style={styles.wrap}>
       <Animated.View
@@ -143,8 +150,8 @@ export default function LeftMenu({
       >
         <View style={styles.drawerHeader}>
           <FlashLogo size={24} />
-          <Pressable onPress={() => onOpenChange(false)} style={styles.closeBtn} hitSlop={10}>
-            <Ionicons name="menu-outline" size={28} color={colors.textSecondary} />
+          <Pressable onPress={handleCamera} style={styles.closeBtn} hitSlop={10}>
+            <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -171,7 +178,7 @@ export default function LeftMenu({
           <View style={styles.divider} />
           <Pressable onPress={handleDuet} style={styles.menuRow}>
             <View>
-              <ScaledText style={styles.menuTitle}>duets.</ScaledText>
+              <ScaledText style={styles.menuTitle}>duets<Text style={{ color: colors.yellow }}>.</Text></ScaledText>
               <ScaledText style={styles.menuSub}>just you + one person</ScaledText>
             </View>
             <Ionicons name="people-outline" size={24} color={colors.white} />
