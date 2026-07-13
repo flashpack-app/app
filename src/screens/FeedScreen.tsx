@@ -15,6 +15,8 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
+import { APIService } from '../services/api';
+import { InviteSlot } from '../types/models';
 import ScaledText from '../components/ScaledText';
 
 function useCountdown(target: Date | null): string {
@@ -43,10 +45,12 @@ function useCountdown(target: Date | null): string {
 export default function FeedScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors } = useAppState();
+  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors, user, token } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [inviteSlotsRemaining, setInviteSlotsRemaining] = useState<number | undefined>(undefined);
+  const [inviteSlotsTotal, setInviteSlotsTotal] = useState<number>(3);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
@@ -86,6 +90,24 @@ export default function FeedScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // Load invite slots to calculate remaining
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await APIService.getInviteSlots(token);
+        const remaining = res.slots.filter((s: InviteSlot) => s.status === 'open').length;
+        const total = res.slots.length;
+        setInviteSlotsRemaining(remaining);
+        setInviteSlotsTotal(total);
+      } catch (e) {
+        // Fallback to user's inviteSlots if API fails
+        setInviteSlotsRemaining(user?.inviteSlots);
+        setInviteSlotsTotal(user?.inviteSlots ?? 3);
+      }
+    })();
+  }, [token]);
+
   const onRefresh = useCallback(async () => {
     if (triggeredRef.current) return;
     triggeredRef.current = true;
@@ -119,8 +141,13 @@ export default function FeedScreen() {
       onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
       onSettingsPress={() => nav.navigate('Settings')}
       onCameraPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
+      onInvitePress={() => nav.navigate('Invite')}
+      onNotificationsPress={() => nav.navigate('Notifications')}
       expiryCountdown={expiresCountdown}
       onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activePacks[0]?.id })}
+      inviteSlotsRemaining={inviteSlotsRemaining}
+      inviteSlotsTotal={inviteSlotsTotal}
+      unreadCount={unreadCount}
     >
       <View style={styles.wrap}>
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -11,11 +11,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LottieView from 'lottie-react-native';
 import FlashLogo from '../components/FlashLogo';
 import ScaledText from '../components/ScaledText';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import notificationBellAnimation from '../assets/anim/notification_bell.json';
 
 type Props = {
   isOpen: boolean;
@@ -25,9 +27,14 @@ type Props = {
   onProfilePress: () => void;
   onSettingsPress: () => void;
   onCameraPress: () => void;
+  onInvitePress: () => void;
+  onNotificationsPress: () => void;
   children: React.ReactNode;
   expiryCountdown?: string;
   onExpiryPress?: () => void;
+  inviteSlotsRemaining?: number;
+  inviteSlotsTotal?: number;
+  unreadCount?: number;
 };
 
 const TIMING = { duration: 220 };
@@ -40,9 +47,14 @@ export default function LeftMenu({
   onProfilePress,
   onSettingsPress,
   onCameraPress,
+  onInvitePress,
+  onNotificationsPress,
   children,
   expiryCountdown,
   onExpiryPress,
+  inviteSlotsRemaining,
+  inviteSlotsTotal = 3,
+  unreadCount = 0,
 }: Props) {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
@@ -51,6 +63,7 @@ export default function LeftMenu({
   const drawerWidth = Math.min(width * 0.76, 310);
   const progress = useSharedValue(isOpen ? 1 : 0);
   const startProgress = useSharedValue(isOpen ? 1 : 0);
+  const notificationAnimationRef = useRef<LottieView>(null);
 
   // Determine color based on countdown
   const getExpiryColor = () => {
@@ -135,6 +148,19 @@ export default function LeftMenu({
     onOpenChange(false);
   };
 
+  const handleInvite = () => {
+    onInvitePress();
+    onOpenChange(false);
+  };
+
+  const handleNotifications = () => {
+    notificationAnimationRef.current?.play();
+    setTimeout(() => {
+      onNotificationsPress();
+      onOpenChange(false);
+    }, 300);
+  };
+
   return (
     <View style={styles.wrap}>
       <Animated.View
@@ -155,10 +181,25 @@ export default function LeftMenu({
           </Pressable>
         </View>
 
-        <Pressable onPress={handleProfile} style={styles.profileButton}>
-          <Ionicons name="person-outline" size={24} color={colors.white} />
-          <ScaledText style={styles.profileButtonText}>profile</ScaledText>
-        </Pressable>
+        <View style={styles.iconRow}>
+          <Pressable onPress={handleProfile} style={styles.iconButton}>
+            <Ionicons name="person-outline" size={24} color={colors.white} />
+          </Pressable>
+          <Pressable onPress={handleNotifications} style={styles.iconButton}>
+            <LottieView
+              ref={notificationAnimationRef}
+              source={notificationBellAnimation}
+              style={styles.notificationAnimation}
+              loop={false}
+              autoPlay={false}
+            />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <ScaledText style={styles.notificationBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</ScaledText>
+              </View>
+            )}
+          </Pressable>
+        </View>
 
         {expiryCountdown && (
           <Pressable onPress={onExpiryPress} style={[styles.expiryBanner, { backgroundColor: getExpiryColor() + '22', borderColor: getExpiryColor() }]}>
@@ -186,6 +227,18 @@ export default function LeftMenu({
         </View>
 
         <View style={styles.spacer} />
+
+        {inviteSlotsRemaining !== undefined && (
+          <Pressable onPress={handleInvite} style={styles.inviteBanner}>
+            <Ionicons name="person-add-outline" size={16} color={colors.yellow} />
+            <ScaledText style={styles.inviteBannerText}>
+              invite your friends<Text style={{ color: colors.yellow }}>.</Text>
+            </ScaledText>
+            <ScaledText style={styles.inviteCounter}>
+              {inviteSlotsRemaining}/{inviteSlotsTotal}
+            </ScaledText>
+          </Pressable>
+        )}
 
         <Pressable onPress={handleSettings} style={styles.settingsRow}>
           <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
@@ -234,6 +287,42 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+  iconButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationAnimation: {
+    width: 40,
+    height: 40,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '700',
   },
   profileButton: {
     height: 50,
@@ -299,6 +388,28 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  inviteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,204,0,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,204,0,0.3)',
+  },
+  inviteBannerText: {
+    flex: 1,
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  inviteCounter: {
+    color: colors.yellow,
+    fontSize: 12,
+    fontWeight: '700',
   },
   settingsRow: {
     minHeight: 52,

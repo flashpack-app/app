@@ -64,6 +64,7 @@ export default function InviteScreen() {
   };
 
   const slotsCount = slots?.length ?? user?.inviteSlots ?? 3;
+  const remainingSlots = slots?.filter(s => s.status === 'open').length ?? user?.inviteSlots ?? 3;
 
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 40 }}>
