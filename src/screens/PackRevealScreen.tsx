@@ -47,7 +47,8 @@ import MentionText from '../components/MentionText';
 import ShareSheet from '../components/ShareSheet';
 import { normalizeFilter } from '../services/filters';
 import ScreenshotWarningModal from './ScreenshotWarningModal';
-import { useScreenshotDetector, usePreventCapture } from '../services/screenshot';
+import CaptureBlockedOverlay from '../components/CaptureBlockedOverlay';
+import { useScreenshotDetector, usePreventCapture, useCaptureBlockOverlay } from '../services/screenshot';
 import FloatingReactions, { triggerFloatingReaction } from '../components/FloatingReactions';
 import { ModerationService } from '../services/moderation';
 import FlashLogo from '../components/FlashLogo';
@@ -188,6 +189,8 @@ export default function PackRevealScreen() {
   const isMember = !!pack && pack.members.some((m) => m.userId === user?.id);
   // Discover ("around the globe") packs are someone else's — block screenshots entirely.
   usePreventCapture(!!pack && !isMember);
+  // Show overlay when screenshot is attempted on protected content
+  const showCaptureOverlay = useCaptureBlockOverlay(!!pack && !isMember);
   useScreenshotDetector(token, pack?.id, () => setWarn(true));
   const timeLeft = useCountdown(pack?.expiresAt ? new Date(pack.expiresAt) : null);
 
@@ -900,7 +903,7 @@ export default function PackRevealScreen() {
       {/* Custom bottom nav */}
       <View style={[styles.bottomNav, { paddingBottom: Math.max(12, insets.bottom) }]}>
         <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Feed' })} style={styles.navItem}>
-          <Ionicons name="grid" size={22} color={colors.yellow} />         
+          <Ionicons name="grid" size={22} color={colors.yellow} />
         </Pressable>
         <Pressable onPress={() => nav.navigate('Tabs', { screen: 'Camera' })} style={styles.navItem}>
           <Ionicons name="camera-outline" size={22} color="rgba(255,255,255,0.35)" />
@@ -909,6 +912,9 @@ export default function PackRevealScreen() {
           <Ionicons name="person-outline" size={22} color="rgba(255,255,255,0.35)" />
         </Pressable>
       </View>
+
+      {/* Capture blocked overlay for non-member packs */}
+      <CaptureBlockedOverlay visible={showCaptureOverlay} />
     </KeyboardAvoidingView>
   );
 }

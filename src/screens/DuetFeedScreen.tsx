@@ -115,6 +115,7 @@ export default function DuetFeedScreen() {
       onDuetPress={() => nav.navigate('DuetFeed')}
       onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
       onSettingsPress={() => nav.navigate('Settings')}
+      onCameraPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
       expiryCountdown={expiresCountdown}
       onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activeDuetPacks[0]?.id })}
     >
