@@ -270,6 +270,8 @@
   "pro_feat_silent_body": "verbirg deinen zuletzt-online-status und zeige statt der stadt nur das land an.",
   "otp_subtitle_login": "gib den einmalcode ein, der dir gesendet wurde.",
   "otp_subtitle_signup": "bestätige deine einladung. gib den einmalcode ein.",
+  "otp_subtitle_signup_phone": "bestätige deine telefonnummer. gib den einmalcode ein.",
+  "otp_subtitle_signup_email": "bestätige deine e-mail. gib den einmalcode ein, der an deinen posteingang gesendet wurde.",
   "otp_verify": "bestätigen",
   "otp_resendIn": "erneut senden in {{count}}s",
   "otp_resendCode": "code erneut senden",

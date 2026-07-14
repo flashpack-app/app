@@ -270,6 +270,8 @@
   "pro_feat_silent_body": "隐藏你的最后在线时间，并将你的城市位置仅显示为国家。",
   "otp_subtitle_login": "请输入发送给你的一次性验证码。",
   "otp_subtitle_signup": "验证你的邀请，请输入一次性验证码。",
+  "otp_subtitle_signup_phone": "验证你的手机号，请输入一次性验证码。",
+  "otp_subtitle_signup_email": "验证你的邮箱，请输入发送至收件箱的一次性验证码。",
   "otp_verify": "验证",
   "otp_resendIn": "{{count}}秒后可重新发送",
   "otp_resendCode": "重新发送验证码",

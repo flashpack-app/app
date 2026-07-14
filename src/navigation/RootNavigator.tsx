@@ -21,7 +21,9 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import InviteGateScreen from '../screens/InviteGateScreen';
 import UsernameScreen from '../screens/UsernameScreen';
+import AuthMethodScreen from '../screens/AuthMethodScreen';
 import PhoneNumberScreen from '../screens/PhoneNumberScreen';
+import EmailScreen from '../screens/EmailScreen';
 import SignInScreen from '../screens/SignInScreen';
 import OTPScreen from '../screens/OTPScreen';
 import FeedScreen from '../screens/FeedScreen';
@@ -244,7 +246,9 @@ export default function RootNavigator() {
               <Stack.Screen name="InviteGate" component={InviteGateScreen} />
               <Stack.Screen name="OTPScreen" component={OTPScreen} />
               <Stack.Screen name="Username" component={UsernameScreen} />
+              <Stack.Screen name="AuthMethodScreen" component={AuthMethodScreen} />
               <Stack.Screen name="PhoneNumberScreen" component={PhoneNumberScreen} />
+              <Stack.Screen name="EmailScreen" component={EmailScreen} />
               <Stack.Screen name="SignIn" component={SignInScreen} />
             </>
           ) : isOnboarding ? (

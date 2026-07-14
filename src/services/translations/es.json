@@ -270,6 +270,8 @@
   "pro_feat_silent_body": "oculta tu última conexión y muestra tu ubicación solo a nivel de país.",
   "otp_subtitle_login": "introduce el código de un solo uso que te enviamos.",
   "otp_subtitle_signup": "verifica tu invitación. introduce el código de un solo uso.",
+  "otp_subtitle_signup_phone": "verifica tu número de teléfono. introduce el código de un solo uso.",
+  "otp_subtitle_signup_email": "verifica tu correo. introduce el código de un solo uso enviado a tu bandeja de entrada.",
   "otp_verify": "verificar",
   "otp_resendIn": "reenviar en {{count}} s",
   "otp_resendCode": "reenviar código",

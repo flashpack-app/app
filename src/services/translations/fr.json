@@ -270,6 +270,8 @@
   "pro_feat_silent_body": "masque ta dernière connexion et limite ta ville affichée au pays uniquement.",
   "otp_subtitle_login": "entre le code unique qui t'a été envoyé.",
   "otp_subtitle_signup": "vérifie ton invitation. entre le code unique.",
+  "otp_subtitle_signup_phone": "vérifie ton numéro de téléphone. entre le code unique.",
+  "otp_subtitle_signup_email": "vérifie ton e-mail. entre le code unique envoyé dans ta boîte de réception.",
   "otp_verify": "vérifier",
   "otp_resendIn": "renvoyer dans {{count}}s",
   "otp_resendCode": "renvoyer le code",

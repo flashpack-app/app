@@ -285,6 +285,8 @@
 
   "otp_subtitle_login": "enter the one-time code sent to you.",
   "otp_subtitle_signup": "verify your invite. enter the one-time code.",
+  "otp_subtitle_signup_phone": "verify your phone number. enter the one-time code.",
+  "otp_subtitle_signup_email": "verify your email. enter the one-time code sent to your inbox.",
   "otp_verify": "verify",
   "otp_resendIn": "resend in {{count}}s",
   "otp_resendCode": "resend code",

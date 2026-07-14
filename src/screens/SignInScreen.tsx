@@ -43,7 +43,7 @@ export default function SignInScreen() {
   }, []);
 
   const goToOtp = () => {
-    nav.navigate('OTPScreen', { username: clean });
+    nav.navigate('OTPScreen', { username: clean, isLogin: true });
   };
 
   const handleBiometricLogin = async (savedUser?: string) => {
@@ -51,7 +51,7 @@ export default function SignInScreen() {
     if (!u) return;
     const ok = await promptBiometric();
     if (ok) {
-      nav.navigate('OTPScreen', { username: u });
+      nav.navigate('OTPScreen', { username: u, isLogin: true });
     }
   };
 

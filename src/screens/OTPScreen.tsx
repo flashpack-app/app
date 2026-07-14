@@ -34,6 +34,8 @@ export default function OTPScreen() {
   const username = route.params?.username as string | undefined;
   const inviteCode = route.params?.inviteCode as string | undefined;
   const phone = route.params?.phone as string | undefined;
+  const email = route.params?.email as string | undefined;
+  const isLoginParam = route.params?.isLogin as boolean | undefined;
   const extras = route.params?.extras as { city?: string; country?: string; flag?: string } | undefined;
 
   const [otp, setOtp] = useState('');
@@ -43,8 +45,8 @@ export default function OTPScreen() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRef = useRef<TextInput>(null);
 
-  const isLogin = !!username;
-  const isSignup = !!inviteCode;
+  const isLogin = !!username && !!isLoginParam;
+  const isSignup = !!inviteCode || !isLoginParam;
 
   useEffect(() => {
     // auto-focus hidden input
@@ -62,8 +64,8 @@ export default function OTPScreen() {
 
   useEffect(() => {
     // Request a code for this subject as soon as the screen opens.
-    console.log('[OTPScreen] Requesting OTP with:', { username, inviteCode, phone });
-    APIService.sendOTP({ username, inviteCode, phone })
+    console.log('[OTPScreen] Requesting OTP with:', { username, inviteCode, phone, email, isLogin });
+    APIService.sendOTP({ username, inviteCode, phone, email, isLogin })
       .then((res) => {
         console.log('[OTPScreen] OTP send response:', res);
         if (res.devCode) setDevCode(res.devCode);
@@ -76,14 +78,14 @@ export default function OTPScreen() {
           ? t('otp_error_rateLimited')
           : t('otp_error_sendFailed'));
       });
-  }, [username, inviteCode, phone]);
+  }, [username, inviteCode, phone, email, isLogin]);
 
   const resendCode = async () => {
     if (resendCooldown > 0) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await APIService.sendOTP({ username, inviteCode, phone });
+      const res = await APIService.sendOTP({ username, inviteCode, phone, email, isLogin });
       if (res.devCode) setDevCode(res.devCode);
       setResendCooldown(60);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -103,7 +105,7 @@ export default function OTPScreen() {
     setError(null);
 
     try {
-      const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp, phone, ...extras });
+      const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp, phone, email, isLogin, ...extras });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (user && token) {
         posthog.identify(user.id, {
@@ -158,7 +160,9 @@ export default function OTPScreen() {
         <Text style={styles.subtitle}>
           {isLogin
             ? t('otp_subtitle_login')
-            : t('otp_subtitle_signup')}
+            : email
+              ? t('otp_subtitle_signup_email')
+              : t('otp_subtitle_signup_phone')}
         </Text>
 
         <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxesWrap}>
