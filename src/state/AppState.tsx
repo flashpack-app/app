@@ -290,6 +290,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setIsOnboarding(onboarding);
         await saveSession(s);
         registerForPushNotificationsAsync(s.token).catch(() => {});
+        // Identify the user in PostHog so all subsequent events are tied to them
+        posthog.identify(s.user.id, {
+          username: s.user.username,
+          email: s.user.email,
+          isPro: s.user.isPro,
+        });
       },
       async signOut() {
         posthog.reset();

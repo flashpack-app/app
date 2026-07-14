@@ -47,7 +47,7 @@ export default Sentry.wrap(function App() {
           client={posthog}
           debug={__DEV__}
           autocapture={{
-            captureScreens: false,
+            captureScreens: false, // react-navigation v7 — manual screen tracking
             captureTouches: true,
             propsToCapture: ['testID'],
           }}
