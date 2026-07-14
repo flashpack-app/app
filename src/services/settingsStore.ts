@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type LanguageMode = 'system' | 'en' | 'tr';
 
 export interface UserSettings {
   // appearance
   theme: ThemeMode;
+  language?: LanguageMode;
 
   // notifications
   pushNotifications: boolean;
@@ -50,6 +52,7 @@ export interface UserSettings {
 
 export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
+  language: 'system',
 
   pushNotifications: true,
   pushNewPacks: true,
@@ -94,20 +97,19 @@ export async function loadSettings(): Promise<UserSettings> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {}
+  } catch (error) {
+    console.warn('failed to load settings; using defaults:', error);
+  }
   return { ...DEFAULT_SETTINGS };
 }
 
 export async function saveSettings(patch: Partial<UserSettings>): Promise<void> {
-  try {
-    const current = await loadSettings();
-    const next = { ...current, ...patch };
-    await AsyncStorage.setItem(KEY, JSON.stringify(next));
-  } catch {}
+  const raw = await AsyncStorage.getItem(KEY);
+  const current = raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+  const next = { ...current, ...patch };
+  await AsyncStorage.setItem(KEY, JSON.stringify(next));
 }
 
 export async function clearSettings(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(KEY);
-  } catch {}
+  await AsyncStorage.removeItem(KEY);
 }

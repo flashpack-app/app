@@ -40,7 +40,17 @@
     "plugins": [
       "expo-camera",
       "expo-notifications",
-      "expo-video"
+      "expo-video",
+      "@lottiefiles/dotlottie-react-native/plugins/withDotLottie",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "flashpack-ww"
+        }
+      ],
+      "expo-localization"
     ],
     "extra": {
       "apiUrl": "",

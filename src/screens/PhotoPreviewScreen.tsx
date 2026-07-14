@@ -14,7 +14,9 @@ import { VibeFilter } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
 import FilteredImage from '../components/FilteredImage';
 import { useAppState } from '../state/AppState';
+import { t } from '../services/i18n';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { posthog } from '../config/posthog';
 
 type State = 'idle' | 'uploading' | 'success';
 
@@ -47,6 +49,7 @@ export default function PhotoPreviewScreen() {
   const insets = useSafeAreaInsets();
 
   const [state, setState] = useState<State>('idle');
+  const [duet, setDuet] = useState(false);
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const width = useSharedValue(220);
@@ -74,7 +77,7 @@ export default function PhotoPreviewScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setState('uploading');
     try {
-      const res = await APIService.uploadPhoto(token!, uri, filter, videoUri);
+      const res = await APIService.uploadPhoto(token!, uri, filter, videoUri, duet ? 'duet' : 'squad');
       setPhotoId(res.photoId);
       setLastPostedPhotoId(res.photoId);
       const nowIso = new Date().toISOString();
@@ -82,6 +85,11 @@ export default function PhotoPreviewScreen() {
       setLastPostAt(nowIso);
       markFirstPackPosted();
       refreshPacks();
+      posthog.capture('photo_sent', {
+        filter,
+        is_live: !!videoUri,
+        mode: duet ? 'duet' : 'squad',
+      });
       setState('success');
       setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -90,7 +98,14 @@ export default function PhotoPreviewScreen() {
     } catch (e: any) {
       setState('idle');
       if (e?.status === 422) {
-        Alert.alert("this photo can't be shared", 'it was flagged by content moderation.');
+        const code = e?.body?.error;
+        if (code === 'image_too_dark') {
+          Alert.alert(t('tooDarkToShare'), t('tooDarkToShareSub'));
+        } else if (code === 'image_blank') {
+          Alert.alert(t('blankImage'), t('blankImageSub'));
+        } else {
+          Alert.alert(t('moderatedImage'), t('moderatedImageSub'));
+        }
       }
     }
   };
@@ -98,15 +113,16 @@ export default function PhotoPreviewScreen() {
   const onRevert = async () => {
     if (!photoId) return;
     Alert.alert(
-      'revert your flash?',
-      "this deletes your photo and removes you from your pack. you'll lose your streak.",
+      t('revertYourFlash'),
+      t('revertYourFlashSub'),
       [
-        { text: 'cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'revert',
+          text: t('revert'),
           style: 'destructive',
           onPress: async () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            posthog.capture('photo_reverted', { filter });
             await revertPhoto(photoId);
             nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
           },
@@ -136,7 +152,21 @@ export default function PhotoPreviewScreen() {
       </View>
 
       <View style={styles.bottom}>
-        <Text style={styles.caption}>looks good? send it to your pack.</Text>
+        <Text style={styles.caption}>{t('captionSendSquad')}</Text>
+
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setDuet((d) => !d);
+          }}
+          style={[styles.duetToggle, duet && styles.duetToggleOn]}
+        >
+          <Ionicons name="people-outline" size={13} color={duet ? '#000' : colors.textSecondary} />
+          <Text style={[styles.duetText, duet && styles.duetTextOn]}>
+            {t('duetToggleLabel')}
+          </Text>
+          <View style={[styles.duetDot, duet && styles.duetDotOn]} />
+        </Pressable>
 
         <View style={styles.row}>
           <Pressable
@@ -144,7 +174,7 @@ export default function PhotoPreviewScreen() {
             style={[styles.retake]}
           >
             <Ionicons name="arrow-back" size={14} color={colors.white} />
-            <Text style={styles.retakeText}>retake</Text>
+            <Text style={styles.retakeText}>{t('retake')}</Text>
           </Pressable>
 
           <Animated.View style={[styles.sendWrap, sendStyle]}>
@@ -155,7 +185,7 @@ export default function PhotoPreviewScreen() {
                 <Ionicons name="checkmark" size={20} color="#000" />
               ) : (
                 <>
-                  <Text style={styles.sendLabel}>send</Text>
+                  <Text style={styles.sendLabel}>{t('send')}</Text>
                   <View style={styles.sendCircle}>
                     <Ionicons name="arrow-up" size={14} color="#000" />
                   </View>
@@ -168,11 +198,11 @@ export default function PhotoPreviewScreen() {
         {state === 'success' && canRevert && (
           <Pressable onPress={onRevert} style={styles.revertBtn}>
             <Ionicons name="refresh" size={12} color={colors.red} />
-            <Text style={styles.revertText}>revert within 2h</Text>
+            <Text style={styles.revertText}>{t('revertWithinTwoHours')}</Text>
           </Pressable>
         )}
 
-        <Text style={styles.hint}>your filter is saved to your vibe profile</Text>
+        <Text style={styles.hint}>{t('savedToVibeHint')}</Text>
       </View>
     </View>
   );
@@ -197,6 +227,28 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   filterBadgeText: { color: colors.white, fontSize: 10 },
   bottom: { padding: 16, gap: 10 },
   caption: { color: colors.textDim, fontSize: 11, textAlign: 'center' },
+  duetToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  duetToggleOn: { backgroundColor: colors.yellow, borderColor: colors.yellow },
+  duetText: { color: colors.textSecondary, fontSize: 11 },
+  duetTextOn: { color: '#000', fontWeight: '600' },
+  duetDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  duetDotOn: { backgroundColor: '#000' },
   row: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   retake: {
     flex: 1,

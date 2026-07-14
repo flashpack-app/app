@@ -14,6 +14,17 @@ class HTTPError extends Error {
   }
 }
 
+class ResponseParseError extends Error {
+  path: string;
+  cause: unknown;
+
+  constructor(path: string, cause: unknown) {
+    super(`Invalid JSON response from ${path}`);
+    this.path = path;
+    this.cause = cause;
+  }
+}
+
 async function http<T>(
   path: string,
   opts: { method?: string; body?: any; token?: string | null } = {},
@@ -27,12 +38,14 @@ async function http<T>(
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   let json: any = null;
+  let parseError: unknown;
   try {
     json = await res.json();
   } catch (e) {
-    console.warn('failed to parse response JSON for', path, e);
+    parseError = e;
   }
   if (!res.ok) throw new HTTPError(res.status, json);
+  if (parseError && res.status !== 204) throw new ResponseParseError(path, parseError);
   return json as T;
 }
 
@@ -106,6 +119,7 @@ function mapPack(p: any): Pack {
     apartMinutes: p.apartMinutes ?? 0,
     reactions: p.reactions ?? [],
     screenshots: p.screenshots ?? [],
+    packType: p.packType === 'duet' ? 'duet' : 'squad',
     comment: p.comments?.length
       ? {
           messages: p.comments.map((c: any) => ({
@@ -182,14 +196,27 @@ export const APIService = {
     return { self: abs(res.self), ancestors: res.ancestors.map(abs), descendants: res.descendants.map(abs) };
   },
 
-  async sendOTP(_phone: string) { /* removed */ },
-  async verifyOTP(_phone: string, _otp: string): Promise<string> { return 'mock'; },
+  // OTP is keyed on the username (login) or invite code (signup). When the
+  // server has no SMS provider configured it returns the code as devCode so
+  // the flow still works end-to-end.
+  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string }): Promise<{ devCode?: string }> {
+    return http('/auth/otp/send', { method: 'POST', body: params });
+  },
+
+  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
+    const res = await http<{ ok: boolean; user?: any; token?: string }>('/auth/otp/verify', {
+      method: 'POST',
+      body: params,
+    });
+    return { user: res.user ? mapUser(res.user) : undefined, token: res.token };
+  },
 
   async uploadPhoto(
     token: string,
     uri: string | null,
     filter: VibeFilter,
     videoUri?: string | null,
+    packType?: 'duet' | 'squad',
   ): Promise<{ photoId: string; packId: string; packNumber: number }> {
     // Compress the photo and convert to base64 so the server can host it for the
     // whole pack. The filter is applied at render time, so we store the raw image.
@@ -236,6 +263,7 @@ export const APIService = {
           ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg' }
           : uri ? { imageUrl: uri } : {}),
         ...(videoData ? { videoData, videoMime } : {}),
+        ...(packType === 'duet' ? { packType } : {}),
         filter,
       },
     });
@@ -279,7 +307,7 @@ export const APIService = {
   async reportUser(token: string, targetUserId: string, reason: string): Promise<void> {
     await http('/user-reports', { method: 'POST', token, body: { targetUserId, reason } });
   },
-  async updateProfile(token: string, patch: { avatarUrl?: string; isPro?: boolean; proBorder?: string }): Promise<User> {
+  async updateProfile(token: string, patch: { avatarUrl?: string; isPro?: boolean; proBorder?: string; hasPongBadge?: boolean }): Promise<User> {
     const res = await http<{ user: any }>('/me', { method: 'PATCH', token, body: patch });
     return mapUser(res.user);
   },
@@ -500,4 +528,4 @@ export interface AdminReport {
   commentText?: string;
 }
 
-export { HTTPError };
+export { HTTPError, ResponseParseError };

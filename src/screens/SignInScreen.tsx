@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import {
   promptBiometric,
   getBiometricUsername,
 } from '../services/biometric';
+import { t } from '../services/i18n';
 
 export default function SignInScreen() {
   const colors = useColors();
@@ -27,18 +28,24 @@ export default function SignInScreen() {
   const valid = clean.length >= 2;
 
   useEffect(() => {
+    let promptTimer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
-      const settings = await loadSettings();
-      if (!settings.biometricLogin) return;
-      const savedUser = await getBiometricUsername();
-      if (!savedUser) return;
-      const available = await isBiometricAvailable();
-      if (!available) return;
-      setShowBio(true);
-      // auto-prompt after short delay
-      const t = setTimeout(() => handleBiometricLogin(savedUser), 400);
-      return () => clearTimeout(t);
+      try {
+        const settings = await loadSettings();
+        if (!settings.biometricLogin) return;
+        const savedUser = await getBiometricUsername();
+        if (!savedUser) return;
+        const available = await isBiometricAvailable();
+        if (!available) return;
+        setShowBio(true);
+        promptTimer = setTimeout(() => handleBiometricLogin(savedUser), 400);
+      } catch (error) {
+        console.error('failed to initialize biometric sign-in:', error);
+      }
     })();
+    return () => {
+      if (promptTimer) clearTimeout(promptTimer);
+    };
   }, []);
 
   const goToOtp = () => {
@@ -46,11 +53,16 @@ export default function SignInScreen() {
   };
 
   const handleBiometricLogin = async (savedUser?: string) => {
-    const u = savedUser ?? (await getBiometricUsername());
-    if (!u) return;
-    const ok = await promptBiometric();
-    if (ok) {
-      nav.navigate('OTPScreen', { username: u });
+    try {
+      const u = savedUser ?? (await getBiometricUsername());
+      if (!u) return;
+      const ok = await promptBiometric();
+      if (ok) {
+        nav.navigate('OTPScreen', { username: u });
+      }
+    } catch (error) {
+      console.error('biometric sign-in failed:', error);
+      Alert.alert('sign-in failed', 'biometric authentication could not be completed.');
     }
   };
 
@@ -63,14 +75,14 @@ export default function SignInScreen() {
       </View>
       <View style={styles.center}>
         <FlashLogo size={36} />
-        <Text style={styles.subtitle}>welcome back. enter your username.</Text>
+        <Text style={styles.subtitle}>{t('welcomeBackUsername')}</Text>
 
         <View style={styles.inputRow}>
           <Text style={styles.at}>@</Text>
           <TextInput
             value={username}
             onChangeText={setUsername}
-            placeholder="yourname"
+            placeholder={t('yournamePlaceholder')}
             placeholderTextColor="rgba(255,255,255,0.18)"
             autoCapitalize="none"
             autoCorrect={false}
@@ -80,7 +92,7 @@ export default function SignInScreen() {
         </View>
 
         <PillButton
-          label="continue"
+          label={t('onboarding_next')}
           onPress={goToOtp}
           variant="yellow"
           disabled={!valid}
@@ -93,11 +105,11 @@ export default function SignInScreen() {
             style={styles.bioBtn}
           >
             <Ionicons name="finger-print" size={20} color={colors.yellow} />
-            <Text style={styles.bioText}>sign in with biometrics</Text>
+            <Text style={styles.bioText}>{t('signInBiometrics')}</Text>
           </Pressable>
         )}
 
-        <Text style={styles.note}>otp sign-in. no password needed.</Text>
+        <Text style={styles.note}>{t('otpSignInNote')}</Text>
       </View>
     </KeyboardAvoidingView>
   );

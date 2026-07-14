@@ -7,6 +7,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  UIManager,
   ViewToken,
 } from 'react-native';
 import Animated, {
@@ -29,58 +30,70 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { Image as ExpoImage } from 'expo-image';
+import LottieView from 'lottie-react-native';
 import * as Haptics from '../services/haptics';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
+import { t } from '../services/i18n';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const LOGO = require('../assets/logo-white.png');
+const SNAP_YOUR_FLASH_ANIM = require('../assets/anim/snap-your-flash.json');
+const MEET_YOUR_PACK_ANIM = require('../assets/anim/meet-your-pack.json');
+const STREAK_ANIM = require('../assets/anim/streak.json');
+const READY_ANIM = require('../assets/anim/you-are-ready.json');
 
 interface OnboardingStep {
   id: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  animation?: any;
+  lottie?: any;
   title: string;
   body: string;
 }
 
-const STEPS: OnboardingStep[] = [
-  {
-    id: 'welcome',
-    title: 'real moments,\nreal people.',
-    body: 'no followers. no likes. just you and three others sharing one photo a day.',
-  },
-  {
-    id: 'packs',
-    icon: 'people-outline',
-    title: 'meet your\npack.',
-    body: "each day you're matched with three people. post your moment, then everyone's photos unlock at once.",
-  },
-  {
-    id: 'camera',
-    icon: 'camera-outline',
-    title: 'snap your\nflash.',
-    body: 'one tap, one photo. add a filter if you want — just keep it real.',
-  },
-  {
-    id: 'community',
-    icon: 'flame-outline',
-    title: 'build your\nstreak.',
-    body: 'post daily to keep your streak alive. react to packs and discover moments from around the world.',
-  },
-  {
-    id: 'invite',
-    title: 'invite your\nfriends.',
-    body: 'flash. grows by invite only. copy your invite link to bring in your crew.',
-  },
-  {
-    id: 'go',
-    icon: 'sparkles-outline',
-    title: "you're\nready.",
-    body: 'your first pack is waiting. snap a photo to meet your crew.',
-  },
-];
+function getSteps(): OnboardingStep[] {
+  return [
+    {
+      id: 'welcome',
+      title: t('onboarding_welcome_title'),
+      body: t('onboarding_welcome_body'),
+    },
+    {
+      id: 'camera',
+      lottie: SNAP_YOUR_FLASH_ANIM,
+      title: t('onboarding_camera_title'),
+      body: t('onboarding_camera_body'),
+    },
+    {
+      id: 'packs',
+      lottie: MEET_YOUR_PACK_ANIM,
+      title: t('onboarding_packs_title'),
+      body: t('onboarding_packs_body'),
+    },
+    {
+      id: 'community',
+      icon: 'flame-outline',
+      lottie: STREAK_ANIM,
+      title: t('onboarding_community_title'),
+      body: t('onboarding_community_body'),
+    },
+    {
+      id: 'invite',
+      title: t('onboarding_invite_title'),
+      body: t('onboarding_invite_body'),
+    },
+    {
+      id: 'go',
+      lottie: READY_ANIM,
+      title: t('onboarding_go_title'),
+      body: t('onboarding_go_body'),
+    },
+  ];
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -120,20 +133,78 @@ function WelcomeVisual() {
     transform: [{ scale: scale.value }, { rotate: `${rotate.value}deg` }],
   }));
 
+  // Create rain drops with individual animations
+  const rainDrops = Array.from({ length: 30 }, (_, i) => {
+    const translateY = useSharedValue(-100);
+    const translateX = useSharedValue(Math.random() * SCREEN_W);
+    const opacity = useSharedValue(0);
+    const delay = i * 150;
+
+    useEffect(() => {
+      translateY.value = withDelay(
+        delay,
+        withRepeat(
+          withSequence(
+            withTiming(400, { duration: 5000 + Math.random() * 2000, easing: Easing.linear }),
+            withTiming(-100, { duration: 0 })
+          ),
+          -1,
+          false
+        )
+      );
+      opacity.value = withDelay(
+        delay,
+        withRepeat(
+          withSequence(
+            withTiming(0.12, { duration: 500 }),
+            withTiming(0.12, { duration: 3500 }),
+            withTiming(0, { duration: 1000 })
+          ),
+          -1,
+          false
+        )
+      );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value }
+      ],
+      opacity: opacity.value,
+    }));
+
+    const isEmoji = i % 10 === 0;
+    const emojis = ['✈️', '🌍', '🗺️'];
+    const emoji = emojis[i % emojis.length];
+
+    return (
+      <Animated.Text key={i} style={[styles.rainDrop, animatedStyle]}>
+        {isEmoji ? emoji : flag}
+      </Animated.Text>
+    );
+  });
+
   return (
     <View style={styles.welcomeVisual}>
+      {/* Rain effect container */}
+      <View style={styles.rainContainer}>
+        {rainDrops}
+      </View>
+
+      {/* Main centered flag */}
       <View style={styles.iconCircle}>
         <Animated.Text style={[styles.flagLarge, flagStyle]}>{flag}</Animated.Text>
       </View>
 
       {username ? (
         <Text style={styles.greeting}>
-          welcome, <Text style={styles.greetingHighlight}>@{username}</Text>
+          {t('onboarding_welcome_greeting')}<Text style={styles.greetingHighlight}>@{username}</Text>
         </Text>
       ) : null}
 
       <Text style={styles.locationLine}>
-        you joined from{' '}
+        {t('onboarding_joined_from')}
         <Text style={styles.locationHighlight}>
           {city}
           {country ? `, ${country.toLowerCase()}` : ''}
@@ -179,7 +250,7 @@ function InviteVisual() {
       </View>
       {copied && (
         <View style={styles.copiedBadge}>
-          <Text style={styles.copiedText}>invite message copied!</Text>
+          <Text style={styles.copiedText}>{t('onboarding_invite_copied')}</Text>
         </View>
       )}
     </View>
@@ -195,7 +266,6 @@ function StepPage({
   index: number;
   scrollX: SharedValue<number>;
 }) {
-  const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const isWelcome = step.id === 'welcome';
   const isInvite = step.id === 'invite';
@@ -222,11 +292,7 @@ function StepPage({
         ) : isInvite ? (
           <InviteVisual />
         ) : (
-          step.icon && (
-            <View style={styles.iconCircle}>
-              <Ionicons name={step.icon} size={38} color={colors.yellow} />
-            </View>
-          )
+          <StepVisual step={step} />
         )}
       </Animated.View>
 
@@ -238,10 +304,89 @@ function StepPage({
   );
 }
 
+function StepVisual({ step }: { step: OnboardingStep }) {
+  const colors = useColors();
+  const styles = useThemedStyles(makeStyles);
+  const [lottieFailed, setLottieFailed] = useState(false);
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (!step.animation && !step.lottie) {
+      return;
+    }
+
+    progress.value = withRepeat(
+      withTiming(1, {
+        duration: step.id === 'go' ? 1600 : 2200,
+        easing: Easing.inOut(Easing.sin),
+      }),
+      -1,
+      true,
+    );
+  }, [progress, step.animation, step.id, step.lottie]);
+
+  const animationStyle = useAnimatedStyle(() => {
+    if (step.lottie) {
+      const scale = interpolate(progress.value, [0, 1], [0.98, 1.02]);
+      return {
+        transform: [{ scale }],
+      };
+    }
+
+    if (step.id === 'go') {
+      const scale = interpolate(progress.value, [0, 1], [0.94, 1.06]);
+      const opacity = interpolate(progress.value, [0, 1], [0.78, 1]);
+      return {
+        opacity,
+        transform: [{ scale }],
+      };
+    }
+
+    const rotate = interpolate(progress.value, [0, 1], [-3, 3]);
+    const translateY = interpolate(progress.value, [0, 1], [5, -5]);
+    const scale = interpolate(progress.value, [0, 1], [0.98, 1.03]);
+    return {
+      transform: [{ translateY }, { rotate: `${rotate}deg` }, { scale }],
+    };
+  });
+
+  if (step.animation) {
+    return (
+      <Animated.View style={animationStyle}>
+        <ExpoImage source={step.animation} style={styles.stepAnimation} contentFit="contain" />
+      </Animated.View>
+    );
+  }
+
+  if (step.lottie && !lottieFailed) {
+    return (
+      <Animated.View style={[styles.stepLottieWrap, animationStyle]}>
+        <LottieView
+          source={step.lottie as any}
+          style={styles.stepLottie}
+          autoPlay
+          loop
+        />
+      </Animated.View>
+    );
+  }
+
+  if (step.icon) {
+    return (
+      <View style={styles.iconCircle}>
+        <Ionicons name={step.icon} size={38} color={colors.yellow} />
+      </View>
+    );
+  }
+
+  return null;
+}
+
 export default function OnboardingScreen() {
   const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const STEPS = getSteps();
 
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -302,7 +447,7 @@ export default function OnboardingScreen() {
 
         {!isLast ? (
           <Pressable onPress={onSkip} hitSlop={12}>
-            <Text style={styles.skipText}>skip</Text>
+            <Text style={styles.skipText}>{t('onboarding_skip')}</Text>
           </Pressable>
         ) : (
           <View />
@@ -342,7 +487,7 @@ export default function OnboardingScreen() {
           onPressOut={onPressOut}
           style={[styles.cta, btnAnimStyle]}
         >
-          <Text style={styles.ctaText}>{isLast ? "let's go" : 'next'}</Text>
+          <Text style={styles.ctaText}>{isLast ? t('onboarding_letsgo') : t('onboarding_next')}</Text>
         </AnimatedPressable>
       </Animated.View>
     </View>
@@ -392,10 +537,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 36,
   },
   visual: {
-    height: 140,
+    height: 190,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 36,
+    marginBottom: 24,
+  },
+  stepAnimation: {
+    width: Math.min(180, SCREEN_W - 96),
+    height: Math.min(180, SCREEN_W - 96),
+  },
+  stepLottieWrap: {
+    width: Math.min(180, SCREEN_W - 96),
+    height: Math.min(180, SCREEN_W - 96),
+    overflow: 'hidden',
+  },
+  stepLottie: {
+    width: '100%',
+    height: '100%',
   },
   // Welcome step gets its own wrapper since it holds more content
   // (logo + flag circle + greeting + location line) than the icon-only steps.
@@ -407,6 +565,20 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   welcomeVisual: {
     alignItems: 'center',
     gap: 16,
+    position: 'relative',
+  },
+  rainContainer: {
+    position: 'absolute',
+    top: -120,
+    left: -SCREEN_W * 0.25,
+    width: SCREEN_W * 1.5,
+    height: 200,
+    transform: [{ rotate: '30deg' }],
+    zIndex: -1,
+  },
+  rainDrop: {
+    position: 'absolute',
+    fontSize: 40,
   },
   inviteVisualWrap: {
     alignItems: 'center',

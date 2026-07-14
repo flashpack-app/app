@@ -9,36 +9,48 @@ import FlashLogo from '../components/FlashLogo';
 import PackCard from '../components/PackCard';
 import LiquidRefresh from '../components/LiquidRefresh';
 import StreakWarningBanner from '../components/StreakWarningBanner';
+import LeftMenu from '../ui/LeftMenu';
+import LoadErrorBanner from '../components/LoadErrorBanner';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
+import { APIService } from '../services/api';
+import { InviteSlot } from '../types/models';
 import ScaledText from '../components/ScaledText';
+import { t } from '../services/i18n';
 
-function useCountdown(target: Date | null): string {
-  const [txt, setTxt] = useState('');
+function useCountdown(target: Date | null): { text: string; hours: number } {
+  const [result, setResult] = useState({ text: '', hours: 0 });
   useEffect(() => {
-    if (!target) { setTxt(''); return; }
+    if (!target) { setResult({ text: '', hours: 0 }); return; }
     const tick = () => {
       const ms = target.getTime() - Date.now();
-      if (ms <= 0) { setTxt(''); return; }
+      if (ms <= 0) { setResult({ text: '', hours: 0 }); return; }
       const m = Math.floor(ms / 60_000);
       const h = Math.floor(m / 60);
-      setTxt(`${h}h ${m % 60}m`);
+      if (h >= 1) {
+        setResult({ text: t('time_hm', { h, m: m % 60 }), hours: h });
+      } else {
+        setResult({ text: t('time_m_only', { m }), hours: 0 });
+      }
     };
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
   }, [target]);
-  return txt;
+  return result;
 }
 
 export default function FeedScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt } = useAppState();
+  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors, user, token } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [inviteSlotsRemaining, setInviteSlotsRemaining] = useState<number | undefined>(undefined);
+  const [inviteSlotsTotal, setInviteSlotsTotal] = useState<number>(3);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
@@ -78,6 +90,24 @@ export default function FeedScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // Load invite slots to calculate remaining
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await APIService.getInviteSlots(token);
+        const remaining = res.slots.filter((s: InviteSlot) => s.status === 'open').length;
+        const total = res.slots.length;
+        setInviteSlotsRemaining(remaining);
+        setInviteSlotsTotal(total);
+      } catch (e) {
+        // Fallback to user's inviteSlots if API fails
+        setInviteSlotsRemaining(user?.inviteSlots);
+        setInviteSlotsTotal(user?.inviteSlots ?? 3);
+      }
+    })();
+  }, [token]);
+
   const onRefresh = useCallback(async () => {
     if (triggeredRef.current) return;
     triggeredRef.current = true;
@@ -91,9 +121,9 @@ export default function FeedScreen() {
   }, [refreshPacks, refreshDiscover, refreshNotifications]);
 
   const longPress = (packId: string) => {
-    Alert.alert('pack actions', undefined, [
-      { text: 'report', style: 'destructive', onPress: () => nav.navigate('Report', { packId }) },
-      { text: 'cancel', style: 'cancel' },
+    Alert.alert(t('packActionsTitle'), undefined, [
+      { text: t('reportLabel'), style: 'destructive', onPress: () => nav.navigate('Report', { packId }) },
+      { text: t('cancel'), style: 'cancel' },
     ]);
   };
 
@@ -103,19 +133,32 @@ export default function FeedScreen() {
   const expiresCountdown = useCountdown(expiresTarget);
 
   return (
-    <View style={styles.wrap}>
+    <LeftMenu
+      isOpen={isMenuOpen}
+      onOpenChange={setIsMenuOpen}
+      onForYouPress={() => nav.navigate('Tabs', { screen: 'Feed' })}
+      onDuetPress={() => nav.navigate('DuetFeed')}
+      onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
+      onSettingsPress={() => nav.navigate('Settings')}
+      onCameraPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
+      onInvitePress={() => nav.navigate('Invite')}
+      onNotificationsPress={() => nav.navigate('Notifications')}
+      expiryCountdown={expiresCountdown.text}
+      expiryHours={expiresCountdown.hours}
+      onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activePacks[0]?.id })}
+      inviteSlotsRemaining={inviteSlotsRemaining}
+      inviteSlotsTotal={inviteSlotsTotal}
+      unreadCount={unreadCount}
+    >
+      <View style={styles.wrap}>
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
-        <FlashLogo size={22} />
+        <Pressable onPress={() => setIsMenuOpen(true)} hitSlop={12} style={styles.menuButton}>
+          <Ionicons name="reorder-two-outline" size={28} color={colors.textSecondary} />
+        </Pressable>
+        <View style={styles.logoCenter}>
+          <FlashLogo size={22} />
+        </View>
         <View style={styles.topRight}>
-          {expiresCountdown ? (
-            <Pressable
-              onPress={() => nav.navigate('PackLifecycle', { packId: activePacks[0]?.id })}
-              style={styles.expiry}
-            >
-              <Ionicons name="time-outline" size={14} color={colors.red} />
-              <ScaledText style={styles.expiryText}>{expiresCountdown} left</ScaledText>
-            </Pressable>
-          ) : null}
           <Pressable onPress={() => nav.navigate('Notifications')} style={styles.bell}>
             <Ionicons name="notifications-outline" size={18} color={colors.white} />
             {unreadCount > 0 && (
@@ -129,28 +172,33 @@ export default function FeedScreen() {
 
       <StreakWarningBanner />
 
+      <LoadErrorBanner
+        visible={!!(loadErrors.packs || loadErrors.discover)}
+        onRetry={onRefresh}
+      />
+
       {hasPostedFirstPack ? (
         isForming ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
-            <ScaledText style={styles.lockedTitle}>flashing your lights...</ScaledText>
+            <ScaledText style={styles.lockedTitle}>{t('flashingLightsTitle')}</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              {'your photo is out there.\nmatching you with your pack.\nforming in ' + (formingCountdown || 'a moment') + '.'}
+              {t('flashingLightsSub', { time: formingCountdown || t('flashingLightsSubDefault') })}
             </ScaledText>
           </View>
         ) : activePacks.length === 0 ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
-            <ScaledText style={styles.lockedTitle}>no active pack right now</ScaledText>
+            <ScaledText style={styles.lockedTitle}>{t('noActivePackTitle')}</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              flash again to start a new pack.{'\n'}the globe unlocks once you're in a pack.
+              {t('noActivePackSub')}
             </ScaledText>
             <Pressable
               onPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
               style={styles.lockedBtn}
             >
               <Ionicons name="camera" size={16} color="#000" />
-              <ScaledText style={styles.lockedBtnText}>take a flash</ScaledText>
+              <ScaledText style={styles.lockedBtnText}>{t('takeAFlash')}</ScaledText>
             </Pressable>
           </View>
         ) : (
@@ -162,7 +210,7 @@ export default function FeedScreen() {
             ListHeaderComponent={
               <View>
                 <LiquidRefresh progress={progress} />
-                <ScaledText style={styles.sectionLabel}>your pack</ScaledText>
+                <ScaledText style={styles.sectionLabel}>{t('yourPackHeader')}</ScaledText>
                 {activePacks.map((item) => (
                   <View key={item.id} style={{ marginBottom: 8 }}>
                     <PackCard
@@ -176,7 +224,7 @@ export default function FeedScreen() {
                 {discoverPacks.length > 0 ? (
                   <View style={styles.discoverHeader}>
                     <Ionicons name="earth" size={14} color={colors.textDim} />
-                    <ScaledText style={styles.sectionLabel}>around the globe</ScaledText>
+                    <ScaledText style={styles.sectionLabel}>{t('aroundTheGlobeHeader')}</ScaledText>
                   </View>
                 ) : null}
               </View>
@@ -206,25 +254,38 @@ export default function FeedScreen() {
       ) : (
         <View style={styles.locked}>
           <Ionicons name="lock-closed" size={40} color={colors.textHint} />
-          <ScaledText style={styles.lockedTitle}>your pack is forming.</ScaledText>
+          <ScaledText style={styles.lockedTitle}>{t('packFormingTitle')}</ScaledText>
           <ScaledText style={styles.lockedSub}>
-            take your first photo to unlock the feed.{'\n'}once you flash, your pack appears.
+            {t('packFormingSub')}
           </ScaledText>
           <Pressable
             onPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
             style={styles.lockedBtn}
           >
             <Ionicons name="camera" size={16} color="#000" />
-            <ScaledText style={styles.lockedBtnText}>take your first flash</ScaledText>
+            <ScaledText style={styles.lockedBtnText}>{t('takeYourFirstFlash')}</ScaledText>
           </Pressable>
         </View>
       )}
-    </View>
+      </View>
+    </LeftMenu>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.black },
+  menuButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoCenter: {
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

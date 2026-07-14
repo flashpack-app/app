@@ -7,14 +7,15 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
+import { t } from '../services/i18n';
 
 function fmt(ms: number) {
-  if (ms <= 0) return '0h 0m 0s';
+  if (ms <= 0) return t('time_hms', { h: 0, m: 0, s: 0 });
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  return `${h}h ${m}m ${s}s`;
+  return t('time_hms', { h, m, s });
 }
 
 export default function PackLifecycleScreen() {
@@ -41,13 +42,13 @@ export default function PackLifecycleScreen() {
 
   return (
     <View style={styles.wrap}>
-      <ScreenHeader title="pack lifecycle" />
+      <ScreenHeader title={t('lifecycle_title')} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 18 }}>
         {/* Countdown hero */}
         <View style={styles.heroCard}>
           <Ionicons name="time-outline" size={20} color={colors.red} />
-          <Text style={styles.heroLabel}>{pack ? 'this pack disappears in' : 'no active pack'}</Text>
+          <Text style={styles.heroLabel}>{pack ? t('lifecycle_disappears_in') : t('lifecycle_no_active')}</Text>
           <Text style={styles.heroTime}>{pack ? fmt(remainingMs) : '—'}</Text>
           {pack && (
             <>
@@ -55,69 +56,66 @@ export default function PackLifecycleScreen() {
                 <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
               </View>
               <Text style={styles.heroSub}>
-                pack #{pack.number} · {pack.members.length} people · {pack.countriesCount} countries
+                {t('lifecycle_pack_meta', { number: pack.number, members: pack.members.length, countries: pack.countriesCount })}
               </Text>
             </>
           )}
         </View>
 
         {/* Why */}
-        <Section title="why does flash. expire?">
+        <Section title={t('lifecycle_why_title')}>
           <Para>
-            flash. is a moment, not a feed. every pack lives for{' '}
-            <Bold>18 hours</Bold> — then it vanishes. forever.
+            {t('lifecycle_why_p1', { bold_18h: '' })}
+            <Bold>{t('lifecycle_why_18h')}</Bold>
+            {t('lifecycle_why_p1', { bold_18h: '' }).split('{{bold_18h}}')[1]}
           </Para>
-          <Para>
-            no algorithm, no archive, no anxiety. you either shoot with the
-            world right now, or you miss the moment. that scarcity is what
-            makes a flash actually feel like a flash.
-          </Para>
+          <Para>{t('lifecycle_why_p2')}</Para>
         </Section>
 
         {/* Timeline */}
-        <Section title="the 18 hour timeline">
+        <Section title={t('lifecycle_timeline_title')}>
           <Step
             icon="flash"
             color={colors.yellow}
-            label="0h · the shot"
-            body={`you take one photo. you can't redo it. you have ${user?.isAdmin ? 'unlimited' : user?.isPro ? '4h' : '2h'} to undo.`}
+            label={t('lifecycle_step0_label')}
+            body={t(user?.isAdmin ? 'lifecycle_step0_body_admin' : user?.isPro ? 'lifecycle_step0_body_pro' : 'lifecycle_step0_body_free')}
           />
           <Step
             icon="people-outline"
             color={colors.yellow}
-            label="0h–2h · pack forming"
-            body="3 strangers shooting near the same time get matched into your pack."
+            label={t('lifecycle_step1_label')}
+            body={t('lifecycle_step1_body')}
           />
           <Step
             icon="cube-outline"
             color={colors.green}
-            label="2h · pack revealed"
-            body="the mosaic drops. chemistry score, countries, the whole thing."
+            label={t('lifecycle_step2_label')}
+            body={t('lifecycle_step2_body')}
           />
           <Step
             icon="chatbubble-outline"
             color={colors.yellow}
-            label="2h–10h · react & comment"
-            body="one emoji, one comment per person. no threads, no replies."
+            label={t('lifecycle_step3_label')}
+            body={t('lifecycle_step3_body')}
           />
           <Step
             icon="time-outline"
             color={colors.red}
-            label="18h · gone"
-            body="the pack expires. nobody can see it again — not you, not them."
+            label={t('lifecycle_step4_label')}
+            body={t('lifecycle_step4_body')}
           />
         </Section>
 
         {/* Save pack */}
-        <Section title="want to keep it?">
+        <Section title={t('lifecycle_vault_title')}>
           <Para>
-            pro members can save unlimited packs to their{' '}
-            <Bold>private vault</Bold> before they expire. free members can
-            screenshot — but everyone in the pack gets notified.
+            {t('lifecycle_vault_p', { bold_vault: '' }).split('{{bold_vault}}')[0]}
+            <Bold>{t('lifecycle_vault_bold')}</Bold>
+            {t('lifecycle_vault_p', { bold_vault: '' }).split('{{bold_vault}}')[1]}
           </Para>
           <Pressable onPress={() => nav.navigate('Pro')} style={styles.proBtn}>
             <Ionicons name="flash" size={14} color="#000" />
-            <Text style={styles.proBtnText}>unlock pack vault</Text>
+            <Text style={styles.proBtnText}>{t('lifecycle_vault_btn')}</Text>
           </Pressable>
         </Section>
       </ScrollView>

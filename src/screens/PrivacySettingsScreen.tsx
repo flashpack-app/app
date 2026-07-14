@@ -4,6 +4,7 @@ import { useAppState } from '../state/AppState';
 import { useSettings } from '../hooks/useSettings';
 import ScreenHeader from '../components/ScreenHeader';
 import { ToggleRow, NavRow, Section, useSettingsStyles } from '../components/settings';
+import { t } from '../services/i18n';
 
 export default function PrivacySettingsScreen() {
   const { user } = useAppState();
@@ -12,7 +13,7 @@ export default function PrivacySettingsScreen() {
 
   const toggleSilentMode = (v: boolean) => {
     if (v && !user?.isPro) {
-      Alert.alert('pro feature', 'silent mode is available with flash. pro.');
+      Alert.alert(t('settings_pro_feature_title'), t('settings_pro_feature_body'));
       return;
     }
     patch({ silentMode: v });
@@ -23,79 +24,79 @@ export default function PrivacySettingsScreen() {
 
   return (
     <View style={settingsStyles.wrap}>
-      <ScreenHeader title="privacy settings" />
+      <ScreenHeader title={t('settings_privacy_title')} />
       <ScrollView contentContainerStyle={settingsStyles.scroll}>
-        <Section title="profile visibility">
+        <Section title={t('settings_profile_visibility_section')}>
           <ToggleRow
             icon="eye-outline"
-            label="public profile"
+            label={t('settings_public_profile_label')}
             value={s.profilePublic}
             onToggle={(v) => patch({ profilePublic: v })}
           />
           <ToggleRow
             icon="location-outline"
-            label="show city & country"
+            label={t('settings_show_location_label')}
             value={s.showLocation}
             onToggle={(v) => patch({ showLocation: v })}
           />
           <ToggleRow
             icon="flame-outline"
-            label="show streak publicly"
+            label={t('settings_show_streak_public_label')}
             value={s.showStreakPublic}
             onToggle={(v) => patch({ showStreakPublic: v })}
           />
           <ToggleRow
             icon="radio-button-on-outline"
-            label="show activity status"
+            label={t('settings_show_activity_status_label')}
             value={s.showActivityStatus}
             onToggle={(v) => patch({ showActivityStatus: v })}
           />
           <ToggleRow
             icon="at-outline"
-            label="allow mentions"
+            label={t('settings_allow_mentions_label')}
             value={s.allowMentions}
             onToggle={(v) => patch({ allowMentions: v })}
           />
         </Section>
 
-        <Section title="pro">
+        <Section title={t('settings_pro_section')}>
           <ToggleRow
             icon="eye-off-outline"
-            label={user?.isPro ? 'silent mode' : 'silent mode (pro)'}
+            label={user?.isPro ? t('settings_silent_mode_label') : t('settings_silent_mode_pro_label')}
             value={s.silentMode}
             onToggle={toggleSilentMode}
           />
         </Section>
 
-        <Section title="content">
+        <Section title={t('settings_content_section')}>
           <ToggleRow
             icon="images-outline"
-            label="auto-save to camera roll"
+            label={t('settings_auto_save_camera_roll_label')}
             value={s.autoSaveCameraRoll}
             onToggle={(v) => patch({ autoSaveCameraRoll: v })}
           />
           <ToggleRow
             icon="grid-outline"
-            label="show pack previews"
+            label={t('settings_show_pack_previews_label')}
             value={s.showPackPreviews}
             onToggle={(v) => patch({ showPackPreviews: v })}
           />
           <ToggleRow
             icon="shield-outline"
-            label="block screenshots"
+            label={t('settings_block_screenshots_label')}
             value={s.blockScreenshots}
             onToggle={(v) => {
               patch({ blockScreenshots: v });
-              if (v) Alert.alert('note', 'other users will still be notified if they screenshot your packs. this setting only blocks screenshots on your device where supported.');
+              if (v) Alert.alert(t('settings_block_screenshots_alert_title'), t('settings_block_screenshots_alert_body'));
             }}
           />
         </Section>
 
-        <Section title="blocked users">
+        <Section title={t('settings_blocked_users_section')}>
           <NavRow
             icon="ban-outline"
-            label="manage blocked users"
-            onPress={() => Alert.alert('blocked users', 'you have no blocked users.')}
+            label={t('settings_manage_blocked_users_label')}
+            onPress={() => Alert.alert(t('settings_manage_blocked_users_label'), t('settings_blocked_users_alert_body'))}
           />
         </Section>
       </ScrollView>

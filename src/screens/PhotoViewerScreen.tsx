@@ -22,7 +22,8 @@ import { useAppState } from '../state/AppState';
 import { API_URL } from '../config';
 import FilteredImage from '../components/FilteredImage';
 import Mosaic from '../components/Mosaic';
-import { usePreventCapture } from '../services/screenshot';
+import CaptureBlockedOverlay from '../components/CaptureBlockedOverlay';
+import { usePreventCapture, useCaptureBlockOverlay } from '../services/screenshot';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import liveLogo from '../assets/live_logo_white.webp';
 
@@ -52,6 +53,7 @@ function LiveViewer({ videoURL, style }: { videoURL: string; style?: any }) {
       style={[StyleSheet.absoluteFillObject, style]}
       contentFit="cover"
       nativeControls={false}
+      surfaceType="textureView"
     />
   );
 }
@@ -77,6 +79,8 @@ export default function PhotoViewerScreen() {
   const isMember = !!pack && pack.members.some((m) => m.userId === user?.id);
   // Block screenshots only when viewing someone else's (discover) photo.
   usePreventCapture(!!pack && !isMember);
+  // Show overlay when screenshot is attempted on protected content
+  const showCaptureOverlay = useCaptureBlockOverlay(!!pack && !isMember);
   const resolveUrl = (u?: string): string | undefined => {
     if (!u) return undefined;
     if (u.startsWith('http') || u.startsWith('data:')) return u;
@@ -271,17 +275,18 @@ export default function PhotoViewerScreen() {
 
       {/* Full image with pinch zoom, free pan, double-tap & swipe-down */}
       <View style={styles.imageWrap}>
-        <Image source={liveLogo} style={styles.liveLogo} />
         {videoUrl ? (
-          <GestureDetector gesture={composedGesture}>
-            <Animated.View style={[styles.zoomWrap, imageStyle]}>
-              <LiveViewer
-                videoURL={videoUrl}
-                style={styles.fullImg}
-              />
-              <Image source={liveLogo} style={styles.videoLiveLogo} />
-            </Animated.View>
-          </GestureDetector>
+          <>
+            <Image source={liveLogo} style={styles.liveLogo} />
+            <GestureDetector gesture={composedGesture}>
+              <Animated.View style={[styles.zoomWrap, imageStyle]}>
+                <LiveViewer
+                  videoURL={videoUrl}
+                  style={styles.fullImg}
+                />
+              </Animated.View>
+            </GestureDetector>
+          </>
         ) : imageUrl ? (
           <GestureDetector gesture={composedGesture}>
             <Animated.View style={[styles.zoomWrap, imageStyle]}>
@@ -325,6 +330,9 @@ export default function PhotoViewerScreen() {
           </View>
         </View>
       </View>
+
+      {/* Capture blocked overlay for non-member packs */}
+      <CaptureBlockedOverlay visible={showCaptureOverlay} />
     </Animated.View>
   );
 }

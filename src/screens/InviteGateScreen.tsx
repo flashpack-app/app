@@ -8,6 +8,8 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
+import { posthog } from '../config/posthog';
+import { t } from '../services/i18n';
 
 const FORMAT = /^FLASH-[A-Z0-9]{3}-[A-Z0-9]{2}$/;
 const PLACEHOLDER = 'FLASH-___-__';
@@ -24,12 +26,15 @@ function formatCode(input: string): string {
   return `FLASH-${trimmed.slice(0, 3)}-${trimmed.slice(3)}`;
 }
 
-const REASON_TEXT: Record<string, string> = {
-  invalid_format: 'invalid format.',
-  not_found: "that code doesn't exist.",
-  already_used: 'this code has already been used.',
-  no_slots: "the inviter is out of slots.",
-  missing_code: 'enter a code.',
+const getReasonText = (reason: string): string => {
+  const map: Record<string, string> = {
+    invalid_format: t('invalidFormat'),
+    not_found: t('codeNotExist'),
+    already_used: t('codeUsed'),
+    no_slots: t('inviterNoSlots'),
+    missing_code: t('enterCode'),
+  };
+  return map[reason] ?? t('codeDidntWork');
 };
 
 export default function InviteGateScreen() {
@@ -53,14 +58,15 @@ export default function InviteGateScreen() {
       const res = await APIService.verifyInvite(code);
       if (!res.valid) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setError(REASON_TEXT[res.reason ?? ''] ?? "that code didn't work.");
+        setError(getReasonText(res.reason ?? ''));
         return;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      nav.navigate('OTPScreen', { inviteCode: code });
+      posthog.capture('invite_code_submitted', { invite_code: code });
+      nav.navigate('Username', { code });
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(e?.message ?? 'network error. is the server running?');
+      setError(e?.message ?? t('networkErrorServer'));
     } finally {
       setLoading(false);
     }
@@ -73,7 +79,7 @@ export default function InviteGateScreen() {
     >
       <View style={styles.center}>
         <FlashLogo size={42} />
-        <Text style={styles.subtitle}>invite only. get a code from a friend.</Text>
+        <Text style={styles.subtitle}>{t('inviteOnlySub')}</Text>
 
         <TextInput
           value={code}
@@ -88,7 +94,7 @@ export default function InviteGateScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <PillButton
-          label="continue"
+          label={t('onboarding_next')}
           onPress={onContinue}
           variant="yellow"
           disabled={!valid || loading}
@@ -96,12 +102,12 @@ export default function InviteGateScreen() {
           style={{ width: '100%', height: 44 }}
         />
 
-        <Text style={styles.footer}>no code? ask a friend who's in.</Text>
+        <Text style={styles.footer}>{t('noCodeAskFriend')}</Text>
 
         <Text style={styles.signInRow}>
-          already have an account?{' '}
+          {t('alreadyHaveAccount')}
           <Text style={styles.signInLink} onPress={() => nav.navigate('SignIn')}>
-            sign in
+            {t('signIn')}
           </Text>
         </Text>
       </View>

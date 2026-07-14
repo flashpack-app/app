@@ -7,7 +7,8 @@ export async function clearCache(): Promise<void> {
     const toRemove = keys.filter((k) => !k.includes('session') && !k.includes('settings'));
     if (toRemove.length) await AsyncStorage.multiRemove(toRemove);
     Alert.alert('cache cleared', 'temporary data has been removed.');
-  } catch {
+  } catch (error) {
+    console.error('failed to clear cache:', error);
     Alert.alert('failed', 'could not clear cache.');
   }
 }

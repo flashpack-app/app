@@ -11,14 +11,17 @@ import Mosaic from '../components/Mosaic';
 import PillButton from '../components/PillButton';
 import ScreenHeader from '../components/ScreenHeader';
 import { APIService } from '../services/api';
+import { t } from '../services/i18n';
 
-const REASONS = [
-  'nudity or sexual content',
-  'harassment or threats',
-  'violence or graphic content',
-  'spam or fake account',
-  'something else',
-];
+function getReasons() {
+  return [
+    t('report_reason_nudity'),
+    t('report_reason_harassment'),
+    t('report_reason_violence'),
+    t('report_reason_spam'),
+    t('report_reason_other'),
+  ];
+}
 
 export default function ReportScreen() {
   const colors = useColors();
@@ -32,6 +35,8 @@ export default function ReportScreen() {
   const comment = commentId ? comments[id]?.find((c) => c.id === commentId) : null;
   const [selected, setSelected] = useState<string | null>(null);
 
+  const REASONS = getReasons();
+
   const onSubmit = async () => {
     if (!selected || !token) return;
     try {
@@ -40,21 +45,25 @@ export default function ReportScreen() {
       } else if (pack) {
         await APIService.reportPack(token, pack.id, selected);
       }
-    } catch {}
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (Platform.OS === 'android') ToastAndroid.show('report submitted', ToastAndroid.SHORT);
-    else Alert.alert('report submitted');
-    nav.goBack();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === 'android') ToastAndroid.show(t('report_success_toast'), ToastAndroid.SHORT);
+      else Alert.alert(t('report_success_toast'));
+      nav.goBack();
+    } catch (error) {
+      console.error('failed to submit report:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(t('settings_biometric_error_title'), t('report_bug_failed'));
+    }
   };
 
   return (
     <View style={styles.wrap}>
-      <ScreenHeader title={commentId ? "report comment" : "report pack"} />
+      <ScreenHeader title={commentId ? t('report_comment_title') : t('report_pack_title')} />
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 12 }}>
         {pack && <Mosaic pack={pack} height={88} cellGap={1} showFlags={false} borderRadius={10} />}
 
-        <Text style={styles.sectionLabel}>what's the issue?</Text>
+        <Text style={styles.sectionLabel}>{t('report_section_issue')}</Text>
 
         <View style={{ gap: 6 }}>
           {REASONS.map((r) => {
@@ -77,11 +86,11 @@ export default function ReportScreen() {
         <View style={styles.warning}>
           <Ionicons name="shield-outline" size={14} color={colors.textFade} />
           <Text style={styles.warningText}>
-            the person who invited the reported user is also notified. repeat violations remove both accounts.
+            {t('report_warning_invite')}
           </Text>
         </View>
 
-        <PillButton variant="red" label="submit report" onPress={onSubmit} disabled={!selected} style={{ height: 44 }}>
+        <PillButton variant="red" label={t('reportLabel')} onPress={onSubmit} disabled={!selected} style={{ height: 44 }}>
           <Ionicons name="flag-outline" size={14} color={colors.white} />
         </PillButton>
       </ScrollView>

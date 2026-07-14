@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 import { useAppState } from '../state/AppState';
+import { posthog } from '../config/posthog';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -19,13 +20,17 @@ import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
 import FlashLogo from '../components/FlashLogo';
 import OfflineBanner from '../components/OfflineBanner';
+import StreakCelebrationToast from '../components/StreakCelebrationToast';
+import LiveNotificationToast from '../components/LiveNotificationToast';
 import * as SplashScreen from 'expo-splash-screen';
 
 import InviteGateScreen from '../screens/InviteGateScreen';
 import UsernameScreen from '../screens/UsernameScreen';
+import PhoneNumberScreen from '../screens/PhoneNumberScreen';
 import SignInScreen from '../screens/SignInScreen';
 import OTPScreen from '../screens/OTPScreen';
 import FeedScreen from '../screens/FeedScreen';
+import DuetFeedScreen from '../screens/DuetFeedScreen';
 import CameraScreen from '../screens/CameraScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PhotoPreviewScreen from '../screens/PhotoPreviewScreen';
@@ -160,8 +165,10 @@ export default function RootNavigator() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const navTheme = makeNavTheme(colors);
-  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover } = useAppState();
+  const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, refreshNotifications, streakAdvancedTo, clearStreakAdvanced, liveNotification, setLiveNotification } = useAppState();
   const wasConnected = useRef<boolean | null>(null);
+  const navigationRef = useRef<any>(null);
+  const routeNameRef = useRef<string | undefined>(undefined);
 
   // Subscribe to connectivity changes
   useEffect(() => {
@@ -171,8 +178,12 @@ export default function RootNavigator() {
 
       // Re-fetch when coming back online after being offline
       if (wasConnected.current === false && connected) {
-        refreshPacks().catch(() => {});
-        refreshDiscover?.().catch(() => {});
+        refreshPacks().catch((error) => {
+          console.warn('failed to refresh packs after reconnecting:', error);
+        });
+        refreshDiscover?.().catch((error) => {
+          console.warn('failed to refresh discover packs after reconnecting:', error);
+        });
       }
       wasConnected.current = connected;
     });
@@ -207,7 +218,19 @@ export default function RootNavigator() {
       }
     });
     const received = addNotificationReceivedListener((notification) => {
-      console.log('push received in foreground', notification.request.content);
+      const content = notification.request.content;
+      console.log('push received in foreground', content);
+
+      // Refresh notifications to update unread count
+      refreshNotifications?.();
+
+      // Show live notification toast
+      setLiveNotification({
+        title: content.title || 'New notification',
+        body: content.body || undefined,
+        type: content.data?.type as string,
+        packId: content.data?.packId as string | undefined,
+      });
     });
     const response = addNotificationResponseReceivedListener((event) => {
       const packId = extractPackId(event);
@@ -221,14 +244,35 @@ export default function RootNavigator() {
       response.remove();
     };
   }, [flushPendingPack]);
+  }, [refreshNotifications, setLiveNotification]);
 
   if (isBooting) {
     return <CustomSplash />;
   }
 
+  const onNavigationReady = () => {
+    routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+  };
+
+  const onNavigationStateChange = () => {
+    const previousRouteName = routeNameRef.current;
+    const currentRoute = navigationRef.current?.getCurrentRoute();
+    const currentRouteName = currentRoute?.name;
+    if (previousRouteName !== currentRouteName && currentRouteName) {
+      posthog.screen(currentRouteName, { previous_screen: previousRouteName ?? null });
+    }
+    routeNameRef.current = currentRouteName;
+  };
+
   return (
     <View style={styles.root}>
       <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingPack}>
+      <NavigationContainer
+        theme={navTheme}
+        ref={navigationRef}
+        onReady={onNavigationReady}
+        onStateChange={onNavigationStateChange}
+      >
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
@@ -240,6 +284,7 @@ export default function RootNavigator() {
               <Stack.Screen name="InviteGate" component={InviteGateScreen} />
               <Stack.Screen name="OTPScreen" component={OTPScreen} />
               <Stack.Screen name="Username" component={UsernameScreen} />
+              <Stack.Screen name="PhoneNumberScreen" component={PhoneNumberScreen} />
               <Stack.Screen name="SignIn" component={SignInScreen} />
             </>
           ) : isOnboarding ? (
@@ -250,6 +295,7 @@ export default function RootNavigator() {
           ) : (
             <>
               <Stack.Screen name="Tabs" component={Tabs} />
+              <Stack.Screen name="DuetFeed" component={DuetFeedScreen} />
               <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
               <Stack.Screen name="PackReveal" component={PackRevealScreen} />
               <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'modal', animation: 'fade' }} />
@@ -280,6 +326,26 @@ export default function RootNavigator() {
         </Stack.Navigator>
       </NavigationContainer>
       <OfflineBanner visible={!isConnected} />
+      <StreakCelebrationToast
+        visible={streakAdvancedTo !== null}
+        days={streakAdvancedTo ?? 0}
+        onDismiss={clearStreakAdvanced}
+        onPress={() => navigationRef.current?.navigate('Streak')}
+      />
+      <LiveNotificationToast
+        visible={liveNotification !== null}
+        title={liveNotification?.title || ''}
+        body={liveNotification?.body}
+        type={liveNotification?.type}
+        packId={liveNotification?.packId}
+        onDismiss={() => setLiveNotification(null)}
+        onPress={() => {
+          if (liveNotification?.packId) {
+            navigationRef.current?.navigate('PackReveal', { packId: liveNotification.packId });
+          }
+          setLiveNotification(null);
+        }}
+      />
     </View>
   );
 }
