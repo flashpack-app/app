@@ -152,7 +152,7 @@ export default function FeedScreen() {
       <View style={styles.wrap}>
       <View style={[styles.topBar, { paddingTop: Math.max(6, insets.top) }]}>
         <Pressable onPress={() => setIsMenuOpen(true)} hitSlop={12} style={styles.menuButton}>
-          <Ionicons name="menu-outline" size={28} color={colors.textSecondary} />
+          <Ionicons name="reorder-two-outline" size={28} color={colors.textSecondary} />
         </Pressable>
         <View style={styles.logoCenter}>
           <FlashLogo size={22} />
