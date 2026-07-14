@@ -98,7 +98,11 @@ export const CoachmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSteps([]);
     setIndex(0);
     setRect(null);
-    await markCoachmarksSeen();
+    try {
+      await markCoachmarksSeen();
+    } catch (error) {
+      console.error('failed to persist coachmark completion:', error);
+    }
   }, []);
 
   const next = useCallback(async () => {

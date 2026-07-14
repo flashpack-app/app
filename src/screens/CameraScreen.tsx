@@ -107,7 +107,9 @@ export default function CameraScreen() {
         });
         nav.navigate('PhotoPreview', { uri: photo.uri, filter, ...(videoUri ? { videoUri } : {}) });
       }
-    } catch {
+    } catch (error) {
+      console.error('photo capture failed:', error);
+      Alert.alert('photo not captured', 'please try again.');
     } finally {
       setIsCapturing(false);
     }
@@ -161,8 +163,9 @@ export default function CameraScreen() {
         mute: true,
       } as any);
       videoUri = recording?.uri;
-    } catch {
-      /* ignore */
+    } catch (error) {
+      console.error('live capture failed:', error);
+      Alert.alert('live photo not captured', 'please try again.');
     } finally {
       clearTimeout(stopTimeout);
       clearInterval(progressInterval);
@@ -194,7 +197,9 @@ export default function CameraScreen() {
             nav.navigate('PhotoPreview', { uri: photo.uri, filter, videoUri });
             return;
           }
-        } catch { /* fall through */ }
+        } catch (error) {
+          console.warn('live thumbnail capture failed; using video frame:', error);
+        }
       }
       // Fallback: navigate without still (video only)
       setIsCapturing(false); // must reset before navigate so Retake works

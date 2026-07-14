@@ -14,6 +14,17 @@ class HTTPError extends Error {
   }
 }
 
+class ResponseParseError extends Error {
+  path: string;
+  cause: unknown;
+
+  constructor(path: string, cause: unknown) {
+    super(`Invalid JSON response from ${path}`);
+    this.path = path;
+    this.cause = cause;
+  }
+}
+
 async function http<T>(
   path: string,
   opts: { method?: string; body?: any; token?: string | null } = {},
@@ -27,12 +38,14 @@ async function http<T>(
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   let json: any = null;
+  let parseError: unknown;
   try {
     json = await res.json();
   } catch (e) {
-    console.warn('failed to parse response JSON for', path, e);
+    parseError = e;
   }
   if (!res.ok) throw new HTTPError(res.status, json);
+  if (parseError && res.status !== 204) throw new ResponseParseError(path, parseError);
   return json as T;
 }
 
@@ -294,7 +307,7 @@ export const APIService = {
   async reportUser(token: string, targetUserId: string, reason: string): Promise<void> {
     await http('/user-reports', { method: 'POST', token, body: { targetUserId, reason } });
   },
-  async updateProfile(token: string, patch: { avatarUrl?: string; isPro?: boolean; proBorder?: string }): Promise<User> {
+  async updateProfile(token: string, patch: { avatarUrl?: string; isPro?: boolean; proBorder?: string; hasPongBadge?: boolean }): Promise<User> {
     const res = await http<{ user: any }>('/me', { method: 'PATCH', token, body: patch });
     return mapUser(res.user);
   },
@@ -515,4 +528,4 @@ export interface AdminReport {
   commentText?: string;
 }
 
-export { HTTPError };
+export { HTTPError, ResponseParseError };

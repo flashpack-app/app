@@ -9,7 +9,8 @@ export async function isBiometricAvailable(): Promise<boolean> {
     if (!compatible) return false;
     const enrolled = await LocalAuthentication.isEnrolledAsync();
     return enrolled;
-  } catch {
+  } catch (error) {
+    console.warn('failed to check biometric availability:', error);
     return false;
   }
 }
@@ -21,8 +22,9 @@ export async function promptBiometric(): Promise<boolean> {
       fallbackLabel: 'use passcode',
     });
     return result.success;
-  } catch {
-    return false;
+  } catch (error) {
+    console.error('biometric authentication failed:', error);
+    throw error;
   }
 }
 

@@ -5,22 +5,26 @@ export const ImpactFeedbackStyle = ExpoHaptics.ImpactFeedbackStyle;
 export const NotificationFeedbackType = ExpoHaptics.NotificationFeedbackType;
 
 async function enabled(): Promise<boolean> {
+  const s = await loadSettings();
+  return s.hapticsEnabled;
+}
+
+async function runHaptic(action: () => Promise<void>): Promise<void> {
   try {
-    const s = await loadSettings();
-    return s.hapticsEnabled;
-  } catch {
-    return true;
+    if (await enabled()) await action();
+  } catch (error) {
+    console.warn('haptic feedback failed:', error);
   }
 }
 
 export async function impactAsync(style: ExpoHaptics.ImpactFeedbackStyle = ExpoHaptics.ImpactFeedbackStyle.Light) {
-  if (await enabled()) ExpoHaptics.impactAsync(style);
+  await runHaptic(() => ExpoHaptics.impactAsync(style));
 }
 
 export async function notificationAsync(type: ExpoHaptics.NotificationFeedbackType) {
-  if (await enabled()) ExpoHaptics.notificationAsync(type);
+  await runHaptic(() => ExpoHaptics.notificationAsync(type));
 }
 
 export async function selectionAsync() {
-  if (await enabled()) ExpoHaptics.selectionAsync();
+  await runHaptic(() => ExpoHaptics.selectionAsync());
 }

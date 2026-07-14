@@ -45,11 +45,15 @@ export default function ReportScreen() {
       } else if (pack) {
         await APIService.reportPack(token, pack.id, selected);
       }
-    } catch {}
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (Platform.OS === 'android') ToastAndroid.show(t('report_success_toast'), ToastAndroid.SHORT);
-    else Alert.alert(t('report_success_toast'));
-    nav.goBack();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === 'android') ToastAndroid.show(t('report_success_toast'), ToastAndroid.SHORT);
+      else Alert.alert(t('report_success_toast'));
+      nav.goBack();
+    } catch (error) {
+      console.error('failed to submit report:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(t('settings_biometric_error_title'), t('report_bug_failed'));
+    }
   };
 
   return (
