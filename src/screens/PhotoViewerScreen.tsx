@@ -53,6 +53,7 @@ function LiveViewer({ videoURL, style }: { videoURL: string; style?: any }) {
       style={[StyleSheet.absoluteFillObject, style]}
       contentFit="cover"
       nativeControls={false}
+      surfaceType="textureView"
     />
   );
 }
@@ -274,17 +275,18 @@ export default function PhotoViewerScreen() {
 
       {/* Full image with pinch zoom, free pan, double-tap & swipe-down */}
       <View style={styles.imageWrap}>
-        <Image source={liveLogo} style={styles.liveLogo} />
         {videoUrl ? (
-          <GestureDetector gesture={composedGesture}>
-            <Animated.View style={[styles.zoomWrap, imageStyle]}>
-              <LiveViewer
-                videoURL={videoUrl}
-                style={styles.fullImg}
-              />
-              <Image source={liveLogo} style={styles.videoLiveLogo} />
-            </Animated.View>
-          </GestureDetector>
+          <>
+            <Image source={liveLogo} style={styles.liveLogo} />
+            <GestureDetector gesture={composedGesture}>
+              <Animated.View style={[styles.zoomWrap, imageStyle]}>
+                <LiveViewer
+                  videoURL={videoUrl}
+                  style={styles.fullImg}
+                />
+              </Animated.View>
+            </GestureDetector>
+          </>
         ) : imageUrl ? (
           <GestureDetector gesture={composedGesture}>
             <Animated.View style={[styles.zoomWrap, imageStyle]}>
