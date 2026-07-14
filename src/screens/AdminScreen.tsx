@@ -26,6 +26,7 @@ import { APIService, AdminReport, AdminNotification } from '../services/api';
 import { AdminStats, AdminUserRow, GenesisCode } from '../types/models';
 import PillButton from '../components/PillButton';
 import { saveLastStreakDays } from '../services/storage';
+import * as Sentry from '@sentry/react-native';
 
 type Tab = 'reports' | 'users' | 'codes' | 'notifications' | 'test';
 
@@ -910,6 +911,91 @@ const TestPanel: React.FC = () => {
         style={{ height: 40 }}
       >
         <Ionicons name="notifications-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <Text style={{ color: colors.textDim, fontSize: 10, marginTop: 4, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
+        {'\u2500\u2500 sentry observatory \u2500\u2500'}
+      </Text>
+
+      <PillButton
+        variant="dim"
+        label="capture exception"
+        onPress={() => {
+          Sentry.addBreadcrumb({ category: 'admin.test', message: 'About to throw test exception', level: 'info' });
+          Sentry.captureException(new Error('[Admin] Test exception \u2014 SDK v8 capture working \u2713'));
+          setTestResult('\u2713 captureException sent \u2014 check Sentry Issues dashboard');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="warning-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="capture message + breadcrumbs"
+        onPress={() => {
+          Sentry.addBreadcrumb({ category: 'admin.ui', message: 'User tapped capture message', level: 'info', data: { screen: 'AdminScreen', tab: 'test' } });
+          Sentry.addBreadcrumb({ category: 'admin.action', message: 'Message captured via admin panel', level: 'debug' });
+          Sentry.captureMessage('[Admin] Test message with breadcrumb trail', 'info');
+          setTestResult('\u2713 captureMessage sent with 2 breadcrumbs \u2014 check Sentry Issues');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="chatbubble-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="set user context"
+        onPress={() => {
+          if (user) {
+            Sentry.setUser({ id: user.id, username: user.username, email: user.email ?? undefined });
+            setTestResult(`\u2713 Sentry user context set: ${user.username} (${user.id})`);
+          } else {
+            setTestResult('\u2717 No user loaded yet');
+          }
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="person-circle-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="measure performance span"
+        onPress={() => {
+          const start = Date.now();
+          Sentry.startSpan({ name: 'admin.test.performance', op: 'benchmark' }, (span) => {
+            let n = 0;
+            for (let i = 0; i < 2_000_000; i++) n += Math.sqrt(i);
+            const elapsed = Date.now() - start;
+            span?.setAttribute('iterations', 2_000_000);
+            span?.setAttribute('result_sample', n.toFixed(2));
+            setTestResult(`\u2713 Performance span: ${elapsed}ms \u2014 check Sentry Performance`);
+          });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="speedometer-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="trigger unhandled JS crash"
+        onPress={() => {
+          setTimeout(() => {
+            throw new Error('[Admin] Unhandled async crash \u2014 Sentry global capture test');
+          }, 100);
+          setTestResult('\u2713 Unhandled crash in 100ms \u2014 check Sentry for auto-capture');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="nuclear-outline" size={14} color={colors.white} />
       </PillButton>
 
       <Text style={{ color: colors.textDim, fontSize: 11, marginTop: 8 }}>

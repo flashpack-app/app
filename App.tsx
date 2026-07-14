@@ -9,6 +9,26 @@ import { CoachmarkProvider } from './src/onboarding/CoachmarkContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { useColors } from './src/theme/useColors';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://aa30fd978c159fcaf6f835c8be6fdb4d@o4511730755174400.ingest.de.sentry.io/4511730759434320',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,7 +37,7 @@ function ThemedStatusBar() {
   return <StatusBar style={colors.name === 'light' ? 'dark' : 'light'} />;
 }
 
-export default function App() {
+export default Sentry.wrap(function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
       <SafeAreaProvider>
@@ -32,4 +52,4 @@ export default function App() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
-}
+});
