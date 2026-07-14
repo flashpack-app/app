@@ -11,6 +11,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import LoadErrorBanner from '../components/LoadErrorBanner';
 import { useAppState } from '../state/AppState';
 import { APIService } from '../services/api';
+import { posthog } from '../config/posthog';
 
 export default function StreakScreen() {
   const colors = useColors();
@@ -21,6 +22,7 @@ export default function StreakScreen() {
 
   useEffect(() => {
     refreshStreak();
+    posthog.capture('streak_viewed', { streak_days: streak?.streakDays ?? user?.streakDays ?? 0 });
   }, []);
 
   const days = streak?.streakDays ?? user?.streakDays ?? 0;

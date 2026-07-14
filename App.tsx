@@ -3,6 +3,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PostHogProvider } from 'posthog-react-native';
 import { AppStateProvider } from './src/state/AppState';
 import { AccessibilityProvider } from './src/services/AccessibilityContext';
 import { CoachmarkProvider } from './src/onboarding/CoachmarkContext';
@@ -10,6 +11,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { useColors } from './src/theme/useColors';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
+import { posthog } from './src/config/posthog';
 
 Sentry.init({
   dsn: 'https://aa30fd978c159fcaf6f835c8be6fdb4d@o4511730755174400.ingest.de.sentry.io/4511730759434320',
@@ -41,14 +43,24 @@ export default Sentry.wrap(function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
       <SafeAreaProvider>
-        <AppStateProvider>
-          <AccessibilityProvider>
-            <CoachmarkProvider>
-              <ThemedStatusBar />
-              <RootNavigator />
-            </CoachmarkProvider>
-          </AccessibilityProvider>
-        </AppStateProvider>
+        <PostHogProvider
+          client={posthog}
+          debug={__DEV__}
+          autocapture={{
+            captureScreens: false,
+            captureTouches: true,
+            propsToCapture: ['testID'],
+          }}
+        >
+          <AppStateProvider>
+            <AccessibilityProvider>
+              <CoachmarkProvider>
+                <ThemedStatusBar />
+                <RootNavigator />
+              </CoachmarkProvider>
+            </AccessibilityProvider>
+          </AppStateProvider>
+        </PostHogProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

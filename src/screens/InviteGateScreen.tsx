@@ -8,6 +8,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
+import { posthog } from '../config/posthog';
 
 const FORMAT = /^FLASH-[A-Z0-9]{3}-[A-Z0-9]{2}$/;
 const PLACEHOLDER = 'FLASH-___-__';
@@ -57,6 +58,7 @@ export default function InviteGateScreen() {
         return;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      posthog.capture('invite_code_submitted', { invite_code: code });
       nav.navigate('Username', { code });
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
