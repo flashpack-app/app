@@ -45,6 +45,12 @@ function absoluteUrl(u?: string | null): string | undefined {
   return u; // legacy local file path
 }
 
+// Append a query parameter to a URL, choosing '?' or '&' as appropriate.
+function appendQueryParam(url: string, key: string, value: string | number): string {
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}${key}=${value}`;
+}
+
 // Avatars live at a stable per-user URL (/avatars/:id), so a device that cached
 // an older version (previously served as immutable) would keep showing it even
 // after the user changes their photo. We bust that cache once per app launch.
@@ -52,8 +58,7 @@ const AVATAR_CACHE_BUST = Date.now();
 function avatarUrlAbsolute(u?: string | null): string | undefined {
   const abs = absoluteUrl(u);
   if (!abs || abs.startsWith('data:')) return abs;
-  const sep = abs.includes('?') ? '&' : '?';
-  return `${abs}${sep}t=${AVATAR_CACHE_BUST}`;
+  return appendQueryParam(abs, 't', AVATAR_CACHE_BUST);
 }
 
 // Backend rows use snake_case; map to our camelCase User model.
@@ -331,8 +336,7 @@ export const APIService = {
     // replaces any previously cached image.
     const abs = avatarUrlAbsolute(res.avatarUrl) ?? res.avatarUrl;
     if (!abs) throw new Error('missing_avatar_url');
-    const sep = abs.includes('?') ? '&' : '?';
-    return `${abs}${sep}cb=${Date.now()}`;
+    return appendQueryParam(abs, 'cb', Date.now());
   },
   async logScreenshot(token: string, packId: string): Promise<void> {
     await http('/screenshot', { method: 'POST', token, body: { packId } });

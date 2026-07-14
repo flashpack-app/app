@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getJSON, setJSON, removeKeys } from './kvStore';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -91,23 +91,15 @@ export const DEFAULT_SETTINGS: UserSettings = {
 const KEY = '@flash_settings';
 
 export async function loadSettings(): Promise<UserSettings> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {}
-  return { ...DEFAULT_SETTINGS };
+  const stored = await getJSON<Partial<UserSettings>>(KEY);
+  return { ...DEFAULT_SETTINGS, ...(stored ?? {}) };
 }
 
 export async function saveSettings(patch: Partial<UserSettings>): Promise<void> {
-  try {
-    const current = await loadSettings();
-    const next = { ...current, ...patch };
-    await AsyncStorage.setItem(KEY, JSON.stringify(next));
-  } catch {}
+  const current = await loadSettings();
+  await setJSON(KEY, { ...current, ...patch });
 }
 
 export async function clearSettings(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(KEY);
-  } catch {}
+  await removeKeys(KEY);
 }
