@@ -63,7 +63,12 @@ export default function ProScreen() {
 
   const onClose = async () => {
     if (isOnboarding) {
-      await markOnboardingComplete();
+      try {
+        await markOnboardingComplete();
+      } catch (error) {
+        console.error('failed to persist onboarding completion:', error);
+        Alert.alert('progress not saved', 'you may see onboarding again next time.');
+      }
       setIsOnboarding(false);
     } else {
       nav.goBack();
@@ -144,7 +149,14 @@ export default function ProScreen() {
                   return (
                     <Pressable
                       key={c}
-                      onPress={() => { Haptics.selectionAsync(); updateProBorder(c); }}
+                      onPress={async () => {
+                        Haptics.selectionAsync();
+                        try {
+                          await updateProBorder(c);
+                        } catch (error) {
+                          Alert.alert('border not updated', 'check your connection and try again.');
+                        }
+                      }}
                       style={[styles.colorDot, { backgroundColor: c }, active && styles.colorDotActive]}
                     >
                       {active && <Ionicons name="checkmark" size={12} color="#000" />}

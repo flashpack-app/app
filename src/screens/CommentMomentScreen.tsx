@@ -10,14 +10,14 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
 import { ModerationService } from '../services/moderation';
-import { APIService } from '../services/api';
+import { HTTPError } from '../services/api';
 import { posthog } from '../config/posthog';
 
 export default function CommentMomentScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const route = useRoute<any>();
-  const { packs, user, comments, addComment, token } = useAppState();
+  const { packs, user, comments, addComment } = useAppState();
   const id = route.params?.packId ?? packs[0]?.id;
   const pack = packs.find((p) => p.id === id) ?? packs[0];
   const [draft, setDraft] = useState('');
@@ -47,18 +47,22 @@ export default function CommentMomentScreen() {
       text,
       sentAt: new Date().toISOString(),
     };
-    addComment(pack.id, msg);
-    setDraft('');
-    if (token) {
-      try {
-        await APIService.addComment(token, pack.id, text);
-        posthog.capture('comment_sent', {
-          pack_id: pack.id,
-          text_length: text.length,
-          has_mention: /@\w+/.test(text),
-          member_count: pack.members.length,
-        });
-      } catch {}
+    try {
+      await addComment(pack.id, msg);
+      setDraft('');
+      posthog.capture('comment_sent', {
+        pack_id: pack.id,
+        text_length: text.length,
+        has_mention: /@\w+/.test(text),
+        member_count: pack.members.length,
+      });
+    } catch (error) {
+      console.error('failed to send comment:', error);
+      if (error instanceof HTTPError && error.status === 422) {
+        Alert.alert("this message can't be sent.");
+      } else {
+        Alert.alert('message not sent', 'check your connection and try again.');
+      }
     }
   };
 

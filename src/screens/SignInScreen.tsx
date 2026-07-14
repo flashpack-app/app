@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,18 +28,24 @@ export default function SignInScreen() {
   const valid = clean.length >= 2;
 
   useEffect(() => {
+    let promptTimer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
-      const settings = await loadSettings();
-      if (!settings.biometricLogin) return;
-      const savedUser = await getBiometricUsername();
-      if (!savedUser) return;
-      const available = await isBiometricAvailable();
-      if (!available) return;
-      setShowBio(true);
-      // auto-prompt after short delay
-      const t = setTimeout(() => handleBiometricLogin(savedUser), 400);
-      return () => clearTimeout(t);
+      try {
+        const settings = await loadSettings();
+        if (!settings.biometricLogin) return;
+        const savedUser = await getBiometricUsername();
+        if (!savedUser) return;
+        const available = await isBiometricAvailable();
+        if (!available) return;
+        setShowBio(true);
+        promptTimer = setTimeout(() => handleBiometricLogin(savedUser), 400);
+      } catch (error) {
+        console.error('failed to initialize biometric sign-in:', error);
+      }
     })();
+    return () => {
+      if (promptTimer) clearTimeout(promptTimer);
+    };
   }, []);
 
   const goToOtp = () => {

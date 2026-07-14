@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View, Pressable } from 'react-native';
-import { NavigationContainer, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef, DarkTheme, DefaultTheme, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,12 @@ import { posthog } from '../config/posthog';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
-import { addNotificationReceivedListener, addNotificationResponseReceivedListener } from '../services/pushNotifications';
+import {
+  addNotificationReceivedListener,
+  addNotificationResponseReceivedListener,
+  getLastNotificationResponseAsync,
+  extractPackId,
+} from '../services/pushNotifications';
 import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
 import FlashLogo from '../components/FlashLogo';
@@ -59,6 +64,8 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+export const navigationRef = createNavigationContainerRef<any>();
 
 const makeNavTheme = (colors: Palette): Theme => {
   const base = colors.name === 'light' ? DefaultTheme : DarkTheme;
@@ -173,15 +180,45 @@ export default function RootNavigator() {
 
       // Re-fetch when coming back online after being offline
       if (wasConnected.current === false && connected) {
-        refreshPacks().catch(() => {});
-        refreshDiscover?.().catch(() => {});
+        refreshPacks().catch((error) => {
+          console.warn('failed to refresh packs after reconnecting:', error);
+        });
+        refreshDiscover?.().catch((error) => {
+          console.warn('failed to refresh discover packs after reconnecting:', error);
+        });
       }
       wasConnected.current = connected;
     });
     return unsub;
   }, [setIsConnected, refreshPacks, refreshDiscover]);
 
+  // A tapped notification can arrive before the navigator is ready (cold start)
+  // or before the user is authenticated — park the packId until both hold.
+  const pendingPackId = useRef<string | null>(null);
+  const canOpenPack = isAuthenticated && !isOnboarding && !isBooting;
+  const canOpenPackRef = useRef(canOpenPack);
+  canOpenPackRef.current = canOpenPack;
+
+  const flushPendingPack = useCallback(() => {
+    const packId = pendingPackId.current;
+    if (!packId || !navigationRef.isReady() || !canOpenPackRef.current) return;
+    pendingPackId.current = null;
+    navigationRef.navigate('PackReveal', { packId });
+  }, []);
+
   useEffect(() => {
+    flushPendingPack();
+  }, [canOpenPack, flushPendingPack]);
+
+  useEffect(() => {
+    // Cold start: the tap that launched the app never reaches the listener below.
+    getLastNotificationResponseAsync().then((initial) => {
+      const packId = extractPackId(initial);
+      if (packId) {
+        pendingPackId.current = packId;
+        flushPendingPack();
+      }
+    });
     const received = addNotificationReceivedListener((notification) => {
       const content = notification.request.content;
       console.log('push received in foreground', content);
@@ -197,16 +234,18 @@ export default function RootNavigator() {
         packId: content.data?.packId as string | undefined,
       });
     });
-    const response = addNotificationResponseReceivedListener((response) => {
-      const packId = response.notification.request.content.data?.packId as string | undefined;
+    const response = addNotificationResponseReceivedListener((event) => {
+      const packId = extractPackId(event);
       if (packId) {
-        // navigation will be handled when app is ready
+        pendingPackId.current = packId;
+        flushPendingPack();
       }
     });
     return () => {
       received.remove();
       response.remove();
     };
+  }, [flushPendingPack]);
   }, [refreshNotifications, setLiveNotification]);
 
   if (isBooting) {
@@ -229,6 +268,7 @@ export default function RootNavigator() {
 
   return (
     <View style={styles.root}>
+      <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingPack}>
       <NavigationContainer
         theme={navTheme}
         ref={navigationRef}

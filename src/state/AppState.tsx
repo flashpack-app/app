@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 import { Pack, User, InviteSlot, CommentMessage } from '../types/models';
 import { mockPacks } from '../data/mock';
 import { Session, loadSession, saveSession, clearSession, loadLastStreakDays, saveLastStreakDays, loadCachedPacks, saveCachedPacks, loadCachedDiscoverPacks, saveCachedDiscoverPacks, clearPacksCache } from '../services/storage';
@@ -64,9 +63,9 @@ interface AppStateValue {
   markFirstPackPosted: () => void;
   setLastPostAt: (iso: string | null) => void;
   setLastPostedPhotoId: (id: string | null) => void;
-  addReaction: (packId: string, emoji: string) => void;
-  addComment: (packId: string, msg: CommentMessage) => void;
-  updateAvatar: (uri: string) => void;
+  addReaction: (packId: string, emoji: string) => Promise<void>;
+  addComment: (packId: string, msg: CommentMessage) => Promise<void>;
+  updateAvatar: (uri: string) => Promise<void>;
   updateProBorder: (color: string | undefined) => Promise<void>;
   revertPhoto: (photoId: string) => Promise<void>;
   refreshStreak: () => Promise<void>;
@@ -145,11 +144,15 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               setHasPostedFirstPack(true);
             }
             await saveSession({ token: s.token, user: fresh });
-            registerForPushNotificationsAsync(s.token).catch(() => {});
+            registerForPushNotificationsAsync(s.token).catch((error) => {
+              console.warn('push notification registration failed during boot:', error);
+            });
           }),
           APIService.getDailyTopic().then((topic) => {
             if (topic) setDailyTopic(topic);
-          }).catch(() => {}),
+          }).catch((error) => {
+            console.warn('daily topic load failed during boot:', error);
+          }),
           APIService.getPacks(s.token).then(async (loaded) => {
             setPacks(loaded);
             await saveCachedPacks(loaded);
@@ -289,11 +292,13 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setToken(s.token);
         setIsOnboarding(onboarding);
         await saveSession(s);
-        registerForPushNotificationsAsync(s.token).catch(() => {});
+        registerForPushNotificationsAsync(s.token).catch((error) => {
+          console.warn('push notification registration failed after sign-in:', error);
+        });
         // Identify the user in PostHog so all subsequent events are tied to them
         posthog.identify(s.user.id, {
           username: s.user.username,
-          email: s.user.email,
+          ...(s.user.email ? { email: s.user.email } : {}),
           isPro: s.user.isPro,
         });
       },
@@ -400,38 +405,40 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       markFirstPackPosted: () => setHasPostedFirstPack(true),
       setLastPostAt: (iso) => setLastPostAt(iso),
       setLastPostedPhotoId: (id) => setLastPostedPhotoId(id),
-      addReaction: (packId, emoji) => {
-        setReactions((prev) => {
-          const existing = prev[packId] ?? [];
-          if (existing.length >= 5) return prev;
-          const userId = user?.id ?? 'anon';
-          if (existing.some((r) => r.userId === userId)) return prev;
-          return { ...prev, [packId]: [...existing, { userId, emoji, sentAt: new Date().toISOString() }] };
-        });
+      async addReaction(packId, emoji) {
+        const existing = reactions[packId] ?? [];
+        const userId = user?.id ?? 'anon';
+        if (existing.length >= 5 || existing.some((r) => r.userId === userId)) return;
+        const reaction = { userId, emoji, sentAt: new Date().toISOString() };
+        setReactions((prev) => ({ ...prev, [packId]: [...(prev[packId] ?? []), reaction] }));
         posthog.capture('reaction_sent', {
           pack_id: packId,
           emoji,
         });
-        if (token) {
-          APIService.addReaction(token, packId, emoji).catch((e) => {
-            console.warn('addReaction failed:', e);
-          });
+        if (!token) return;
+        try {
+          await APIService.addReaction(token, packId, emoji);
+        } catch (error) {
+          setReactions((prev) => ({
+            ...prev,
+            [packId]: (prev[packId] ?? []).filter((item) => item !== reaction),
+          }));
+          console.warn('addReaction failed:', error);
+          throw error;
         }
       },
-      addComment: (packId, msg) => {
+      async addComment(packId, msg) {
         setComments((prev) => ({ ...prev, [packId]: [...(prev[packId] ?? []), msg] }));
-        if (token) {
-          APIService.addComment(token, packId, msg.text).catch((e) => {
-            console.warn('addComment failed:', e);
-            if ((e as any)?.status === 422) {
-              // Server-side moderation rejected it — roll back the optimistic add.
-              setComments((prev) => ({
-                ...prev,
-                [packId]: (prev[packId] ?? []).filter((c) => c.id !== msg.id),
-              }));
-              Alert.alert("this message can't be sent.");
-            }
-          });
+        if (!token) return;
+        try {
+          await APIService.addComment(token, packId, msg.text);
+        } catch (error) {
+          setComments((prev) => ({
+            ...prev,
+            [packId]: (prev[packId] ?? []).filter((comment) => comment.id !== msg.id),
+          }));
+          console.warn('addComment failed:', error);
+          throw error;
         }
       },
       async updateAvatar(uri) {
@@ -447,19 +454,20 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }))
           );
           await saveSession({ token, user: next });
-        } catch (e) {
-          console.error('updateAvatar failed:', e);
+        } catch (error) {
+          console.error('updateAvatar failed:', error);
+          throw error;
         }
       },
       async updateProBorder(color: string | undefined) {
         if (!token || !user) return;
-        const next = { ...user, proBorder: color };
-        setUser(next);
         try {
-          await APIService.updateProfile(token, { proBorder: color });
+          const next = await APIService.updateProfile(token, { proBorder: color });
+          setUser(next);
           await saveSession({ token, user: next });
-        } catch (e) {
-          console.warn('updateProBorder failed:', e);
+        } catch (error) {
+          console.warn('updateProBorder failed:', error);
+          throw error;
         }
       },
       async revertPhoto(photoId) {
@@ -494,16 +502,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
       async awardPongBadge() {
-        if (!user) return;
-        const next = { ...user, hasPongBadge: true };
-        setUser(next);
-        if (token) {
-          try {
-            await APIService.updateProfile(token, { hasPongBadge: true } as any);
-            await saveSession({ token, user: next });
-          } catch (e) {
-            console.error('awardPongBadge failed:', e);
-          }
+        if (!user || !token) return;
+        try {
+          const next = await APIService.updateProfile(token, { hasPongBadge: true });
+          setUser(next);
+          await saveSession({ token, user: next });
+        } catch (error) {
+          console.error('awardPongBadge failed:', error);
+          throw error;
         }
       },
     }),
