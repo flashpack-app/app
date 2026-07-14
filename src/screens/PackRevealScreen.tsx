@@ -51,6 +51,7 @@ import CaptureBlockedOverlay from '../components/CaptureBlockedOverlay';
 import { useScreenshotDetector, usePreventCapture, useCaptureBlockOverlay } from '../services/screenshot';
 import FloatingReactions, { triggerFloatingReaction } from '../components/FloatingReactions';
 import { ModerationService } from '../services/moderation';
+import { HTTPError } from '../services/api';
 import FlashLogo from '../components/FlashLogo';
 import LiquidRefresh from '../components/LiquidRefresh';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -297,11 +298,16 @@ export default function PackRevealScreen() {
   const userReacted = packReactions.some((r) => r.userId === user?.id);
   const canReact = packReactions.length < 5 && !userReacted;
 
-  const onReact = (emoji: string) => {
+  const onReact = async (emoji: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addReaction(pack.id, emoji);
     setShowEmojiPicker(false);
     triggerFloatingReaction(emoji);
+    try {
+      await addReaction(pack.id, emoji);
+    } catch (error) {
+      console.error('failed to send reaction:', error);
+      Alert.alert('reaction not sent', 'check your connection and try again.');
+    }
   };
 
   const packComments = comments[pack.id] ?? [];
@@ -325,8 +331,17 @@ export default function PackRevealScreen() {
       sentAt: new Date().toISOString(),
       avatarUrl: user?.avatarUrl,
     };
-    addComment(pack.id, msg);
-    setDraft('');
+    try {
+      await addComment(pack.id, msg);
+      setDraft('');
+    } catch (error) {
+      console.error('failed to send comment:', error);
+      if (error instanceof HTTPError && error.status === 422) {
+        Alert.alert("this message can't be sent.");
+      } else {
+        Alert.alert('message not sent', 'check your connection and try again.');
+      }
+    }
   };
 
   const photos = pack.photos.slice(0, 4);

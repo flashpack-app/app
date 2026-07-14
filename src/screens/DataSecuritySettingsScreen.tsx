@@ -39,7 +39,8 @@ export default function DataSecuritySettingsScreen() {
         patch({ biometricLogin: false });
         await clearBiometricUsername();
       }
-    } catch {
+    } catch (error) {
+      console.error('failed to update biometric settings:', error);
       Alert.alert('error', 'biometric authentication failed. try again.');
     }
   };

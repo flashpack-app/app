@@ -40,11 +40,15 @@ export default function ReportScreen() {
       } else if (pack) {
         await APIService.reportPack(token, pack.id, selected);
       }
-    } catch {}
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (Platform.OS === 'android') ToastAndroid.show('report submitted', ToastAndroid.SHORT);
-    else Alert.alert('report submitted');
-    nav.goBack();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === 'android') ToastAndroid.show('report submitted', ToastAndroid.SHORT);
+      else Alert.alert('report submitted');
+      nav.goBack();
+    } catch (error) {
+      console.error('failed to submit report:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('report not submitted', 'check your connection and try again.');
+    }
   };
 
   return (

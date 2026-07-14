@@ -5,8 +5,8 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useSettings } from '../hooks/useSettings';
-import { useAccessibility, updateAccessibilitySettings } from '../services/AccessibilityContext';
-import { UserSettings, saveSettings } from '../services/settingsStore';
+import { useAccessibility } from '../services/AccessibilityContext';
+import { UserSettings } from '../services/settingsStore';
 import ScaledText from '../components/ScaledText';
 import ScreenHeader from '../components/ScreenHeader';
 import { ToggleRow, Section, useSettingsStyles } from '../components/settings';
@@ -54,10 +54,7 @@ export default function AccessibilitySettingsScreen() {
   const styles = useThemedStyles(makeStyles);
 
   const patch = async (partial: Partial<UserSettings>) => {
-    basePatch(partial);
-    await saveSettings(partial);
-    await updateAccessibilitySettings(partial);
-    await refresh();
+    if (await basePatch(partial)) await refresh();
   };
 
   const s = settings;

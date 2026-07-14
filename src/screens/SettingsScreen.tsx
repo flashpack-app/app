@@ -48,15 +48,20 @@ export default function SettingsScreen() {
       quality: 0.7,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      let uploadUri = result.assets[0].uri;
       try {
         const dir = FileSystem.documentDirectory ?? '';
         const dest = `${dir}avatar-${Date.now()}.jpg`;
         await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-        updateAvatar(dest);
+        uploadUri = dest;
       } catch (err) {
-        console.error('Error copying avatar image:', err);
-        updateAvatar(result.assets[0].uri);
+        console.warn('failed to copy avatar image; using picker URI:', err);
+      }
+      try {
+        await updateAvatar(uploadUri);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        Alert.alert('photo not updated', 'check your connection and try again.');
       }
     }
   };
@@ -71,8 +76,13 @@ export default function SettingsScreen() {
           text: 'replay',
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            await resetOnboarding();
-            setIsOnboarding(true);
+            try {
+              await resetOnboarding();
+              setIsOnboarding(true);
+            } catch (error) {
+              console.error('failed to reset onboarding:', error);
+              Alert.alert('tutorial not reset', 'please try again.');
+            }
           },
         },
       ],

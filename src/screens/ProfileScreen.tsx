@@ -337,15 +337,20 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      let uploadUri = result.assets[0].uri;
       try {
         const dir = FileSystem.documentDirectory ?? '';
         const dest = `${dir}avatar-${Date.now()}.jpg`;
         await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-        updateAvatar(dest);
+        uploadUri = dest;
       } catch (err) {
-        console.error('Error copying avatar image:', err);
-        updateAvatar(result.assets[0].uri);
+        console.warn('failed to copy avatar image; using picker URI:', err);
+      }
+      try {
+        await updateAvatar(uploadUri);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        Alert.alert('photo not updated', 'check your connection and try again.');
       }
     }
   };
