@@ -9,6 +9,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import LoadErrorBanner from '../components/LoadErrorBanner';
 import { APIService, NotificationItem } from '../services/api';
+import { t } from '../services/i18n';
 
 const typeIcon: Record<string, keyof typeof Ionicons.glyphMap> = {
   pack: 'cube-outline',
@@ -96,9 +97,9 @@ export default function NotificationsScreen() {
         <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </Pressable>
-        <Text style={styles.title}>notifications</Text>
+        <Text style={styles.title}>{t('notifications')}</Text>
         <Pressable onPress={onMarkRead} style={styles.clearBtn}>
-          <Text style={styles.clearText}>mark read</Text>
+          <Text style={styles.clearText}>{t('markRead')}</Text>
         </Pressable>
       </View>
 
@@ -110,11 +111,11 @@ export default function NotificationsScreen() {
         <LoadErrorBanner
           visible={error && !loading}
           onRetry={onRefresh}
-          message="couldn't load notifications."
+          message={t('couldntLoadNotifications')}
         />
         {!loading && !error && items.length === 0 && (
           <Text style={{ color: colors.textDim, textAlign: 'center', marginTop: 40, fontSize: 12 }}>
-            no notifications yet.
+            {t('noNotificationsYet')}
           </Text>
         )}
         {items.map((n) => {

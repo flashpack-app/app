@@ -9,8 +9,9 @@ import ScreenHeader from '../components/ScreenHeader';
 import ProGate from '../components/ProGate';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
+import { t } from '../services/i18n';
 
-const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const MONTH_KEYS = ['month_jan','month_feb','month_mar','month_apr','month_may','month_jun','month_jul','month_aug','month_sep','month_oct','month_nov','month_dec'] as const;
 
 function groupByMonth(packs: any[]) {
   const groups: Record<string, any[]> = {};
@@ -35,7 +36,7 @@ export default function PackCalendarScreen() {
   return (
     <View style={styles.wrap}>
       <ScreenHeader
-        title="archive"
+        title={t('archive_title')}
         right={
           <Pressable onPress={() => nav.navigate('PackVault')} style={styles.rightBtn}>
             <Ionicons name="cube-outline" size={20} color={colors.yellow} />
@@ -45,15 +46,17 @@ export default function PackCalendarScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40, gap: 24 }}>
         {groups.length === 0 && (
-          <Text style={styles.empty}>no packs yet.</Text>
+          <Text style={styles.empty}>{t('archive_empty')}</Text>
         )}
         {groups.map(([key, monthPacks]) => {
           const [year, monthIdx] = key.split('-');
-          const monthName = MONTHS[parseInt(monthIdx, 10) - 1];
+          const monthKey = MONTH_KEYS[parseInt(monthIdx, 10) - 1];
+          const monthName = t(monthKey as any);
+          const count = monthPacks.length;
           return (
             <View key={key}>
               <Text style={styles.monthLabel}>
-                {monthName} {year} · {monthPacks.length} pack{monthPacks.length > 1 ? 's' : ''}
+                {t(count === 1 ? 'archive_month_pack_one' : 'archive_month_pack_other' as any, { month: monthName, year, count })}
               </Text>
               <View style={styles.grid}>
                 {monthPacks.map((p) => (
@@ -77,8 +80,8 @@ export default function PackCalendarScreen() {
 
       {!isPro && (
         <ProGate
-          title="archive is pro"
-          subtitle="upgrade to flash. pro to unlock your pack archive."
+          title={t('archive_title')}
+          subtitle={t('vault_pro_gate_sub')}
         />
       )}
     </View>

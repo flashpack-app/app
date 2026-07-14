@@ -23,6 +23,7 @@ import { ToggleRow, NavRow, Section } from '../components/settings';
 import { useSettingsStyles } from '../components/settings';
 import { resetOnboarding } from '../services/onboardingStore';
 import { useCoachmark } from '../onboarding/CoachmarkContext';
+import { t } from '../services/i18n';
 
 export default function SettingsScreen() {
   const nav = useNavigation<any>();
@@ -38,7 +39,7 @@ export default function SettingsScreen() {
   const onPickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('permission needed', 'allow access to photos to set your avatar.');
+      Alert.alert(t('permissionNeeded'), t('allowPhotoAccess'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -68,12 +69,12 @@ export default function SettingsScreen() {
 
   const onReplayTutorial = () => {
     Alert.alert(
-      'replay tutorial?',
-      'this will restart the onboarding walkthrough.',
+      t('replayTutorialConfirmTitle'),
+      t('replayTutorialConfirmSub'),
       [
-        { text: 'cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'replay',
+          text: t('replayLabel'),
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
@@ -90,15 +91,15 @@ export default function SettingsScreen() {
   };
 
   const confirmSignOut = () => {
-    Alert.alert('sign out?', 'you can sign back in with your username.', [
-      { text: 'cancel', style: 'cancel' },
-      { text: 'sign out', style: 'destructive', onPress: () => signOut() },
+    Alert.alert(t('signOutConfirmTitle'), t('signOutConfirmSub'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('signOutLabel'), style: 'destructive', onPress: () => signOut() },
     ]);
   };
 
   return (
     <View style={settingsStyles.wrap}>
-      <ScreenHeader title="settings" />
+      <ScreenHeader title={t('settingsTitle')} />
 
       <ScrollView contentContainerStyle={settingsStyles.scroll}>
         {/* Avatar */}
@@ -112,45 +113,45 @@ export default function SettingsScreen() {
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <ScaledText style={styles.avatarLabel}>@{user.username}</ScaledText>
-            <ScaledText style={styles.avatarHint}>tap to change profile photo</ScaledText>
+            <ScaledText style={styles.avatarHint}>{t('tapToChangePhoto')}</ScaledText>
           </View>
           <Ionicons name="camera-outline" size={18} color={colors.textFade} />
         </Pressable>
 
         {/* Account */}
-        <Section title="account">
-          <NavRow icon="person-outline" label="username" value={'@' + user.username} />
-          {user.email && <NavRow icon="mail-outline" label="email" value={user.email} />}
-          <NavRow icon="location-outline" label="location" value={`${user.city}, ${user.country}`} />
-          <NavRow icon="flame-outline" label="streak" value={`${user.streakDays}d`} />
+        <Section title={t('accountSection')}>
+          <NavRow icon="person-outline" label={t('usernameLabel')} value={'@' + user.username} />
+          {user.email && <NavRow icon="mail-outline" label={t('emailLabel')} value={user.email} />}
+          <NavRow icon="location-outline" label={t('locationLabel')} value={`${user.city}, ${user.country}`} />
+          <NavRow icon="flame-outline" label={t('streakLabel')} value={t('streakDays', { count: user.streakDays })} />
           {user.isAdmin && (
-            <NavRow icon="shield-checkmark" label="admin" value="active" accentColor={colors.yellow} />
+            <NavRow icon="shield-checkmark" label={t('adminLabel')} value={t('adminActive')} accentColor={colors.yellow} />
           )}
         </Section>
 
         {/* Pro */}
-        <Section title="flash. pro">
+        <Section title={t('proSection')}>
           <NavRow
             icon="flash-outline"
-            label={user.isPro ? 'manage subscription' : 'upgrade to pro'}
-            value={user.isPro ? 'active' : undefined}
+            label={user.isPro ? t('manageSubscription') : t('upgradeToPro')}
+            value={user.isPro ? t('adminActive') : undefined}
             accentColor={colors.yellow}
             onPress={() => nav.navigate('Pro')}
           />
         </Section>
 
         {/* Invites */}
-        <Section title="invites">
-          <NavRow icon="ticket-outline" label="your code" value={user.inviteCode} />
-          <NavRow icon="people-outline" label="manage invites" onPress={() => nav.navigate('Invite')} />
+        <Section title={t('invitesSection')}>
+          <NavRow icon="ticket-outline" label={t('yourCodeLabel')} value={user.inviteCode} />
+          <NavRow icon="people-outline" label={t('manageInvitesLabel')} onPress={() => nav.navigate('Invite')} />
         </Section>
 
         {/* Admin */}
         {user.isAdmin && (
-          <Section title="admin">
+          <Section title={t('adminSection')}>
             <NavRow
               icon="shield-checkmark-outline"
-              label="admin panel"
+              label={t('adminPanelLabel')}
               accentColor={colors.yellow}
               onPress={() => nav.navigate('Admin')}
             />
@@ -158,71 +159,83 @@ export default function SettingsScreen() {
         )}
 
         {/* Notifications */}
-        <Section title="notifications">
+        <Section title={t('notificationsSection')}>
           <NavRow
             icon="notifications-outline"
-            label="notification settings"
+            label={t('notificationSettingsLabel')}
             onPress={() => nav.navigate('NotificationSettings')}
           />
         </Section>
 
         {/* Privacy */}
-        <Section title="privacy">
+        <Section title={t('privacySection')}>
           <NavRow
             icon="eye-outline"
-            label="privacy settings"
+            label={t('privacySettingsLabel')}
             onPress={() => nav.navigate('PrivacySettings')}
           />
         </Section>
 
         {/* Accessibility */}
-        <Section title="accessibility">
+        <Section title={t('accessibilitySection')}>
           <NavRow
             icon="hand-left-outline"
-            label="accessibility settings"
+            label={t('accessibilitySettingsLabel')}
+            onPress={() => nav.navigate('AccessibilitySettings')}
+          />
+          <NavRow
+            icon="globe-outline"
+            label={t('language')}
+            value={
+              settings?.language === 'tr'
+                ? '🇹🇷 Türkçe'
+                : settings?.language === 'en'
+                ? '🇬🇧 English'
+                : '⚙️ system'
+            }
             onPress={() => nav.navigate('AccessibilitySettings')}
           />
         </Section>
 
         {/* Legal */}
-        <Section title="legal">
-          <NavRow icon="briefcase-outline" label="legal documents" onPress={() => nav.navigate('LegalMenu')} />
+        <Section title={t('legalSection')}>
+          <NavRow icon="briefcase-outline" label={t('legalDocumentsLabel')} onPress={() => nav.navigate('LegalMenu')} />
         </Section>
 
         {/* Support */}
-        <Section title="support">
-          <NavRow icon="mail-outline" label="contact us" onPress={() => nav.navigate('ContactUs')} />
-          <NavRow icon="bug-outline" label="report a bug" onPress={() => nav.navigate('ReportBug')} />
+        <Section title={t('supportSection')}>
+          <NavRow icon="mail-outline" label={t('contactUsLabel')} onPress={() => nav.navigate('ContactUs')} />
+          <NavRow icon="bug-outline" label={t('reportBugLabel')} onPress={() => nav.navigate('ReportBug')} />
         </Section>
 
         {/* Data & Security */}
-        <Section title="data & security">
+        <Section title={t('dataSecuritySection')}>
           <NavRow
             icon="shield-checkmark-outline"
-            label="data & security settings"
+            label={t('dataSecuritySettingsLabel')}
             onPress={() => nav.navigate('DataSecuritySettings')}
           />
         </Section>
 
         {/* Tutorial */}
-        <Section title="tutorial">
+        <Section title={t('tutorialSection')}>
           <NavRow
             icon="refresh-outline"
-            label="replay tutorial"
+            label={t('replayTutorialLabel')}
             onPress={onReplayTutorial}
           />
         </Section>
 
         {/* About */}
-        <Section title="about">
-          <NavRow icon="information-circle-outline" label="version" value="1.0.0 · production" />
-          <NavRow icon="code-slash-outline" label="open source licenses" />
-          <NavRow icon="globe-outline" label="website" value="flash.app" />
+        <Section title={t('aboutSection')}>
+          <NavRow icon="information-circle-outline" label={t('versionLabel')} value={t('versionValue')} />
+          <NavRow icon="code-slash-outline" label={t('openSourceLicensesLabel')} />
+          <NavRow icon="globe-outline" label={t('websiteLabel')} value="flash.app" />
         </Section>
 
         {/* Danger */}
-        <Section title="danger">
-          <NavRow icon="log-out-outline" label="sign out" destructive onPress={confirmSignOut} />
+        <Section title={t('dangerSection')}>
+          <NavRow icon="log-out-outline" label={t('signOutLabel')} destructive onPress={confirmSignOut} />
         </Section>
       </ScrollView>
     </View>

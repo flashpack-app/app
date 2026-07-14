@@ -18,6 +18,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import notificationBellAnimation from '../assets/anim/notification_bell.json';
+import { t } from '../services/i18n';
 
 type Props = {
   isOpen: boolean;
@@ -31,6 +32,7 @@ type Props = {
   onNotificationsPress: () => void;
   children: React.ReactNode;
   expiryCountdown?: string;
+  expiryHours?: number;
   onExpiryPress?: () => void;
   inviteSlotsRemaining?: number;
   inviteSlotsTotal?: number;
@@ -51,6 +53,7 @@ export default function LeftMenu({
   onNotificationsPress,
   children,
   expiryCountdown,
+  expiryHours,
   onExpiryPress,
   inviteSlotsRemaining,
   inviteSlotsTotal = 3,
@@ -68,20 +71,17 @@ export default function LeftMenu({
   // Determine color based on countdown
   const getExpiryColor = () => {
     if (!expiryCountdown) return colors.red;
-    // Parse hours from format like "16h 30m" or "45m"
-    const hoursMatch = expiryCountdown.match(/(\d+)h/);
-    const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
-    if (hours < 1) return '#4ade80'; // green
-    if (hours <= 10) return '#f97316'; // orange
+    const h = expiryHours ?? 99;
+    if (h < 1) return '#4ade80'; // green
+    if (h <= 10) return '#f97316'; // orange
     return colors.red;
   };
 
   const getExpiryText = () => {
     if (!expiryCountdown) return '';
-    const hoursMatch = expiryCountdown.match(/(\d+)h/);
-    const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
-    if (hours < 1) return 'get ready';
-    return `${expiryCountdown} left for your next flash.`;
+    const h = expiryHours ?? 99;
+    if (h < 1) return t('getReadyLabel');
+    return t('expiresCountdownLabel', { time: expiryCountdown });
   };
 
   useEffect(() => {
@@ -211,16 +211,19 @@ export default function LeftMenu({
         <View style={styles.menuCard}>
           <Pressable onPress={handleForYou} style={styles.menuRow}>
             <View>
-              <ScaledText style={styles.menuTitle}>for you.</ScaledText>
-              <ScaledText style={styles.menuSub}>around the globe</ScaledText>
+              <ScaledText style={styles.menuTitle}>{t('forYouTitle')}</ScaledText>
+              <ScaledText style={styles.menuSub}>{t('aroundTheGlobeHeader')}</ScaledText>
             </View>
             <Ionicons name="earth-outline" size={24} color={colors.white} />
           </Pressable>
           <View style={styles.divider} />
           <Pressable onPress={handleDuet} style={styles.menuRow}>
             <View>
-              <ScaledText style={styles.menuTitle}>duets<Text style={{ color: colors.yellow }}>.</Text></ScaledText>
-              <ScaledText style={styles.menuSub}>just you + one person</ScaledText>
+              <ScaledText style={styles.menuTitle}>
+                {t('duetsTitle').replace(/\.$/, '')}
+                <Text style={{ color: colors.yellow }}>.</Text>
+              </ScaledText>
+              <ScaledText style={styles.menuSub}>{t('justYouOnePerson')}</ScaledText>
             </View>
             <Ionicons name="people-outline" size={24} color={colors.white} />
           </Pressable>
@@ -232,7 +235,8 @@ export default function LeftMenu({
           <Pressable onPress={handleInvite} style={styles.inviteBanner}>
             <Ionicons name="person-add-outline" size={16} color={colors.yellow} />
             <ScaledText style={styles.inviteBannerText}>
-              invite your friends<Text style={{ color: colors.yellow }}>.</Text>
+              {t('inviteYourFriendsTitle').replace(/\.$/, '')}
+              <Text style={{ color: colors.yellow }}>.</Text>
             </ScaledText>
             <ScaledText style={styles.inviteCounter}>
               {inviteSlotsRemaining}/{inviteSlotsTotal}
@@ -242,7 +246,7 @@ export default function LeftMenu({
 
         <Pressable onPress={handleSettings} style={styles.settingsRow}>
           <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
-          <ScaledText style={styles.settingsText}>Settings</ScaledText>
+          <ScaledText style={styles.settingsText}>{t('settingsLabel')}</ScaledText>
         </Pressable>
       </Animated.View>
 

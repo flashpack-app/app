@@ -11,6 +11,7 @@ import {
 import { clearCache, downloadData, confirmDeleteAccount } from '../services/accountActions';
 import ScreenHeader from '../components/ScreenHeader';
 import { ToggleRow, NavRow, Section, useSettingsStyles } from '../components/settings';
+import { t } from '../services/i18n';
 
 export default function DataSecuritySettingsScreen() {
   const { user } = useAppState();
@@ -27,21 +28,21 @@ export default function DataSecuritySettingsScreen() {
       if (v) {
         const available = await isBiometricAvailable();
         if (!available) {
-          Alert.alert('not available', 'biometric authentication is not set up on this device.');
+          Alert.alert(t('settings_not_available_title'), t('settings_not_available_body'));
           return;
         }
         const ok = await promptBiometric();
         if (!ok) return;
         patch({ biometricLogin: true });
         if (user) await saveBiometricUsername(user.username);
-        Alert.alert('biometric login enabled', 'you can now sign in with face id / touch id.');
+        Alert.alert(t('settings_biometric_enabled_title'), t('settings_biometric_enabled_body'));
       } else {
         patch({ biometricLogin: false });
         await clearBiometricUsername();
       }
     } catch (error) {
       console.error('failed to update biometric settings:', error);
-      Alert.alert('error', 'biometric authentication failed. try again.');
+      Alert.alert(t('settings_biometric_error_title'), t('settings_biometric_error_body'));
     }
   };
 
@@ -50,46 +51,46 @@ export default function DataSecuritySettingsScreen() {
 
   return (
     <View style={settingsStyles.wrap}>
-      <ScreenHeader title="data & security" />
+      <ScreenHeader title={t('settings_data_security_title')} />
       <ScrollView contentContainerStyle={settingsStyles.scroll}>
-        <Section title="security">
+        <Section title={t('settings_security_section')}>
           <ToggleRow
             icon="finger-print-outline"
-            label={bioAvailable === false ? 'biometric login (not available)' : 'biometric login'}
+            label={bioAvailable === false ? t('settings_biometric_login_not_available') : t('settings_biometric_login')}
             value={s.biometricLogin}
             onToggle={toggleBiometric}
           />
           <ToggleRow
             icon="key-outline"
-            label="two-factor authentication"
+            label={t('settings_two_factor_auth_label')}
             value={s.twoFactorAuth}
             onToggle={(v) => {
               patch({ twoFactorAuth: v });
-              if (v) Alert.alert('2FA', 'two-factor authentication will be enabled in the next update.');
+              if (v) Alert.alert(t('settings_two_factor_alert_title'), t('settings_two_factor_alert_body'));
             }}
           />
           <NavRow
             icon="time-outline"
-            label="active sessions"
-            value="1 device"
-            onPress={() => Alert.alert('active sessions', 'you are currently signed in on 1 device.')}
+            label={t('settings_active_sessions_label')}
+            value={t('settings_active_sessions_value')}
+            onPress={() => Alert.alert(t('settings_active_sessions_label'), t('settings_active_sessions_alert_body'))}
           />
           <NavRow
             icon="lock-closed-outline"
-            label="change password"
-            onPress={() => Alert.alert('change password', 'contact support@flash.app to reset your password.')}
+            label={t('settings_change_password_label')}
+            onPress={() => Alert.alert(t('settings_change_password_label'), t('settings_change_password_alert_body'))}
           />
         </Section>
 
-        <Section title="data">
-          <NavRow icon="download-outline" label="download my data" onPress={downloadData} />
-          <NavRow icon="trash-outline" label="clear cache" onPress={clearCache} />
+        <Section title={t('settings_data_section')}>
+          <NavRow icon="download-outline" label={t('settings_download_data_label')} onPress={downloadData} />
+          <NavRow icon="trash-outline" label={t('settings_clear_cache_label')} onPress={clearCache} />
         </Section>
 
-        <Section title="danger">
+        <Section title={t('dangerSection')}>
           <NavRow
             icon="skull-outline"
-            label="delete account"
+            label={t('settings_delete_account_label')}
             destructive
             onPress={confirmDeleteAccount}
           />

@@ -19,6 +19,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import ScaledText from './ScaledText';
+import { t } from '../services/i18n';
 
 interface Props {
   visible: boolean;
@@ -52,7 +53,7 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
     if (!normalizedUri) return;
     await Sharing.shareAsync(normalizedUri, {
       mimeType: 'image/png',
-      dialogTitle: 'share to story',
+      dialogTitle: t('share_pack_title'),
     });
   };
 
@@ -71,7 +72,7 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
       try {
         await shareImage();
       } catch {
-        Alert.alert('share failed', 'could not open a sharing destination.');
+        Alert.alert(t('reportedError'), t('share_failed_dest'));
       }
     }
   };
@@ -82,7 +83,7 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setCopied(true);
     } catch {
-      Alert.alert('copy failed', 'could not copy the link.');
+      Alert.alert(t('reportedError'), t('share_copy_failed'));
     }
   };
 
@@ -91,7 +92,7 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
     try {
       await shareImage();
     } catch {
-      Alert.alert('share failed', 'could not open the share sheet.');
+      Alert.alert(t('reportedError'), t('share_copy_failed'));
     }
   };
 
@@ -102,7 +103,7 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
           <View style={styles.handle} />
 
           <View style={styles.header}>
-            <ScaledText style={styles.title}>share your pack</ScaledText>
+            <ScaledText style={styles.title}>{t('share_pack_title')}</ScaledText>
             <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color={colors.textSecondary} />
             </Pressable>
@@ -123,20 +124,20 @@ const ShareSheet: React.FC<Props> = ({ visible, imageUri, packNumber, onClose })
           <View style={styles.destRow}>
             <ShareAction
               icon="logo-instagram"
-              label="instagram stories"
+              label={t('share_action_instagram')}
               accent={colors.yellow}
               onPress={onInstagramStories}
               disabled={!normalizedUri}
             />
             <ShareAction
               icon="link-outline"
-              label={copied ? 'copied' : 'copy link'}
+              label={copied ? t('share_action_copied') : t('share_action_copy')}
               accent={colors.white}
               onPress={onCopyLink}
             />
             <ShareAction
               icon="ellipsis-horizontal"
-              label="more"
+              label={t('share_action_more')}
               accent={colors.white}
               onPress={onMore}
               disabled={!normalizedUri}

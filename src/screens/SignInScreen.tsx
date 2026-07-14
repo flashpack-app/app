@@ -14,6 +14,7 @@ import {
   promptBiometric,
   getBiometricUsername,
 } from '../services/biometric';
+import { t } from '../services/i18n';
 
 export default function SignInScreen() {
   const colors = useColors();
@@ -74,14 +75,14 @@ export default function SignInScreen() {
       </View>
       <View style={styles.center}>
         <FlashLogo size={36} />
-        <Text style={styles.subtitle}>welcome back. enter your username.</Text>
+        <Text style={styles.subtitle}>{t('welcomeBackUsername')}</Text>
 
         <View style={styles.inputRow}>
           <Text style={styles.at}>@</Text>
           <TextInput
             value={username}
             onChangeText={setUsername}
-            placeholder="yourname"
+            placeholder={t('yournamePlaceholder')}
             placeholderTextColor="rgba(255,255,255,0.18)"
             autoCapitalize="none"
             autoCorrect={false}
@@ -91,7 +92,7 @@ export default function SignInScreen() {
         </View>
 
         <PillButton
-          label="continue"
+          label={t('onboarding_next')}
           onPress={goToOtp}
           variant="yellow"
           disabled={!valid}
@@ -104,11 +105,11 @@ export default function SignInScreen() {
             style={styles.bioBtn}
           >
             <Ionicons name="finger-print" size={20} color={colors.yellow} />
-            <Text style={styles.bioText}>sign in with biometrics</Text>
+            <Text style={styles.bioText}>{t('signInBiometrics')}</Text>
           </Pressable>
         )}
 
-        <Text style={styles.note}>otp sign-in. no password needed.</Text>
+        <Text style={styles.note}>{t('otpSignInNote')}</Text>
       </View>
     </KeyboardAvoidingView>
   );

@@ -9,6 +9,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import { APIService, Lineage, LineageNode } from '../services/api';
+import { t } from '../services/i18n';
 
 function initialsOf(username: string): string {
   return username.slice(0, 2).toUpperCase();
@@ -42,10 +43,10 @@ function NodeRow({
       <View style={{ flex: 1 }}>
         <Text style={styles.username}>
           @{node.username}
-          {isSelf ? ' (you)' : ''}
+          {isSelf ? t('family_tree_you') : ''}
         </Text>
         <Text style={styles.meta}>
-          {node.flag} {node.city} · joined {new Date(node.joinedAt).toLocaleDateString()}
+          {node.flag} {node.city} · {t('family_tree_joined_date', { date: new Date(node.joinedAt).toLocaleDateString() })}
         </Text>
       </View>
       {node.isPro && <Text style={styles.pro}>pro</Text>}
@@ -67,7 +68,7 @@ export default function FamilyTreeScreen() {
     if (!token) return;
     APIService.getLineage(token)
       .then(setLineage)
-      .catch(() => setError("couldn't load your flash family."));
+      .catch(() => setError(t('family_tree_error')));
   }, [token]);
 
   // Flatten the descendant tree depth-first so children render under their
@@ -99,7 +100,7 @@ export default function FamilyTreeScreen() {
         <Pressable onPress={() => nav.goBack()} style={styles.back}>
           <Ionicons name="chevron-back" size={22} color={colors.white} />
         </Pressable>
-        <Text style={styles.title}>flash family</Text>
+        <Text style={styles.title}>{t('family_tree_title')}</Text>
       </View>
 
       {!lineage && !error && <ActivityIndicator color={colors.yellow} style={{ paddingVertical: 24 }} />}
@@ -108,9 +109,9 @@ export default function FamilyTreeScreen() {
       {lineage && (
         <>
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>your lineage</Text>
+            <Text style={styles.sectionLabel}>{t('family_tree_lineage')}</Text>
             {lineage.ancestors.length === 0 && (
-              <Text style={styles.empty}>you're a founding member — no one above you.</Text>
+              <Text style={styles.empty}>{t('family_tree_founding_member')}</Text>
             )}
             {lineage.ancestors.map((a) => (
               <View key={a.id}>
@@ -122,9 +123,9 @@ export default function FamilyTreeScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>invited by you</Text>
+            <Text style={styles.sectionLabel}>{t('family_tree_invited_by_you')}</Text>
             {descendantRows.length === 0 && (
-              <Text style={styles.empty}>no one yet — share your invite code to grow your tree.</Text>
+              <Text style={styles.empty}>{t('family_tree_empty_descendants')}</Text>
             )}
             {descendantRows.map(({ node, indent }) => (
               <NodeRow key={node.id} node={node} indent={indent} onPress={() => openProfile(node.username)} />
