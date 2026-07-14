@@ -9,6 +9,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import ProGate from '../components/ProGate';
 import { useAppState } from '../state/AppState';
 import PackCard from '../components/PackCard';
+import { t } from '../services/i18n';
 
 export default function PackVaultScreen() {
   const colors = useColors();
@@ -19,17 +20,19 @@ export default function PackVaultScreen() {
 
   return (
     <View style={styles.wrap}>
-      <ScreenHeader title="pack vault" />
+      <ScreenHeader title={t('vault_title')} />
       <ScrollView contentContainerStyle={styles.scroll}>
         {packs.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="cube-outline" size={40} color={colors.textFade} />
-            <Text style={styles.emptyTitle}>no packs yet</Text>
-            <Text style={styles.emptySub}>your packs will appear here after you flash.</Text>
+            <Text style={styles.emptyTitle}>{t('vault_empty_title')}</Text>
+            <Text style={styles.emptySub}>{t('vault_empty_sub')}</Text>
           </View>
         ) : (
           <View style={{ gap: 10 }}>
-            <Text style={styles.count}>{packs.length} pack{packs.length === 1 ? '' : 's'}</Text>
+            <Text style={styles.count}>
+              {packs.length === 1 ? t('vault_count_one', { count: 1 }) : t('vault_count_other', { count: packs.length })}
+            </Text>
             {packs.map((p) => (
               <View key={p.id}>
                 <PackCard
@@ -39,8 +42,8 @@ export default function PackVaultScreen() {
                 />
                 {!isPro && (
                   <ProGate
-                    title="pack vault is pro"
-                    subtitle="upgrade to flash. pro to unlock your pack vault."
+                    title={t('vault_pro_gate_title')}
+                    subtitle={t('vault_pro_gate_sub')}
                     borderRadius={12}
                   />
                 )}

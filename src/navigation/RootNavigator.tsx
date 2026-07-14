@@ -171,8 +171,12 @@ export default function RootNavigator() {
 
       // Re-fetch when coming back online after being offline
       if (wasConnected.current === false && connected) {
-        refreshPacks().catch(() => {});
-        refreshDiscover?.().catch(() => {});
+        refreshPacks().catch((error) => {
+          console.warn('failed to refresh packs after reconnecting:', error);
+        });
+        refreshDiscover?.().catch((error) => {
+          console.warn('failed to refresh discover packs after reconnecting:', error);
+        });
       }
       wasConnected.current = connected;
     });

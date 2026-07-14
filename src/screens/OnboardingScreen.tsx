@@ -37,6 +37,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
+import { t } from '../services/i18n';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const LOGO = require('../assets/logo-white.png');
@@ -54,43 +55,45 @@ interface OnboardingStep {
   body: string;
 }
 
-const STEPS: OnboardingStep[] = [
-  {
-    id: 'welcome',
-    title: 'real moments,\nreal people.',
-    body: 'no followers. no likes. just you and three others sharing one photo a day.',
-  },
-  {
-    id: 'camera',
-    lottie: SNAP_YOUR_FLASH_ANIM,
-    title: 'snap your\nflash.',
-    body: 'one tap, one photo. add a filter if you want — just keep it real.',
-  },
-  {
-    id: 'packs',
-    lottie: MEET_YOUR_PACK_ANIM,
-    title: 'meet your\npack.',
-    body: "each day you're matched with three people. post your moment, then everyone's photos unlock at once.",
-  },
-  {
-    id: 'community',
-    icon: 'flame-outline',
-    lottie: STREAK_ANIM,
-    title: 'build your\nstreak.',
-    body: 'post daily to keep your streak alive. react to packs and discover moments from around the world.',
-  },
-  {
-    id: 'invite',
-    title: 'invite your\nfriends.',
-    body: 'flash. grows by invite only. copy your invite link to bring in your crew.',
-  },
-  {
-    id: 'go',
-    lottie: READY_ANIM,
-    title: "you're\nready.",
-    body: 'your first pack is waiting. snap a photo to meet your crew.',
-  },
-];
+function getSteps(): OnboardingStep[] {
+  return [
+    {
+      id: 'welcome',
+      title: t('onboarding_welcome_title'),
+      body: t('onboarding_welcome_body'),
+    },
+    {
+      id: 'camera',
+      lottie: SNAP_YOUR_FLASH_ANIM,
+      title: t('onboarding_camera_title'),
+      body: t('onboarding_camera_body'),
+    },
+    {
+      id: 'packs',
+      lottie: MEET_YOUR_PACK_ANIM,
+      title: t('onboarding_packs_title'),
+      body: t('onboarding_packs_body'),
+    },
+    {
+      id: 'community',
+      icon: 'flame-outline',
+      lottie: STREAK_ANIM,
+      title: t('onboarding_community_title'),
+      body: t('onboarding_community_body'),
+    },
+    {
+      id: 'invite',
+      title: t('onboarding_invite_title'),
+      body: t('onboarding_invite_body'),
+    },
+    {
+      id: 'go',
+      lottie: READY_ANIM,
+      title: t('onboarding_go_title'),
+      body: t('onboarding_go_body'),
+    },
+  ];
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -196,12 +199,12 @@ function WelcomeVisual() {
 
       {username ? (
         <Text style={styles.greeting}>
-          welcome, <Text style={styles.greetingHighlight}>@{username}</Text>
+          {t('onboarding_welcome_greeting')}<Text style={styles.greetingHighlight}>@{username}</Text>
         </Text>
       ) : null}
 
       <Text style={styles.locationLine}>
-        you joined from{' '}
+        {t('onboarding_joined_from')}
         <Text style={styles.locationHighlight}>
           {city}
           {country ? `, ${country.toLowerCase()}` : ''}
@@ -247,7 +250,7 @@ function InviteVisual() {
       </View>
       {copied && (
         <View style={styles.copiedBadge}>
-          <Text style={styles.copiedText}>invite message copied!</Text>
+          <Text style={styles.copiedText}>{t('onboarding_invite_copied')}</Text>
         </View>
       )}
     </View>
@@ -383,6 +386,7 @@ export default function OnboardingScreen() {
   const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const STEPS = getSteps();
 
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -443,7 +447,7 @@ export default function OnboardingScreen() {
 
         {!isLast ? (
           <Pressable onPress={onSkip} hitSlop={12}>
-            <Text style={styles.skipText}>skip</Text>
+            <Text style={styles.skipText}>{t('onboarding_skip')}</Text>
           </Pressable>
         ) : (
           <View />
@@ -483,7 +487,7 @@ export default function OnboardingScreen() {
           onPressOut={onPressOut}
           style={[styles.cta, btnAnimStyle]}
         >
-          <Text style={styles.ctaText}>{isLast ? "let's go" : 'next'}</Text>
+          <Text style={styles.ctaText}>{isLast ? t('onboarding_letsgo') : t('onboarding_next')}</Text>
         </AnimatedPressable>
       </Animated.View>
     </View>

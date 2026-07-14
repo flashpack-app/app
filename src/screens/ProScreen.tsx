@@ -10,6 +10,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { markOnboardingComplete } from '../services/onboardingStore';
 import { posthog } from '../config/posthog';
+import { t } from '../services/i18n';
 
 interface Plan {
   id: 'monthly' | 'yearly' | 'lifetime';
@@ -19,11 +20,13 @@ interface Plan {
   badge?: string;
 }
 
-const PLANS: Plan[] = [
-  { id: 'monthly', label: 'monthly', price: '$3.99', per: '/ month' },
-  { id: 'yearly', label: 'yearly', price: '$29', per: '/ year', badge: 'save 39%' },
-  { id: 'lifetime', label: 'lifetime', price: '$79', per: 'one-time', badge: 'best value' },
-];
+function getPlans(): Plan[] {
+  return [
+    { id: 'monthly', label: t('pro_plan_monthly'), price: '$3.99', per: t('pro_plan_perMonth') },
+    { id: 'yearly', label: t('pro_plan_yearly'), price: '$29', per: t('pro_plan_perYear'), badge: t('pro_plan_badgeSave') },
+    { id: 'lifetime', label: t('pro_plan_lifetime'), price: '$79', per: t('pro_plan_perLifetime'), badge: t('pro_plan_badgeBest') },
+  ];
+}
 
 const BORDER_COLORS = [
   '#FFD60A', // yellow
@@ -35,16 +38,18 @@ const BORDER_COLORS = [
   '#FF9F0A', // orange
 ];
 
-const FEATURES = [
-  { icon: 'videocam-outline', title: 'flash.live ⚡️', body: 'capture 1.5-second silent looping video bursts directly in-camera to bring your packs to life.' },
-  { icon: 'infinite-outline', title: 'unlimited reverts', body: "change your mind any time within the 24h window — keep your streak." },
-  { icon: 'archive-outline', title: 'pack vault', body: 'save unlimited packs. browse them as a private mosaic library.' },
-  { icon: 'sparkles-outline', title: 'pro filters', body: 'access 4 exclusive film LUTs: bonboa, daisy, earth, hibiscus.' },
-  { icon: 'color-palette-outline', title: 'pro tile borders', body: 'customize your tile border color so your friends always spot you in a pack.' },
-  { icon: 'people-outline', title: '+2 invite slots', body: 'invite more friends. expand your flash. circle.' },
-  { icon: 'flame-outline', title: 'streak insurance', body: 'one free streak save per month — no questions asked.' },
-  { icon: 'eye-off-outline', title: 'silent mode', body: 'hide your last seen and your city resolution to country only.' },
-];
+function getFeatures() {
+  return [
+    { icon: 'videocam-outline', title: t('pro_feat_live_title'), body: t('pro_feat_live_body') },
+    { icon: 'infinite-outline', title: t('pro_feat_reverts_title'), body: t('pro_feat_reverts_body') },
+    { icon: 'archive-outline', title: t('pro_feat_vault_title'), body: t('pro_feat_vault_body') },
+    { icon: 'sparkles-outline', title: t('pro_feat_filters_title'), body: t('pro_feat_filters_body') },
+    { icon: 'color-palette-outline', title: t('pro_feat_borders_title'), body: t('pro_feat_borders_body') },
+    { icon: 'people-outline', title: t('pro_feat_invites_title'), body: t('pro_feat_invites_body') },
+    { icon: 'flame-outline', title: t('pro_feat_streak_title'), body: t('pro_feat_streak_body') },
+    { icon: 'eye-off-outline', title: t('pro_feat_silent_title'), body: t('pro_feat_silent_body') },
+  ];
+}
 
 export default function ProScreen() {
   const colors = useColors();
@@ -52,11 +57,18 @@ export default function ProScreen() {
   const nav = useNavigation<any>();
   const { user, updateProBorder, isOnboarding, setIsOnboarding } = useAppState();
   const [selected, setSelected] = useState<Plan['id']>('yearly');
+  const PLANS = getPlans();
+  const FEATURES = getFeatures();
   const isPro = !!user?.isPro;
 
   const onClose = async () => {
     if (isOnboarding) {
-      await markOnboardingComplete();
+      try {
+        await markOnboardingComplete();
+      } catch (error) {
+        console.error('failed to persist onboarding completion:', error);
+        Alert.alert('progress not saved', 'you may see onboarding again next time.');
+      }
       setIsOnboarding(false);
     } else {
       nav.goBack();
@@ -67,9 +79,9 @@ export default function ProScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     posthog.capture('pro_subscribe_tapped', { plan: selected });
     Alert.alert(
-      'thanks for the support 🟡',
-      'in-app purchases will be available in the next build. your interest is logged.',
-      [{ text: 'ok', onPress: onClose }],
+      t('pro_subscribeThanks'),
+      t('pro_subscribeNote'),
+      [{ text: t('pro_subscribeOk'), onPress: onClose }],
     );
   };
 
@@ -83,18 +95,18 @@ export default function ProScreen() {
     if (supported) {
       Linking.openURL(url);
     } else {
-      Alert.alert('unable to open', 'please manage your subscription from your device settings.');
+      Alert.alert(t('pro_unableToOpen'), t('pro_unableToOpenSub'));
     }
   };
 
   const onManageSubscription = () => {
     Haptics.selectionAsync();
     Alert.alert(
-      'cancel subscription?',
-      "you'll keep pro access until your current period ends, then lose flash.live, pro filters, the vault, and streak insurance.",
+      t('pro_cancelTitle'),
+      t('pro_cancelSub'),
       [
-        { text: 'keep pro', style: 'cancel' },
-        { text: 'continue to cancel', style: 'destructive', onPress: openPlatformSubscriptions },
+        { text: t('pro_keepPro'), style: 'cancel' },
+        { text: t('pro_continueToCancelPro'), style: 'destructive', onPress: openPlatformSubscriptions },
       ],
     );
   };
@@ -102,7 +114,7 @@ export default function ProScreen() {
   return (
     <View style={styles.wrap}>
       <ScreenHeader
-        title="flash. pro"
+        title={t('flashPro')}
         onBack={onClose}
       />
 
@@ -111,35 +123,40 @@ export default function ProScreen() {
         <View style={styles.hero}>
           <View style={styles.heroBadge}>
             <Ionicons name="flash" size={14} color="#000" />
-            <Text style={styles.heroBadgeText}>pro</Text>
+            <Text style={styles.heroBadgeText}>{t('pro_badge')}</Text>
           </View>
-          <Text style={styles.heroTitle}>flash{'\n'}without limits.</Text>
-          <Text style={styles.heroSub}>
-            unlock flash.live video bursts, pro filters, the pack vault, and more. one app. one tap. zero noise.
-          </Text>
+          <Text style={styles.heroTitle}>{t('pro_heroTitle')}</Text>
+          <Text style={styles.heroSub}>{t('pro_heroSub')}</Text>
         </View>
 
         {/* Status */}
         {isPro ? (
           <View style={[styles.statusCard, { borderColor: colors.green }]}>
             <Ionicons name="checkmark-circle" size={18} color={colors.green} />
-            <Text style={[styles.statusText, { color: colors.green }]}>you're pro. thank you.</Text>
+            <Text style={[styles.statusText, { color: colors.green }]}>{t('pro_youArePro')}</Text>
           </View>
         ) : null}
 
         {/* Pro tile border customization */}
         {isPro && (
           <>
-            <Text style={styles.sectionLabel}>pro tile border</Text>
+            <Text style={styles.sectionLabel}>{t('pro_tileBorderSection')}</Text>
             <View style={styles.borderCard}>
-              <Text style={styles.borderLabel}>choose how your tiles look in packs</Text>
+              <Text style={styles.borderLabel}>{t('pro_tileBorderLabel')}</Text>
               <View style={styles.colorRow}>
                 {BORDER_COLORS.map((c) => {
                   const active = (user.proBorder || colors.yellow) === c;
                   return (
                     <Pressable
                       key={c}
-                      onPress={() => { Haptics.selectionAsync(); updateProBorder(c); }}
+                      onPress={async () => {
+                        Haptics.selectionAsync();
+                        try {
+                          await updateProBorder(c);
+                        } catch (error) {
+                          Alert.alert('border not updated', 'check your connection and try again.');
+                        }
+                      }}
                       style={[styles.colorDot, { backgroundColor: c }, active && styles.colorDotActive]}
                     >
                       {active && <Ionicons name="checkmark" size={12} color="#000" />}
@@ -152,7 +169,7 @@ export default function ProScreen() {
         )}
 
         {/* Features */}
-        <Text style={styles.sectionLabel}>what you get</Text>
+        <Text style={styles.sectionLabel}>{t('pro_whatYouGet')}</Text>
         <View style={styles.featuresWrap}>
           {FEATURES.map((f) => (
             <View key={f.title} style={styles.feature}>
@@ -170,7 +187,7 @@ export default function ProScreen() {
         {/* Plans — only relevant if they're not already subscribed */}
         {!isPro && (
           <>
-            <Text style={styles.sectionLabel}>choose your plan</Text>
+            <Text style={styles.sectionLabel}>{t('pro_choosePlan')}</Text>
             <View style={{ gap: 8 }}>
               {PLANS.map((p) => {
                 const active = selected === p.id;
@@ -203,32 +220,30 @@ export default function ProScreen() {
             </View>
 
             <Pressable onPress={onSubscribe} style={styles.cta}>
-              <Text style={styles.ctaText}>start pro</Text>
+              <Text style={styles.ctaText}>{t('pro_startPro')}</Text>
               <Ionicons name="arrow-forward" size={14} color="#000" />
             </Pressable>
 
-            <Text style={styles.fineprint}>
-              cancel anytime. lifetime is one-time. you'll be charged after a 7-day free trial on yearly plans.
-            </Text>
+            <Text style={styles.fineprint}>{t('pro_fineprint')}</Text>
           </>
         )}
 
         {/* Manage / cancel subscription */}
         {isPro && (
           <View style={styles.manageCard}>
-            <Text style={styles.sectionLabel}>manage subscription</Text>
+            <Text style={styles.sectionLabel}>{t('pro_manageSubscription')}</Text>
             <Pressable onPress={onManageSubscription} style={styles.cancelBtn}>
-              <Text style={styles.cancelBtnText}>cancel subscription</Text>
+              <Text style={styles.cancelBtnText}>{t('pro_cancelSubscription')}</Text>
             </Pressable>
             <Text style={styles.manageHint}>
-              opens your {Platform.OS === 'ios' ? 'App Store' : 'Play Store'} subscription settings.
+              {Platform.OS === 'ios' ? t('pro_manageHintIos') : t('pro_manageHintAndroid')}
             </Text>
           </View>
         )}
 
         {isOnboarding && (
           <Pressable onPress={onClose} style={styles.skipLink}>
-            <Text style={styles.skipLinkText}>maybe later · enter the app →</Text>
+            <Text style={styles.skipLinkText}>{t('pro_maybeLater')}</Text>
           </Pressable>
         )}
       </ScrollView>

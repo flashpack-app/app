@@ -1,10 +1,12 @@
 import { getJSON, setJSON, removeKeys } from './kvStore';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type LanguageMode = 'system' | 'en' | 'tr';
 
 export interface UserSettings {
   // appearance
   theme: ThemeMode;
+  language?: LanguageMode;
 
   // notifications
   pushNotifications: boolean;
@@ -50,6 +52,7 @@ export interface UserSettings {
 
 export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
+  language: 'system',
 
   pushNotifications: true,
   pushNewPacks: true,

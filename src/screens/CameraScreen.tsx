@@ -13,6 +13,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { filterColor } from '../theme/colors';
 import { useAppState } from '../state/AppState';
+import { t } from '../services/i18n';
 import { VibeFilter, PRO_FILTERS } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
 import { posthog } from '../config/posthog';
@@ -106,7 +107,9 @@ export default function CameraScreen() {
         });
         nav.navigate('PhotoPreview', { uri: photo.uri, filter, ...(videoUri ? { videoUri } : {}) });
       }
-    } catch {
+    } catch (error) {
+      console.error('photo capture failed:', error);
+      Alert.alert('photo not captured', 'please try again.');
     } finally {
       setIsCapturing(false);
     }
@@ -160,8 +163,9 @@ export default function CameraScreen() {
         mute: true,
       } as any);
       videoUri = recording?.uri;
-    } catch {
-      /* ignore */
+    } catch (error) {
+      console.error('live capture failed:', error);
+      Alert.alert('live photo not captured', 'please try again.');
     } finally {
       clearTimeout(stopTimeout);
       clearInterval(progressInterval);
@@ -193,7 +197,9 @@ export default function CameraScreen() {
             nav.navigate('PhotoPreview', { uri: photo.uri, filter, videoUri });
             return;
           }
-        } catch { /* fall through */ }
+        } catch (error) {
+          console.warn('live thumbnail capture failed; using video frame:', error);
+        }
       }
       // Fallback: navigate without still (video only)
       setIsCapturing(false); // must reset before navigate so Retake works
@@ -326,9 +332,9 @@ export default function CameraScreen() {
               />
             ) : (
               <View style={[StyleSheet.absoluteFill, styles.permissionWrap]}>
-                <Text style={styles.permText}>camera permission required</Text>
+                <Text style={styles.permText}>{t('cameraPermissionRequired')}</Text>
                 <Pressable style={styles.permBtn} onPress={requestPermission}>
-                  <Text style={styles.permBtnText}>grant access</Text>
+                  <Text style={styles.permBtnText}>{t('grantAccess')}</Text>
                 </Pressable>
               </View>
             )}
@@ -370,7 +376,7 @@ export default function CameraScreen() {
             {/* Daily topic */}
             {dailyTopic && (
               <View style={styles.topicBadge}>
-                <Text style={styles.topicText}>today's topic: {dailyTopic.topic}</Text>
+                <Text style={styles.topicText}>{t('todaysTopic', { topic: dailyTopic.topic })}</Text>
               </View>
             )}
 
@@ -453,26 +459,26 @@ export default function CameraScreen() {
 
       <View style={styles.footer}>
         <View style={styles.redDot} />
-        <Text style={styles.footerText}>your pack is waiting · shoot anytime</Text>
+        <Text style={styles.footerText}>{t('yourPackWaiting')}</Text>
       </View>
 
       {/* 24h lock overlay */}
       {locked && (
         <View style={styles.lockOverlay}>
           <Ionicons name="lock-closed" size={40} color={colors.yellow} />
-          <Text style={styles.lockTitle}>camera locked</Text>
-          <Text style={styles.lockSub}>you already flashed today.{'\n'}next window in {lockTimer}.</Text>
+          <Text style={styles.lockTitle}>{t('cameraLocked')}</Text>
+          <Text style={styles.lockSub}>{t('alreadyFlashedToday', { time: lockTimer })}</Text>
           {canUndo && (
             <Pressable
               onPress={() => {
                 if (!lastPostedPhotoId) return;
                 Alert.alert(
-                  'undo your flash?',
-                  "this deletes your photo and removes you from your pack. you'll lose your streak.",
+                  t('undoYourFlash'),
+                  t('undoYourFlashSub'),
                   [
-                    { text: 'cancel', style: 'cancel' },
+                    { text: t('cancel'), style: 'cancel' },
                     {
-                      text: 'undo',
+                      text: t('undo'),
                       style: 'destructive',
                       onPress: async () => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -486,7 +492,7 @@ export default function CameraScreen() {
               style={styles.undoBtn}
             >
               <Ionicons name="arrow-undo-outline" size={14} color={colors.yellow} />
-              <Text style={styles.undoText}>undo last flash</Text>
+              <Text style={styles.undoText}>{t('undoLastFlash')}</Text>
             </Pressable>
           )}
         </View>

@@ -51,9 +51,11 @@ import CaptureBlockedOverlay from '../components/CaptureBlockedOverlay';
 import { useScreenshotDetector, usePreventCapture, useCaptureBlockOverlay } from '../services/screenshot';
 import FloatingReactions, { triggerFloatingReaction } from '../components/FloatingReactions';
 import { ModerationService } from '../services/moderation';
+import { HTTPError } from '../services/api';
 import FlashLogo from '../components/FlashLogo';
 import LiquidRefresh from '../components/LiquidRefresh';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { t } from '../services/i18n';
 
 const GHOST_EMOJIS = ['👻', '🔥', '❤️', '😂', '😮'];
 
@@ -126,10 +128,10 @@ function useCountdown(target: Date | null): string {
     if (!target) { setTxt(''); return; }
     const tick = () => {
       const ms = target.getTime() - Date.now();
-      if (ms <= 0) { setTxt('expired'); return; }
+      if (ms <= 0) { setTxt(t('time_expired')); return; }
       const m = Math.floor(ms / 60_000);
       const h = Math.floor(m / 60);
-      setTxt(`${h}h ${m % 60}m`);
+      setTxt(t('time_hm', { h, m: m % 60 }));
     };
     tick();
     const id = setInterval(tick, 60_000);
@@ -180,7 +182,7 @@ export default function PackRevealScreen() {
       setShareUri(uri);
       setShareSheetVisible(true);
     } catch (e: any) {
-      Alert.alert('share failed', e?.message ?? 'unknown error');
+      Alert.alert(t('shareFailed'), e?.message ?? 'unknown error');
     } finally {
       setSharing(false);
     }
@@ -212,7 +214,7 @@ export default function PackRevealScreen() {
         <Ionicons name="chevron-back" size={22} color={colors.white} />
       </Pressable>
       <Ionicons name="layers-outline" size={40} color={colors.textFade} />
-      <ScaledText style={{ color: colors.textFade, marginTop: 12, fontSize: 14 }}>pack not found</ScaledText>
+      <ScaledText style={{ color: colors.textFade, marginTop: 12, fontSize: 14 }}>{t('packNotFound')}</ScaledText>
     </View>
   );
 
@@ -275,18 +277,18 @@ export default function PackRevealScreen() {
           <Pressable onPress={() => nav.goBack()} style={styles.backBtn}>
             <Ionicons name="chevron-back" size={22} color={colors.white} />
           </Pressable>
-          <ScaledText style={styles.headerTitle}>pack</ScaledText>
+          <ScaledText style={styles.headerTitle}>{t('pack')}</ScaledText>
           <View style={{ width: 32 }} />
         </View>
         <View style={styles.expiredLock}>
           <Ionicons name="lock-closed" size={36} color={colors.yellow} />
-          <ScaledText style={styles.expiredTitle}>this pack has expired</ScaledText>
+          <ScaledText style={styles.expiredTitle}>{t('packExpired')}</ScaledText>
           <ScaledText style={styles.expiredSub}>
-            flashes vanish after they expire. upgrade to flash. pro to keep your packs in your vault forever.
+            {t('packExpiredSub')}
           </ScaledText>
           <Pressable onPress={() => nav.navigate('Pro')} style={styles.expiredBtn}>
             <Ionicons name="flash" size={14} color="#000" />
-            <ScaledText style={styles.expiredBtnText}>upgrade to pro</ScaledText>
+            <ScaledText style={styles.expiredBtnText}>{t('upgradeToPro')}</ScaledText>
           </Pressable>
         </View>
       </View>
@@ -297,11 +299,16 @@ export default function PackRevealScreen() {
   const userReacted = packReactions.some((r) => r.userId === user?.id);
   const canReact = packReactions.length < 5 && !userReacted;
 
-  const onReact = (emoji: string) => {
+  const onReact = async (emoji: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addReaction(pack.id, emoji);
     setShowEmojiPicker(false);
     triggerFloatingReaction(emoji);
+    try {
+      await addReaction(pack.id, emoji);
+    } catch (error) {
+      console.error('failed to send reaction:', error);
+      Alert.alert('reaction not sent', 'check your connection and try again.');
+    }
   };
 
   const packComments = comments[pack.id] ?? [];
@@ -325,8 +332,17 @@ export default function PackRevealScreen() {
       sentAt: new Date().toISOString(),
       avatarUrl: user?.avatarUrl,
     };
-    addComment(pack.id, msg);
-    setDraft('');
+    try {
+      await addComment(pack.id, msg);
+      setDraft('');
+    } catch (error) {
+      console.error('failed to send comment:', error);
+      if (error instanceof HTTPError && error.status === 422) {
+        Alert.alert("this message can't be sent.");
+      } else {
+        Alert.alert('message not sent', 'check your connection and try again.');
+      }
+    }
   };
 
   const photos = pack.photos.slice(0, 4);
@@ -371,7 +387,7 @@ export default function PackRevealScreen() {
               {timeLeft ? (
                 <View style={styles.timerBadge}>
                   <Ionicons name="time-outline" size={11} color={colors.red} />
-                  <ScaledText style={styles.timerText}>{timeLeft} left</ScaledText>
+                  <ScaledText style={styles.timerText}>{t('timeLeftLabel', { time: timeLeft })}</ScaledText>
                 </View>
               ) : null}
               <Pressable
@@ -383,7 +399,7 @@ export default function PackRevealScreen() {
               </Pressable>
             </View>
           </View>
-          <Animated.Text style={[styles.title, titleStyle]}>your pack{'\n'}is here<Text style={{ color: colors.yellow }}>.</Text></Animated.Text>
+          <Animated.Text style={[styles.title, titleStyle]}>{t('yourPackIsHere')}<Text style={{ color: colors.yellow }}>.</Text></Animated.Text>
           <Animated.Text style={[styles.subtitle, subtitleStyle]}>
             shot {pack.apartMinutes} min apart · {pack.countriesCount} countries
           </Animated.Text>
@@ -393,8 +409,8 @@ export default function PackRevealScreen() {
                 <Ionicons name="copy-outline" size={12} color={colors.red} />
                 <ScaledText style={styles.screenshotText}>
                   {pack.screenshots.length === 1
-                    ? `@${pack.screenshots[0].username} screenshotted this pack`
-                    : `${pack.screenshots.length} people screenshotted this pack`}
+                    ? t('screenshotted_pack_one', { username: pack.screenshots[0].username })
+                    : t('screenshotted_pack_other', { count: pack.screenshots.length })}
                 </ScaledText>
               </Animated.View>
             </Pressable>
@@ -490,7 +506,7 @@ export default function PackRevealScreen() {
             <ChemistryBar score={pack.chemistryScore} />
             <View style={styles.chemHint}>
               <Ionicons name="information-circle-outline" size={11} color={colors.textFade} />
-              <ScaledText style={styles.chemHintText}>tap to see why</ScaledText>
+              <ScaledText style={styles.chemHintText}>{t('tapToSeeWhy')}</ScaledText>
             </View>
           </Pressable>
         </Animated.View>
@@ -511,7 +527,7 @@ export default function PackRevealScreen() {
           ) : (
             <PillButton
               variant="dim"
-              label={canReact ? 'react' : 'max reached'}
+              label={canReact ? t('react') : t('maxReached')}
               style={{ flex: 1, height: 38 }}
               onPress={() => canReact && setShowEmojiPicker(true)}
             >
@@ -525,7 +541,7 @@ export default function PackRevealScreen() {
           {isMember && (
             <PillButton
               variant="white"
-              label={sharing ? 'rendering…' : 'share'}
+              label={sharing ? t('rendering') : t('share')}
               style={{ flex: 1, height: 38 }}
               onPress={onSharePack}
               disabled={sharing}
@@ -563,21 +579,21 @@ export default function PackRevealScreen() {
         <Animated.View style={[styles.commentsSection, commentsStyle]}>
           <View style={styles.commentsHeader}>
             <ScaledText style={styles.commentsLabel}>
-              comments{packComments.length > 0 ? ` · ${packComments.length}` : ''}
+              {t('comments')}{packComments.length > 0 ? ` · ${packComments.length}` : ''}
             </ScaledText>
           </View>
 
           {isMember && !allPosted && (
             <View style={styles.lockBanner}>
               <Ionicons name="lock-closed" size={12} color={colors.textFade} />
-              <ScaledText style={styles.lockText}>opens when all {pack.members.length} have posted</ScaledText>
+              <ScaledText style={styles.lockText}>{t('opensWhenAllPosted', { count: pack.members.length })}</ScaledText>
             </View>
           )}
 
           {!isMember && (
             <View style={styles.lockBanner}>
               <Ionicons name="lock-closed" size={12} color={colors.textFade} />
-              <ScaledText style={styles.lockText}>only pack members can comment</ScaledText>
+              <ScaledText style={styles.lockText}>{t('onlyMembersComment')}</ScaledText>
             </View>
           )}
 
@@ -617,7 +633,7 @@ export default function PackRevealScreen() {
                       <ScaledText style={styles.commentUsername}>@{username}</ScaledText>
                       <ScaledText style={isSelf ? styles.metaYou : styles.meta}>
                         {c.flag} {c.city} · {Math.max(1, Math.floor((Date.now() - new Date(c.sentAt).getTime()) / 60000))}m ago
-                        {isSelf && ' · you'}
+                        {isSelf && ` · ${t('you')}`}
                       </ScaledText>
                       {!isSelf && (
                         <Pressable
@@ -638,12 +654,12 @@ export default function PackRevealScreen() {
 
           {isMember && !userCommented && allPosted && (
             <View style={styles.youCard}>
-              <ScaledText style={styles.metaYou}>{user?.flag ?? '🌍'} you · write once, locked forever</ScaledText>
+              <ScaledText style={styles.metaYou}>{user?.flag ?? '🌍'} {t('you')} · {t('commentLockedHint')}</ScaledText>
               <Pressable
                 onPress={() => setShowCommentModal(true)}
                 style={styles.inputPlaceholderRow}
               >
-                <ScaledText style={styles.inputPlaceholderText}>say something...</ScaledText>
+                <ScaledText style={styles.inputPlaceholderText}>{t('saySomething')}</ScaledText>
                 <View style={styles.sendBtnPlaceholder}>
                   <Ionicons name="chatbubble-outline" size={12} color="rgba(255,255,255,0.4)" />
                 </View>
@@ -674,7 +690,7 @@ export default function PackRevealScreen() {
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderTitleRow}>
                     <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.yellow} />
-                    <ScaledText style={styles.modalTitle}>add comment</ScaledText>
+                    <ScaledText style={styles.modalTitle}>{t('addComment')}</ScaledText>
                   </View>
                   <Pressable
                     onPressIn={() => {
@@ -689,13 +705,13 @@ export default function PackRevealScreen() {
                 </View>
                 
                 <ScaledText style={styles.modalHint}>
-                  you are commenting as <Text style={styles.modalUserHighlight}>@{user?.username}</Text> · write once, locked forever
+                  {t('commentingAs', { username: user?.username ?? '' })}
                 </ScaledText>
 
                 <View style={styles.modalInputRow}>
                   <TextInput
                     autoFocus
-                    placeholder="say something..."
+                    placeholder={t('saySomething')}
                     placeholderTextColor="rgba(255,255,255,0.3)"
                     style={styles.modalInput}
                     value={draft}
@@ -739,7 +755,7 @@ export default function PackRevealScreen() {
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderTitleRow}>
                     <Ionicons name="copy-outline" size={16} color={colors.red} />
-                    <ScaledText style={styles.modalTitle}>screenshots</ScaledText>
+                    <ScaledText style={styles.modalTitle}>{t('screenshots')}</ScaledText>
                   </View>
                   <Pressable
                     onPressIn={() => setShowScreenshotModal(false)}
@@ -751,14 +767,14 @@ export default function PackRevealScreen() {
                 </View>
                 
                 <ScaledText style={styles.modalHint}>
-                  when someone takes a screenshot of this pack, we track it so the pack knows it was saved.
+                  {t('screenshotExplanation')}
                 </ScaledText>
 
                 <View style={styles.modalInputRow}>
                   <ScaledText style={styles.modalExplanation}>
                     {pack.screenshots?.length === 1
-                      ? `@${pack.screenshots?.[0]?.username} screenshotted this pack`
-                      : `${pack.screenshots?.length || 0} people screenshotted this pack`}
+                      ? t('screenshotted_pack_one', { username: pack.screenshots[0].username })
+                      : t('screenshotted_pack_other', { count: pack.screenshots?.length || 0 })}
                   </ScaledText>
                 </View>
 
@@ -790,7 +806,7 @@ export default function PackRevealScreen() {
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderTitleRow}>
                     <Ionicons name="heart" size={16} color={colors.yellow} />
-                    <ScaledText style={styles.modalTitle}>reactions</ScaledText>
+                    <ScaledText style={styles.modalTitle}>{t('reactions')}</ScaledText>
                   </View>
                   <Pressable
                     onPressIn={() => setShowReactionsModal(false)}
@@ -804,7 +820,7 @@ export default function PackRevealScreen() {
                 <View style={{ flex: 1, marginTop: 16 }}>
                   {packReactions.length === 0 ? (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <ScaledText style={{ color: colors.textFade }}>No reactions yet</ScaledText>
+                      <ScaledText style={{ color: colors.textFade }}>{t('noReactionsYet')}</ScaledText>
                     </View>
                   ) : (
                     packReactions.map((r, index) => {
@@ -830,7 +846,7 @@ export default function PackRevealScreen() {
                           <View style={styles.reactionInfo}>
                             <ScaledText style={styles.reactionUsername}>@{username}</ScaledText>
                             <ScaledText style={styles.reactionMeta}>
-                              {member?.flag || '🌍'} {member?.city || 'Unknown'}
+                              {member?.flag || '🌍'} {member?.city || t('unknownLocation')}
                             </ScaledText>
                           </View>
                           <View style={styles.reactionEmoji}>
@@ -848,7 +864,7 @@ export default function PackRevealScreen() {
           {userCommented && (
             <View style={[styles.lockBanner, { marginTop: 6 }]}>
               <Ionicons name="lock-closed" size={12} color={colors.textFade} />
-              <ScaledText style={styles.lockText}>your comment is locked forever</ScaledText>
+              <ScaledText style={styles.lockText}>{t('commentLockedHint')}</ScaledText>
             </View>
           )}
         </Animated.View>

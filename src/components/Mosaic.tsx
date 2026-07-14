@@ -13,6 +13,7 @@ import { normalizeFilter } from '../services/filters';
 import FilteredImage from './FilteredImage';
 import FlashLogo from './FlashLogo';
 import liveLogo from '../assets/live_logo_white.webp';
+import { t } from '../services/i18n';
 
 interface Props {
   pack: Pack;
@@ -173,7 +174,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
       )}
       {isSelf && (
         <View style={styles.youBadge}>
-          <Text style={styles.youBadgeText}>you</Text>
+          <Text style={styles.youBadgeText}>{t('you_badge')}</Text>
         </View>
       )}
       {isPro && !isSelf && (
