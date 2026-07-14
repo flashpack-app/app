@@ -285,6 +285,8 @@
 
   "otp_subtitle_login": "size gönderilen tek kullanımlık kodu girin.",
   "otp_subtitle_signup": "davetinizi doğrulayın. tek kullanımlık kodu girin.",
+  "otp_subtitle_signup_phone": "telefon numaranızı doğrulayın. tek kullanımlık kodu girin.",
+  "otp_subtitle_signup_email": "e-postanızı doğrulayın. gelen kutunuza gönderilen tek kullanımlık kodu girin.",
   "otp_verify": "doğrula",
   "otp_resendIn": "{{count}}s içinde tekrar gönder",
   "otp_resendCode": "kodu tekrar gönder",

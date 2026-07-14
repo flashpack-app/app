@@ -270,6 +270,8 @@
   "pro_feat_silent_body": "마지막 접속 시간을 숨기고 도시 위치를 국가 단위로만 표시하세요.",
   "otp_subtitle_login": "전송된 일회용 코드를 입력하세요.",
   "otp_subtitle_signup": "초대를 확인하세요. 일회용 코드를 입력하세요.",
+  "otp_subtitle_signup_phone": "전화번호를 확인하세요. 일회용 코드를 입력하세요.",
+  "otp_subtitle_signup_email": "이메일을 확인하세요. 받은 편지함으로 전송된 일회용 코드를 입력하세요.",
   "otp_verify": "확인",
   "otp_resendIn": "{{count}}초 후 재전송",
   "otp_resendCode": "코드 재전송",

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
+import * as Location from 'expo-location';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FlashLogo from '../components/FlashLogo';
@@ -10,30 +11,67 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 
-const VALID = /^[a-z0-9_.\-]{2,20}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function UsernameScreen() {
+async function fetchWithTimeout(url: string, ms = 5000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch {
+    clearTimeout(id);
+    throw new Error('timeout');
+  }
+}
+
+async function getLocationExtras() {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+    const loc = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = loc.coords;
+    const geo = await fetchWithTimeout(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+    );
+    const data = await geo.json();
+    return {
+      city: data.address?.city || data.address?.town || data.address?.village || null,
+      country: data.address?.country || null,
+      flag: data.address?.country_code?.toUpperCase() || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export default function EmailScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const nav = useNavigation<any>();
   const route = useRoute<any>();
-  const code = route.params?.code as string;
   const insets = useSafeAreaInsets();
 
-  const [username, setUsername] = useState('');
+  const username = route.params?.username as string;
+  const inviteCode = route.params?.inviteCode as string;
+
+  const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const clean = username.trim().toLowerCase();
-  const valid = VALID.test(clean);
+  const emailValid = EMAIL_REGEX.test(email.trim());
 
-  const onNext = async () => {
-    if (!valid) return;
+  const onJoin = async () => {
+    if (!emailValid) {
+      setError('please enter a valid email address');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      // Navigate to AuthMethodScreen so user can choose phone or email verification
-      nav.navigate('AuthMethodScreen', { username: clean, inviteCode: code });
+      const extras = await getLocationExtras();
+      nav.navigate('OTPScreen', { username, email: email.trim().toLowerCase(), inviteCode, extras });
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError('something went wrong.');
@@ -54,41 +92,42 @@ export default function UsernameScreen() {
       </View>
       <View style={styles.center}>
         <FlashLogo size={36} />
-        <Text style={styles.subtitle}>pick a username. you can't change it later.</Text>
+        <Text style={styles.subtitle}>add your email for verification.</Text>
 
         <View style={styles.inputRow}>
-          <Text style={styles.at}>@</Text>
+          <Ionicons name="mail-outline" size={18} color={colors.yellow} style={styles.inputIcon} />
           <TextInput
-            value={username}
+            value={email}
             onChangeText={(t) => {
               setError(null);
-              setUsername(t);
+              setEmail(t);
             }}
-            placeholder="yourname"
+            placeholder="you@example.com"
             placeholderTextColor="rgba(255,255,255,0.18)"
+            keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="email"
             style={styles.input}
-            maxLength={20}
-            returnKeyType="next"
-            onSubmitEditing={onNext}
+            returnKeyType="send"
+            onSubmitEditing={onJoin}
           />
         </View>
-        <Text style={styles.hint}>2–20 chars · a-z, 0-9, _ . -</Text>
+        <Text style={styles.hint}>we'll send a one-time code to this address</Text>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
         <PillButton
-          label="next"
-          onPress={onNext}
+          label="continue"
+          onPress={onJoin}
           variant="yellow"
-          disabled={!valid || loading}
+          disabled={!emailValid || loading}
           loading={loading}
           style={{ width: '100%', height: 44 }}
         />
 
         <Text style={styles.codeFootnote}>
-          using <Text style={styles.codeMono}>{code}</Text>
+          using <Text style={styles.codeMono}>{inviteCode}</Text>
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -123,7 +162,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
   },
-  at: { color: colors.yellow, fontSize: 16, fontWeight: '700', marginRight: 4 },
+  inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
     color: colors.white,

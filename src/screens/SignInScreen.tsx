@@ -49,20 +49,15 @@ export default function SignInScreen() {
   }, []);
 
   const goToOtp = () => {
-    nav.navigate('OTPScreen', { username: clean });
+    nav.navigate('OTPScreen', { username: clean, isLogin: true });
   };
 
   const handleBiometricLogin = async (savedUser?: string) => {
-    try {
-      const u = savedUser ?? (await getBiometricUsername());
-      if (!u) return;
-      const ok = await promptBiometric();
-      if (ok) {
-        nav.navigate('OTPScreen', { username: u });
-      }
-    } catch (error) {
-      console.error('biometric sign-in failed:', error);
-      Alert.alert('sign-in failed', 'biometric authentication could not be completed.');
+    const u = savedUser ?? (await getBiometricUsername());
+    if (!u) return;
+    const ok = await promptBiometric();
+    if (ok) {
+      nav.navigate('OTPScreen', { username: u, isLogin: true });
     }
   };
 

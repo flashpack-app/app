@@ -270,6 +270,8 @@
   "pro_feat_silent_body": "最終オンラインを非表示にし、都市表示を国だけにします。",
   "otp_subtitle_login": "送信されたワンタイムコードを入力してください。",
   "otp_subtitle_signup": "招待を確認します。ワンタイムコードを入力してください。",
+  "otp_subtitle_signup_phone": "電話番号を確認します。ワンタイムコードを入力してください。",
+  "otp_subtitle_signup_email": "メールを確認します。受信トレイに届いたワンタイムコードを入力してください。",
   "otp_verify": "確認",
   "otp_resendIn": "{{count}}秒後に再送",
   "otp_resendCode": "コードを再送",
