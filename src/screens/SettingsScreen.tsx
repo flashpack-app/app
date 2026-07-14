@@ -108,10 +108,20 @@ export default function SettingsScreen() {
           <Ionicons name="camera-outline" size={18} color={colors.textFade} />
         </Pressable>
 
-        {/* Account */}
-        <Section title={t('accountSection')}>
-          <NavRow icon="person-outline" label={t('usernameLabel')} value={'@' + user.username} />
-          {user.email && <NavRow icon="mail-outline" label={t('emailLabel')} value={user.email} />}
+         <Section title={t('accountSection')}>
+           <NavRow icon="person-outline" label={t('usernameLabel')} value={'@' + user.username} />
+           <NavRow 
+             icon="phone-portrait-outline" 
+             label="phone number" 
+             value={user.phoneNumber ? `${user.phoneNumber}  ✓` : 'add phone number'} 
+             onPress={!user.phoneNumber ? () => nav.navigate('PhoneNumberScreen', { username: user.username }) : undefined}
+           />
+           <NavRow 
+             icon="mail-outline" 
+             label={t('emailLabel')} 
+             value={user.email ? `${user.email}  ✓` : 'add email'} 
+             onPress={!user.email ? () => nav.navigate('EmailScreen', { username: user.username }) : undefined}
+           />
           <NavRow icon="location-outline" label={t('locationLabel')} value={`${user.city}, ${user.country}`} />
           <NavRow icon="flame-outline" label={t('streakLabel')} value={t('streakDays', { count: user.streakDays })} />
           {user.isAdmin && (
