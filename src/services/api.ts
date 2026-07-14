@@ -69,12 +69,11 @@ function avatarUrlAbsolute(u?: string | null): string | undefined {
   return `${abs}${sep}t=${AVATAR_CACHE_BUST}`;
 }
 
-// Backend rows use snake_case; map to our camelCase User model.
 function mapUser(row: any): User {
   return {
     id: row.id,
     username: row.username,
-    phoneNumber: '',
+    phoneNumber: row.phone ?? '',
     email: row.email ?? undefined,
     isAdmin: !!row.is_admin,
     banned: !!row.banned,
@@ -199,11 +198,11 @@ export const APIService = {
   // OTP is keyed on the username (login) or invite code (signup). When the
   // server has no SMS provider configured it returns the code as devCode so
   // the flow still works end-to-end.
-  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string; email?: string; isLogin?: boolean }): Promise<{ devCode?: string }> {
+  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string }): Promise<{ devCode?: string }> {
     return http('/auth/otp/send', { method: 'POST', body: params });
   },
 
-  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; email?: string; isLogin?: boolean; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
+  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
     const res = await http<{ ok: boolean; user?: any; token?: string }>('/auth/otp/verify', {
       method: 'POST',
       body: params,
