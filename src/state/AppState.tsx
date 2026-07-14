@@ -117,8 +117,17 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUser(s.user);
         setToken(s.token);
         if (s.user.lastPostAt) setLastPostAt(s.user.lastPostAt);
+      }
+      // Clear boot immediately after local session loads
+      setBooting(false);
+
+      // Fire-and-forget network calls in background, run concurrently
+      if (s) {
         try {
-          const fresh = await APIService.getMe(s.token);
+          const [fresh, topic] = await Promise.all([
+            APIService.getMe(s.token),
+            APIService.getDailyTopic().catch(() => null),
+          ]);
           setUser(fresh);
           if (fresh.lastPostAt) {
             setLastPostAt(fresh.lastPostAt);
@@ -126,17 +135,19 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           }
           await saveSession({ token: s.token, user: fresh });
           registerForPushNotificationsAsync(s.token).catch(() => {});
+          if (topic) setDailyTopic(topic);
         } catch (e) {
           console.warn('failed to refresh user on boot:', e);
         }
+      } else {
+        // Still fetch daily topic even without session
+        try {
+          const topic = await APIService.getDailyTopic();
+          setDailyTopic(topic);
+        } catch (e) {
+          console.warn('failed to load daily topic:', e);
+        }
       }
-      try {
-        const topic = await APIService.getDailyTopic();
-        setDailyTopic(topic);
-      } catch (e) {
-        console.warn('failed to load daily topic:', e);
-      }
-      setBooting(false);
     })();
   }, []);
 
