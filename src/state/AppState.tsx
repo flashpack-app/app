@@ -5,6 +5,7 @@ import { mockPacks } from '../data/mock';
 import { Session, loadSession, saveSession, clearSession, loadLastStreakDays, saveLastStreakDays, loadCachedPacks, saveCachedPacks, loadCachedDiscoverPacks, saveCachedDiscoverPacks, clearPacksCache } from '../services/storage';
 import { APIService } from '../services/api';
 import { registerForPushNotificationsAsync } from '../services/pushNotifications';
+import { posthog } from '../config/posthog';
 
 interface PackReaction {
   userId: string;
@@ -117,6 +118,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUser(s.user);
         setToken(s.token);
         if (s.user.lastPostAt) setLastPostAt(s.user.lastPostAt);
+        posthog.identify(s.user.id, {
+          $set: { username: s.user.username, is_pro: s.user.isPro, country: s.user.country, city: s.user.city },
+          $set_once: { joined_at: s.user.joinedAt, ...(s.user.invitedBy ? { invited_by: s.user.invitedBy } : {}) },
+        });
         
         // Load offline cache immediately to show content under 50ms
         const [cachedPacks, cachedDiscover] = await Promise.all([
@@ -287,6 +292,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         registerForPushNotificationsAsync(s.token).catch(() => {});
       },
       async signOut() {
+        posthog.reset();
         setUser(null);
         setToken(null);
         setLastPostAt(null);

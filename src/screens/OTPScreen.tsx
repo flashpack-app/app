@@ -20,6 +20,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
 import { useAppState } from '../state/AppState';
+import { posthog } from '../config/posthog';
 
 export default function OTPScreen() {
   const colors = useColors();
@@ -104,6 +105,15 @@ export default function OTPScreen() {
       const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp, phone, ...extras });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (user && token) {
+        posthog.identify(user.id, {
+          $set: { username: user.username, is_pro: user.isPro, country: user.country, city: user.city },
+          $set_once: { joined_at: user.joinedAt, ...(user.invitedBy ? { invited_by: user.invitedBy } : {}) },
+        });
+        if (isSignup) {
+          posthog.capture('signup_completed', { username: user.username, country: user.country });
+        } else {
+          posthog.capture('login_completed', { username: user.username });
+        }
         await signIn({ user, token });
       }
     } catch (e: any) {

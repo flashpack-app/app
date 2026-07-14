@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 import { useAppState } from '../state/AppState';
+import { posthog } from '../config/posthog';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -209,9 +210,30 @@ export default function RootNavigator() {
     return <CustomSplash />;
   }
 
+  const routeNameRef = useRef<string | undefined>(undefined);
+
+  const onNavigationReady = () => {
+    routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
+  };
+
+  const onNavigationStateChange = () => {
+    const previousRouteName = routeNameRef.current;
+    const currentRoute = navigationRef.current?.getCurrentRoute();
+    const currentRouteName = currentRoute?.name;
+    if (previousRouteName !== currentRouteName && currentRouteName) {
+      posthog.screen(currentRouteName, { previous_screen: previousRouteName ?? null });
+    }
+    routeNameRef.current = currentRouteName;
+  };
+
   return (
     <View style={styles.root}>
-      <NavigationContainer theme={navTheme} ref={navigationRef}>
+      <NavigationContainer
+        theme={navTheme}
+        ref={navigationRef}
+        onReady={onNavigationReady}
+        onStateChange={onNavigationStateChange}
+      >
         <Stack.Navigator
           screenOptions={{
             headerShown: false,

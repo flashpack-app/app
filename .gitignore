@@ -10,3 +10,4 @@ ios/
 android/
 dev/
 .env.local
+.env

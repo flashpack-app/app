@@ -15,6 +15,7 @@ import { FILTER_LABEL } from '../services/filters';
 import FilteredImage from '../components/FilteredImage';
 import { useAppState } from '../state/AppState';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { posthog } from '../config/posthog';
 
 type State = 'idle' | 'uploading' | 'success';
 
@@ -83,6 +84,11 @@ export default function PhotoPreviewScreen() {
       setLastPostAt(nowIso);
       markFirstPackPosted();
       refreshPacks();
+      posthog.capture('photo_sent', {
+        filter,
+        is_live: !!videoUri,
+        mode: duet ? 'duet' : 'squad',
+      });
       setState('success');
       setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -115,6 +121,7 @@ export default function PhotoPreviewScreen() {
           style: 'destructive',
           onPress: async () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            posthog.capture('photo_reverted', { filter });
             await revertPhoto(photoId);
             nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
           },

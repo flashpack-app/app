@@ -13,6 +13,7 @@ import { APIService } from '../services/api';
 import { InviteSlot } from '../types/models';
 import InviteSlotRow from '../components/InviteSlotRow';
 import PillButton from '../components/PillButton';
+import { posthog } from '../config/posthog';
 
 export default function InviteScreen() {
   const colors = useColors();
@@ -54,10 +55,12 @@ export default function InviteScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+    posthog.capture('invite_code_copied', { remaining_slots: remainingSlots });
   };
 
   const onShare = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    posthog.capture('invite_link_shared', { remaining_slots: remainingSlots });
     Share.share({
       message: `hey! join me on flash. 📸\nhttps://flsh.pw/${code}\n\nyou'll get 3 invites to bring your own people too.`,
     });

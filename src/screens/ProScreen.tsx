@@ -9,6 +9,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
 import { useAppState } from '../state/AppState';
 import { markOnboardingComplete } from '../services/onboardingStore';
+import { posthog } from '../config/posthog';
 
 interface Plan {
   id: 'monthly' | 'yearly' | 'lifetime';
@@ -64,6 +65,7 @@ export default function ProScreen() {
 
   const onSubscribe = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    posthog.capture('pro_subscribe_tapped', { plan: selected });
     Alert.alert(
       'thanks for the support 🟡',
       'in-app purchases will be available in the next build. your interest is logged.',
@@ -175,7 +177,7 @@ export default function ProScreen() {
                 return (
                   <Pressable
                     key={p.id}
-                    onPress={() => { setSelected(p.id); Haptics.selectionAsync(); }}
+                    onPress={() => { setSelected(p.id); Haptics.selectionAsync(); posthog.capture('pro_plan_selected', { plan: p.id, price: p.price }); }}
                     style={[styles.plan, active && styles.planActive]}
                   >
                     <View style={styles.radio}>
