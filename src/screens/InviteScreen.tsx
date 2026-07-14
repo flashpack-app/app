@@ -14,6 +14,7 @@ import { InviteSlot } from '../types/models';
 import InviteSlotRow from '../components/InviteSlotRow';
 import PillButton from '../components/PillButton';
 import { posthog } from '../config/posthog';
+import { t } from '../services/i18n';
 
 export default function InviteScreen() {
   const colors = useColors();
@@ -62,7 +63,7 @@ export default function InviteScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     posthog.capture('invite_link_shared', { remaining_slots: remainingSlots });
     Share.share({
-      message: `hey! join me on flash. 📸\nhttps://flsh.pw/${code}\n\nyou'll get 3 invites to bring your own people too.`,
+      message: t('shareInviteMessage', { code }),
     });
   };
 
@@ -71,10 +72,10 @@ export default function InviteScreen() {
 
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={[styles.title, { paddingTop: Math.max(14, insets.top) }]}>invites</Text>
+      <Text style={[styles.title, { paddingTop: Math.max(14, insets.top) }]}>{t('inviteTitle')}</Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>your code</Text>
+        <Text style={styles.sectionLabel}>{t('yourCodeSectionLabel')}</Text>
         <View style={styles.codeCard}>
           <Text style={styles.code}>{code}</Text>
           <Pressable onPress={onCopy} style={styles.copyBtn}>
@@ -85,11 +86,11 @@ export default function InviteScreen() {
             />
           </Pressable>
         </View>
-        {copied && <Text style={styles.copied}>copied!</Text>}
+        {copied && <Text style={styles.copied}>{t('copiedLabel')}</Text>}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{slotsCount} slots</Text>
+        <Text style={styles.sectionLabel}>{t('slotsSectionLabel', { count: slotsCount })}</Text>
         {loading ? (
           <ActivityIndicator color={colors.yellow} style={{ paddingVertical: 18 }} />
         ) : error ? (
@@ -106,19 +107,19 @@ export default function InviteScreen() {
       <View style={styles.warning}>
         <Ionicons name="warning-outline" size={14} color="rgba(255,214,10,0.6)" />
         <Text style={styles.warningText}>
-          if someone you invite breaks the rules, your account is reviewed too.
+          {t('inviteWarning')}
         </Text>
       </View>
 
       <View style={{ paddingHorizontal: 12, marginTop: 12 }}>
-        <PillButton variant="yellow" label="share invite link" onPress={onShare} style={{ height: 44 }}>
+        <PillButton variant="yellow" label={t('shareInviteLink')} onPress={onShare} style={{ height: 44 }}>
           <Ionicons name="share-outline" size={14} color="#000" />
         </PillButton>
       </View>
 
       <Pressable onPress={() => nav.navigate('FamilyTree')} style={styles.treeLink}>
         <Ionicons name="git-branch-outline" size={14} color={colors.textSecondary} />
-        <Text style={styles.treeLinkText}>see your flash family tree</Text>
+        <Text style={styles.treeLinkText}>{t('seeFamilyTree')}</Text>
         <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
       </Pressable>
     </ScrollView>

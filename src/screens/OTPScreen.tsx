@@ -21,6 +21,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { APIService } from '../services/api';
 import { useAppState } from '../state/AppState';
 import { posthog } from '../config/posthog';
+import { t } from '../services/i18n';
 
 export default function OTPScreen() {
   const colors = useColors();
@@ -72,8 +73,8 @@ export default function OTPScreen() {
       .catch((e: any) => {
         console.error('[OTPScreen] OTP send error:', e);
         setError(e?.body?.error === 'rate_limited'
-          ? 'too many codes requested. wait a bit.'
-          : "couldn't send a code. try again.");
+          ? t('otp_error_rateLimited')
+          : t('otp_error_sendFailed'));
       });
   }, [username, inviteCode, phone]);
 
@@ -89,8 +90,8 @@ export default function OTPScreen() {
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(e?.body?.error === 'rate_limited'
-        ? 'too many codes requested. wait a bit.'
-        : "couldn't send a code. try again.");
+        ? t('otp_error_rateLimited')
+        : t('otp_error_sendFailed'));
     } finally {
       setLoading(false);
     }
@@ -120,11 +121,11 @@ export default function OTPScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const reason = e?.body?.error ?? '';
       setError(
-        reason === 'expired' ? 'code expired. go back and try again.'
-        : reason === 'too_many_attempts' ? 'too many tries. request a new code.'
-        : reason === 'not_found' ? 'user not found.'
-        : reason === 'username_taken' ? 'that username is taken.'
-        : 'invalid code.',
+        reason === 'expired' ? t('otp_error_expired')
+        : reason === 'too_many_attempts' ? t('otp_error_tooManyAttempts')
+        : reason === 'not_found' ? t('otp_error_notFound')
+        : reason === 'username_taken' ? t('otp_error_usernameTaken')
+        : t('otp_error_invalid'),
       );
     }
     setLoading(false);
@@ -156,8 +157,8 @@ export default function OTPScreen() {
         <FlashLogo size={36} />
         <Text style={styles.subtitle}>
           {isLogin
-            ? `enter the one-time code sent to you.`
-            : `verify your invite. enter the one-time code.`}
+            ? t('otp_subtitle_login')
+            : t('otp_subtitle_signup')}
         </Text>
 
         <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxesWrap}>
@@ -189,7 +190,7 @@ export default function OTPScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <PillButton
-          label="verify"
+          label={t('otp_verify')}
           onPress={verifyOtp}
           variant="yellow"
           disabled={otp.length !== 6 || loading}
@@ -203,11 +204,11 @@ export default function OTPScreen() {
           style={styles.resendButton}
         >
           <Text style={[styles.resendText, resendCooldown > 0 && styles.resendTextDisabled]}>
-            {resendCooldown > 0 ? `resend in ${resendCooldown}s` : 'resend code'}
+            {resendCooldown > 0 ? t('otp_resendIn', { count: resendCooldown }) : t('otp_resendCode')}
           </Text>
         </TouchableOpacity>
 
-        {devCode && <Text style={styles.note}>dev build — your code is {devCode}.</Text>}
+        {devCode && <Text style={styles.note}>{t('otp_devCode', { code: devCode })}</Text>}
       </View>
     </KeyboardAvoidingView>
   );

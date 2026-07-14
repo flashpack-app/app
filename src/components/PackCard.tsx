@@ -9,6 +9,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import Mosaic from './Mosaic';
 import ReactionStack from './ReactionStack';
 import liveLogo from '../assets/live_logo_white.webp';
+import { t } from '../services/i18n';
 
 interface PackReaction {
   userId: string;
@@ -28,19 +29,19 @@ const matchColor = (s: number, colors: Palette) => (s >= 70 ? colors.green : s >
 const timeAgo = (iso: string) => {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const m = Math.floor(diff / 60_000);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return t('time_m_ago', { m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t('time_hm_ago', { h, m: m % 60 });
+  return t('time_d_ago', { d: Math.floor(h / 24) });
 };
 
 // How long until the pack expires, e.g. "5h 12m left" or "expired".
 const timeLeft = (iso: string) => {
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return 'expired';
+  if (ms <= 0) return t('time_expired');
   const m = Math.floor(ms / 60_000);
   const h = Math.floor(m / 60);
-  return h > 0 ? `${h}h ${m % 60}m left` : `${m}m left`;
+  return h > 0 ? t('time_hm_left', { h, m: m % 60 }) : t('time_m_left', { m });
 };
 
 const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress }) => {
@@ -104,7 +105,7 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
       <View style={styles.bottomRow}>
         <View style={styles.matchWrap}>
           <View style={[styles.dot, { backgroundColor: matchColor(pack.chemistryScore, colors) }]} />
-          <Text style={styles.matchText}>{pack.chemistryScore}% match</Text>
+          <Text style={styles.matchText}>{t('match_percent', { score: pack.chemistryScore })}</Text>
         </View>
         <ReactionStack
           reactions={reactions}

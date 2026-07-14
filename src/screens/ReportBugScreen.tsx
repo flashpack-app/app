@@ -15,6 +15,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import ScreenHeader from '../components/ScreenHeader';
+import { t } from '../services/i18n';
 
 export default function ReportBugScreen() {
   const styles = useThemedStyles(makeStyles);
@@ -31,10 +32,10 @@ export default function ReportBugScreen() {
     try {
       // Placeholder for actual bug-report endpoint.
       await new Promise((r) => setTimeout(r, 800));
-      Alert.alert('reported', 'thank you for helping us squash bugs.');
+      Alert.alert(t('reportedSuccess'), t('report_bug_thanks'));
       nav.goBack();
     } catch {
-      Alert.alert('failed', 'could not submit your report. try again later.');
+      Alert.alert(t('reportedError'), t('report_bug_failed'));
     } finally {
       setSending(false);
     }
@@ -42,16 +43,16 @@ export default function ReportBugScreen() {
 
   return (
     <View style={styles.wrap}>
-      <ScreenHeader title="report a bug" />
+      <ScreenHeader title={t('report_bug_title')} />
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 14, paddingBottom: 40 }}>
-        <Text style={styles.intro}>found something broken? the more detail, the faster we can fix it.</Text>
+        <Text style={styles.intro}>{t('report_bug_intro')}</Text>
 
         <View style={[styles.card, { minHeight: 180 }]}>
-          <Text style={styles.label}>what happened?</Text>
+          <Text style={styles.label}>{t('report_bug_what_happened')}</Text>
           <TextInput
             style={[styles.input, { minHeight: 140, textAlignVertical: 'top' }]}
-            placeholder="describe the bug..."
+            placeholder={t('report_bug_placeholder')}
             placeholderTextColor="rgba(255,255,255,0.3)"
             value={bug}
             onChangeText={setBug}
@@ -61,10 +62,10 @@ export default function ReportBugScreen() {
         </View>
 
         <View style={[styles.card, { minHeight: 160 }]}>
-          <Text style={styles.label}>steps to reproduce</Text>
+          <Text style={styles.label}>{t('report_bug_steps')}</Text>
           <TextInput
             style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]}
-            placeholder="1. open app\n2. tap..."
+            placeholder={t('report_bug_steps_placeholder')}
             placeholderTextColor="rgba(255,255,255,0.3)"
             value={steps}
             onChangeText={setSteps}
@@ -73,7 +74,7 @@ export default function ReportBugScreen() {
           />
         </View>
 
-        <Text style={styles.hint}>screenshots help a lot. send them to support@flash.app if you can.</Text>
+        <Text style={styles.hint}>{t('report_bug_hint')}</Text>
 
         <Pressable onPress={onSend} disabled={!canSend || sending} style={[styles.btn, (!canSend || sending) && { opacity: 0.5 }]}>
           {sending ? (
@@ -81,7 +82,7 @@ export default function ReportBugScreen() {
           ) : (
             <>
               <Ionicons name="bug" size={14} color="#000" />
-              <Text style={styles.btnText}>submit bug</Text>
+              <Text style={styles.btnText}>{t('report_bug_submit')}</Text>
             </>
           )}
         </Pressable>

@@ -18,28 +18,28 @@ import { useAppState } from '../state/AppState';
 import { APIService } from '../services/api';
 import { InviteSlot } from '../types/models';
 import ScaledText from '../components/ScaledText';
+import { t } from '../services/i18n';
 
-function useCountdown(target: Date | null): string {
-  const [txt, setTxt] = useState('');
+function useCountdown(target: Date | null): { text: string; hours: number } {
+  const [result, setResult] = useState({ text: '', hours: 0 });
   useEffect(() => {
-    if (!target) { setTxt(''); return; }
+    if (!target) { setResult({ text: '', hours: 0 }); return; }
     const tick = () => {
       const ms = target.getTime() - Date.now();
-      if (ms <= 0) { setTxt(''); return; }
+      if (ms <= 0) { setResult({ text: '', hours: 0 }); return; }
       const m = Math.floor(ms / 60_000);
       const h = Math.floor(m / 60);
-      // Show hours and minutes
       if (h >= 1) {
-        setTxt(`${h}h ${m % 60}m`);
+        setResult({ text: t('time_hm', { h, m: m % 60 }), hours: h });
       } else {
-        setTxt(`${m}m`);
+        setResult({ text: t('time_m_only', { m }), hours: 0 });
       }
     };
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
   }, [target]);
-  return txt;
+  return result;
 }
 
 export default function DuetFeedScreen() {
@@ -118,9 +118,9 @@ export default function DuetFeedScreen() {
   }, [refreshPacks, refreshDiscover, refreshNotifications]);
 
   const longPress = (packId: string) => {
-    Alert.alert('pack actions', undefined, [
-      { text: 'report', style: 'destructive', onPress: () => nav.navigate('Report', { packId }) },
-      { text: 'cancel', style: 'cancel' },
+    Alert.alert(t('packActionsTitle'), undefined, [
+      { text: t('reportLabel'), style: 'destructive', onPress: () => nav.navigate('Report', { packId }) },
+      { text: t('cancel'), style: 'cancel' },
     ]);
   };
 
@@ -140,7 +140,8 @@ export default function DuetFeedScreen() {
       onCameraPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
       onInvitePress={() => nav.navigate('Invite')}
       onNotificationsPress={() => nav.navigate('Notifications')}
-      expiryCountdown={expiresCountdown}
+      expiryCountdown={expiresCountdown.text}
+      expiryHours={expiresCountdown.hours}
       onExpiryPress={() => nav.navigate('PackLifecycle', { packId: activeDuetPacks[0]?.id })}
       inviteSlotsRemaining={inviteSlotsRemaining}
       inviteSlotsTotal={inviteSlotsTotal}
@@ -177,24 +178,24 @@ export default function DuetFeedScreen() {
         isForming ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
-            <ScaledText style={styles.lockedTitle}>flashing your lights...</ScaledText>
+            <ScaledText style={styles.lockedTitle}>{t('flashingLightsTitle')}</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              {'your photo is out there.\nmatching you with your duet partner.\nforming in ' + (formingCountdown || 'a moment') + '.'}
+              {t('flashingLightsSubDuet', { time: formingCountdown || t('flashingLightsSubDefault') })}
             </ScaledText>
           </View>
         ) : activeDuetPacks.length === 0 ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
-            <ScaledText style={styles.lockedTitle}>no active duet right now</ScaledText>
+            <ScaledText style={styles.lockedTitle}>{t('noActiveDuet')}</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              start a duet to connect with just one person.{'\n'}perfect for intimate moments.
+              {t('startADuetSub')}
             </ScaledText>
             <Pressable
               onPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
               style={styles.lockedBtn}
             >
               <Ionicons name="camera" size={16} color="#000" />
-              <ScaledText style={styles.lockedBtnText}>start a duet</ScaledText>
+              <ScaledText style={styles.lockedBtnText}>{t('startADuetBtn')}</ScaledText>
             </Pressable>
           </View>
         ) : (
@@ -206,7 +207,7 @@ export default function DuetFeedScreen() {
             ListHeaderComponent={
               <View>
                 <LiquidRefresh progress={progress} />
-                <ScaledText style={styles.sectionLabel}>your duet</ScaledText>
+                <ScaledText style={styles.sectionLabel}>{t('yourDuetHeader')}</ScaledText>
                 {activeDuetPacks.map((item) => (
                   <View key={item.id} style={{ marginBottom: 8 }}>
                     <PackCard
@@ -220,7 +221,7 @@ export default function DuetFeedScreen() {
                 {discoverDuetPacks.length > 0 ? (
                   <View style={styles.discoverHeader}>
                     <Ionicons name="people-outline" size={14} color={colors.textDim} />
-                    <ScaledText style={styles.sectionLabel}>duets around the world</ScaledText>
+                    <ScaledText style={styles.sectionLabel}>{t('duetsAroundWorld')}</ScaledText>
                   </View>
                 ) : null}
               </View>
@@ -250,16 +251,16 @@ export default function DuetFeedScreen() {
       ) : (
         <View style={styles.locked}>
           <Ionicons name="lock-closed" size={40} color={colors.textHint} />
-          <ScaledText style={styles.lockedTitle}>your duet is forming.</ScaledText>
+          <ScaledText style={styles.lockedTitle}>{t('duetForming')}</ScaledText>
           <ScaledText style={styles.lockedSub}>
-            take your first photo to unlock duets.{'\n'}connect intimately with one person.
+            {t('duetFormingSub')}
           </ScaledText>
           <Pressable
             onPress={() => nav.navigate('Tabs', { screen: 'Camera' })}
             style={styles.lockedBtn}
           >
             <Ionicons name="camera" size={16} color="#000" />
-            <ScaledText style={styles.lockedBtnText}>take your first flash</ScaledText>
+            <ScaledText style={styles.lockedBtnText}>{t('takeYourFirstFlash')}</ScaledText>
           </Pressable>
         </View>
       )}

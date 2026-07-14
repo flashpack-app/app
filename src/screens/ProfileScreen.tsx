@@ -27,6 +27,7 @@ import Animated, {
   withSpring,
   withSequence,
 } from 'react-native-reanimated';
+import { t } from '../services/i18n';
 
 // ── Streak colour tiers ───────────────────────────────────────────────
 function getStreakColor(days: number): { bg: string; glow: string } {
@@ -56,7 +57,7 @@ const StreakBadge: React.FC<{ days: number; onPress?: () => void }> = ({ days, o
       >
         <Animated.View style={[streakBadgeStyles.badgeInner, { backgroundColor: bg, shadowColor: glow }, badgeStyle]}>
           <Ionicons name="flame" size={9} color="#000" />
-          <Text style={streakBadgeStyles.label}>{days}d</Text>
+          <Text style={streakBadgeStyles.label}>{t('streakDays', { count: days })}</Text>
         </Animated.View>
       </Pressable>
     </View>
@@ -327,7 +328,7 @@ export default function ProfileScreen() {
   const onPickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('permission needed', 'allow access to photos to set your avatar.');
+      Alert.alert(t('permissionNeeded'), t('allowPhotoAccess'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -357,10 +358,10 @@ export default function ProfileScreen() {
   const onAvatarPress = () => {
     Haptics.selectionAsync?.();
     if (isOwnProfile) {
-      Alert.alert('profile photo', undefined, [
-        { text: displayUser?.avatarUrl ? 'change photo' : 'add photo', onPress: () => void onPickPhoto() },
-        ...(displayUser?.avatarUrl ? [{ text: 'view photo', onPress: () => setAvatarViewer(true) }] : []),
-        { text: 'cancel', style: 'cancel' }
+      Alert.alert(t('profilePhoto'), undefined, [
+        { text: displayUser?.avatarUrl ? t('changePhoto') : t('addPhoto'), onPress: () => void onPickPhoto() },
+        ...(displayUser?.avatarUrl ? [{ text: t('viewPhoto'), onPress: () => setAvatarViewer(true) }] : []),
+        { text: t('cancel'), style: 'cancel' }
       ] as any);
     } else if (displayUser?.avatarUrl && !avatarLoadError) {
       setAvatarViewer(true);
@@ -378,7 +379,7 @@ export default function ProfileScreen() {
   if (!isOwnProfile && !publicProfile) {
     return (
       <View style={[styles.wrap, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ScaledText style={{ color: colors.textDim }}>user not found.</ScaledText>
+        <ScaledText style={{ color: colors.textDim }}>{t('userNotFound')}</ScaledText>
       </View>
     );
   }
@@ -419,7 +420,7 @@ export default function ProfileScreen() {
           {isPro && (
             <View style={styles.proPill}>
               <Ionicons name="flash" size={9} color="#000" />
-              <ScaledText style={styles.proPillText}>pro</ScaledText>
+              <ScaledText style={styles.proPillText}>{t('pro')}</ScaledText>
             </View>
           )}
         </View>
@@ -444,21 +445,26 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => {
               Alert.alert(
-                'report @' + displayUser?.username,
-                'what is the reason?',
+                t('reportUser', { username: displayUser?.username }),
+                t('reportReasonQuestion'),
                 [
-                  { text: 'cancel', style: 'cancel' },
-                  ...['inappropriate content', 'harassment', 'spam', 'other'].map((reason) => ({
-                    text: reason,
+                  { text: t('cancel'), style: 'cancel' },
+                  ...[
+                    { key: 'inappropriate content', label: t('reportReasonInappropriate') },
+                    { key: 'harassment', label: t('reportReasonHarassment') },
+                    { key: 'spam', label: t('reportReasonSpam') },
+                    { key: 'other', label: t('reportReasonOther') }
+                  ].map(({ key, label }) => ({
+                    text: label,
                     onPress: async () => {
                       if (!token || !displayUser) return;
                       try {
                         const target = publicProfile;
                         if (!target) return;
-                        await APIService.reportUser(token, target.username, reason);
-                        Alert.alert('reported', 'thank you for keeping flash. safe.');
+                        await APIService.reportUser(token, target.username, key);
+                        Alert.alert(t('reportedSuccess'), t('reportedThankYou'));
                       } catch {
-                        Alert.alert('error', 'could not submit report.');
+                        Alert.alert(t('reportedError'), t('reportedErrorSubtitle'));
                       }
                     },
                   })),
@@ -500,16 +506,16 @@ export default function ProfileScreen() {
         </Pressable>
         <ScaledText style={styles.location}>{displayUser?.city}, {displayUser?.country}</ScaledText>
         <View style={styles.statsRow}>
-          <Stat n={realPacksCount} l="packs" onPress={isOwnProfile ? () => nav.navigate('PackCalendar') : undefined} />
-          <Stat n={realCountriesCount} l="countries" onPress={isOwnProfile ? () => nav.navigate('Countries') : undefined} />
-          <Stat n={displayUser?.streakDays ?? 0} l="streak" onPress={isOwnProfile ? () => nav.navigate('Streak') : undefined} />
+          <Stat n={realPacksCount} l={t('packs')} onPress={isOwnProfile ? () => nav.navigate('PackCalendar') : undefined} />
+          <Stat n={realCountriesCount} l={t('countries')} onPress={isOwnProfile ? () => nav.navigate('Countries') : undefined} />
+          <Stat n={displayUser?.streakDays ?? 0} l={t('streak')} onPress={isOwnProfile ? () => nav.navigate('Streak') : undefined} />
         </View>
         <View style={{ alignItems: 'center' }}>
           {isOwnProfile && me.isAdmin ? (
             <Animated.View style={secretStyle}>
               <Pressable onPress={() => onSecretTap(undefined, true)} hitSlop={10} style={styles.adminBadge}>
                 <Ionicons name="shield-checkmark" size={11} color={colors.yellow} />
-                <ScaledText style={styles.adminBadgeText}>admin</ScaledText>
+                <ScaledText style={styles.adminBadgeText}>{t('admin')}</ScaledText>
               </Pressable>
             </Animated.View>
           ) : isOwnProfile && me.invitedBy ? (
@@ -518,7 +524,7 @@ export default function ProfileScreen() {
               style={styles.invitedBy}
             >
               <ScaledText style={styles.invitedByText}>
-                invited by <ScaledText style={styles.invitedByAt}>@{me.invitedBy}</ScaledText>
+                {t('invitedBy')} <ScaledText style={styles.invitedByAt}>@{me.invitedBy}</ScaledText>
               </ScaledText>
               <Ionicons name="chevron-forward" size={12} color={colors.textFade} />
             </Pressable>
@@ -527,7 +533,7 @@ export default function ProfileScreen() {
             <Animated.View style={secretStyle}>
               <Pressable onPress={() => onSecretTap(undefined, true)} style={styles.adminBadge}>
                 <Ionicons name="shield-checkmark" size={11} color={colors.yellow} />
-                <ScaledText style={styles.adminBadgeText}>admin</ScaledText>
+                <ScaledText style={styles.adminBadgeText}>{t('admin')}</ScaledText>
               </Pressable>
             </Animated.View>
           ) : !isOwnProfile && publicProfile?.invitedBy ? (
@@ -536,7 +542,7 @@ export default function ProfileScreen() {
               style={styles.invitedBy}
             >
               <ScaledText style={styles.invitedByText}>
-                invited by <ScaledText style={styles.invitedByAt}>@{publicProfile.invitedBy}</ScaledText>
+                {t('invitedBy')} <ScaledText style={styles.invitedByAt}>@{publicProfile.invitedBy}</ScaledText>
               </ScaledText>
               <Ionicons name="chevron-forward" size={12} color={colors.textFade} />
             </Pressable>
@@ -544,7 +550,7 @@ export default function ProfileScreen() {
           {displayUser?.hasPongBadge && (
             <Pressable onPress={() => setShowPong(true)} style={styles.pongBadge}>
               <Ionicons name="trophy" size={11} color={colors.yellow} />
-              <ScaledText style={styles.pongBadgeText}>pong champion 🏓</ScaledText>
+              <ScaledText style={styles.pongBadgeText}>{t('pongChampion')}</ScaledText>
             </Pressable>
           )}
         </View>
@@ -554,17 +560,17 @@ export default function ProfileScreen() {
 
       {/* VIBEMETER */}
       <View style={styles.section}>
-        <ScaledText style={styles.sectionLabel}>vibemeter</ScaledText>
+        <ScaledText style={styles.sectionLabel}>{t('vibemeter')}</ScaledText>
         <View style={styles.card}>
           {(vibeExpanded ? ALL_FILTERS : FREE_FILTERS).map((f) => (
             <VibemeterBar key={f} filter={f} value={vibe[f] ?? 0} />
           ))}
           <Pressable onPress={() => setVibeExpanded((v) => !v)} style={styles.vibeExpand}>
             <Ionicons name={vibeExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textFade} />
-            <ScaledText style={styles.vibeExpandText}>{vibeExpanded ? 'show less' : 'show all filters'}</ScaledText>
+            <ScaledText style={styles.vibeExpandText}>{vibeExpanded ? t('showLess') : t('showAllFilters')}</ScaledText>
           </Pressable>
           {isOwnProfile && (
-            <ScaledText style={styles.cardFooter}>built from your last {historyCount} flash{historyCount === 1 ? '' : 'es'}</ScaledText>
+            <ScaledText style={styles.cardFooter}>{t('builtFromFlashes', { count: historyCount })}</ScaledText>
           )}
         </View>
       </View>
@@ -572,21 +578,21 @@ export default function ProfileScreen() {
       {/* PRO FEATURES — own profile only */}
       {isOwnProfile && (
         <View style={styles.section}>
-          <ScaledText style={styles.sectionLabel}>flash. pro</ScaledText>
+          <ScaledText style={styles.sectionLabel}>{t('flashPro')}</ScaledText>
           <Pressable onPress={() => nav.navigate('Pro')} style={[styles.proCard, me.isPro && styles.proCardActive]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <Ionicons name="flash" size={14} color={colors.yellow} />
-              <ScaledText style={styles.proCardTitle}>{me.isPro ? 'pro active' : 'upgrade to pro'}</ScaledText>
+              <ScaledText style={styles.proCardTitle}>{me.isPro ? t('proActive') : t('upgradeToPro')}</ScaledText>
               <View style={{ flex: 1 }} />
               <Ionicons name="chevron-forward" size={14} color={colors.textFade} />
             </View>
             <View style={{ gap: 4 }}>
               {[
-                'unlimited reverts within 24h',
-                'pack vault · save unlimited',
-                '5 exclusive pro filters',
-                '+2 invite slots',
-                'streak insurance',
+                t('proBenefit1'),
+                t('proBenefit2'),
+                t('proBenefit3'),
+                t('proBenefit4'),
+                t('proBenefit5'),
               ].map((line) => (
                 <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons
@@ -605,7 +611,7 @@ export default function ProfileScreen() {
       {/* INVITES — own profile only */}
       {isOwnProfile && openInvitesCount !== null && (
         <View style={styles.section}>
-          <ScaledText style={styles.sectionLabel}>invites</ScaledText>
+          <ScaledText style={styles.sectionLabel}>{t('invites')}</ScaledText>
           {openInvitesCount > 0 ? (
             <Pressable
               onPress={() => nav.navigate('Invite')}
@@ -617,10 +623,10 @@ export default function ProfileScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <ScaledText style={styles.inviteBannerTitle}>
-                    you have {openInvitesCount} more invite{openInvitesCount === 1 ? '' : 's'}
+                    {t('moreInvites', { count: openInvitesCount })}
                   </ScaledText>
                   <ScaledText style={styles.inviteBannerSubtitle}>
-                    invite some friends to build your crew
+                    {t('inviteFriendsSubtitle')}
                   </ScaledText>
                 </View>
                 <Ionicons name="chevron-forward" size={14} color={colors.textFade} />
@@ -636,9 +642,9 @@ export default function ProfileScreen() {
                   <Ionicons name="lock-closed" size={14} color={colors.textFade} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <ScaledText style={styles.inviteBannerTitle}>no invites left</ScaledText>
+                  <ScaledText style={styles.inviteBannerTitle}>{t('noInvitesLeft')}</ScaledText>
                   <ScaledText style={styles.inviteBannerSubtitle}>
-                    {!me?.isPro ? 'upgrade to pro to get +2 more invites' : 'you have used all your invite slots'}
+                    {!me?.isPro ? t('upgradeForMoreInvites') : t('allInviteSlotsUsed')}
                   </ScaledText>
                 </View>
                 {!me?.isPro && <Ionicons name="chevron-forward" size={14} color={colors.textFade} />}
@@ -652,10 +658,10 @@ export default function ProfileScreen() {
       {countryList.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <ScaledText style={styles.sectionLabel}>countries</ScaledText>
+            <ScaledText style={styles.sectionLabel}>{t('countries')}</ScaledText>
             <Pressable onPress={() => setShowMap(true)} style={styles.mapBtn}>
               <Ionicons name="map-outline" size={12} color={colors.yellow} />
-              <ScaledText style={styles.mapBtnText}>view map</ScaledText>
+              <ScaledText style={styles.mapBtnText}>{t('viewMap')}</ScaledText>
             </Pressable>
           </View>
           <View style={styles.chipWrap}>
@@ -669,7 +675,7 @@ export default function ProfileScreen() {
             ))}
             {countryList.length > 6 && (
               <View style={styles.moreChip}>
-                <ScaledText style={styles.moreChipText}>+{countryList.length - 6} more</ScaledText>
+                <ScaledText style={styles.moreChipText}>{t('moreCountries', { count: countryList.length - 6 })}</ScaledText>
               </View>
             )}
           </View>
@@ -679,7 +685,7 @@ export default function ProfileScreen() {
       {/* PACKED WITH */}
       {realPackedWith.length > 0 && (
         <View style={styles.section}>
-          <ScaledText style={styles.sectionLabel}>packed with</ScaledText>
+          <ScaledText style={styles.sectionLabel}>{t('packedWith')}</ScaledText>
           <View style={styles.chipWrap}>
             {realPackedWith.slice(0, 4).map((c) => (
               <CountryChip
@@ -691,7 +697,7 @@ export default function ProfileScreen() {
             ))}
             {realPackedWith.length > 4 && (
               <View style={styles.moreChip}>
-                <ScaledText style={styles.moreChipText}>+{realPackedWith.length - 4} more</ScaledText>
+                <ScaledText style={styles.moreChipText}>{t('moreCountries', { count: realPackedWith.length - 4 })}</ScaledText>
               </View>
             )}
           </View>

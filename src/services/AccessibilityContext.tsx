@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { loadSettings, saveSettings, UserSettings, DEFAULT_SETTINGS } from './settingsStore';
+import { setLanguage } from './i18n';
 
 type Accessibility = Pick<
   UserSettings,
-  'hapticsEnabled' | 'reduceMotion' | 'minimizeAnimations' | 'highContrast' | 'largerText' | 'screenReaderOptimized' | 'buttonSize' | 'theme'
+  'hapticsEnabled' | 'reduceMotion' | 'minimizeAnimations' | 'highContrast' | 'largerText' | 'screenReaderOptimized' | 'buttonSize' | 'theme' | 'language'
 >;
 
 type ContextValue = Accessibility & { refresh: () => Promise<void> };
@@ -20,6 +21,7 @@ function pickAccessibility(s: UserSettings): Accessibility {
     screenReaderOptimized: s.screenReaderOptimized,
     buttonSize: s.buttonSize,
     theme: s.theme,
+    language: s.language ?? 'system',
   };
 }
 
@@ -28,6 +30,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
   const refresh = useCallback(async () => {
     const s = await loadSettings();
+    setLanguage(s.language ?? 'system');
     setA11y(pickAccessibility(s));
   }, []);
 

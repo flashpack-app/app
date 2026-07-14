@@ -4,6 +4,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import type { CoachRect, CoachStep } from './CoachmarkContext';
+import { t } from '../services/i18n';
 
 interface Props {
   rect: CoachRect | null;
@@ -101,11 +102,11 @@ const CoachmarkOverlay: React.FC<Props> = ({ rect, step, index, total, onNext, o
           <View style={styles.actions}>
             {!isLast && (
               <Pressable hitSlop={8} onPress={onSkip} style={styles.skipBtn}>
-                <Text style={styles.skipText}>skip</Text>
+                <Text style={styles.skipText}>{t('coach_skip')}</Text>
               </Pressable>
             )}
             <Pressable onPress={onNext} style={styles.nextBtn}>
-              <Text style={styles.nextText}>{isLast ? 'got it' : 'next'}</Text>
+              <Text style={styles.nextText}>{isLast ? t('coach_gotIt') : t('coach_next')}</Text>
             </Pressable>
           </View>
         </View>
