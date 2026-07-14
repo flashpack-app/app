@@ -22,7 +22,7 @@
     "@react-three/fiber": "^9.6.1",
     "@sentry/react-native": "^8.18.0",
     "@shopify/react-native-skia": "2.2.12",
-    "expo": "~54.0.0",
+    "expo": "~57.0.4",
     "expo-application": "~7.0.8",
     "expo-camera": "~17.0.0",
     "expo-clipboard": "~8.0.0",
