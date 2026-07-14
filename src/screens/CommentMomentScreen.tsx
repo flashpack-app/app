@@ -11,6 +11,7 @@ import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
 import { ModerationService } from '../services/moderation';
 import { APIService } from '../services/api';
+import { posthog } from '../config/posthog';
 
 export default function CommentMomentScreen() {
   const colors = useColors();
@@ -51,6 +52,12 @@ export default function CommentMomentScreen() {
     if (token) {
       try {
         await APIService.addComment(token, pack.id, text);
+        posthog.capture('comment_sent', {
+          pack_id: pack.id,
+          text_length: text.length,
+          has_mention: /@\w+/.test(text),
+          member_count: pack.members.length,
+        });
       } catch {}
     }
   };

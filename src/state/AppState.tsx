@@ -408,6 +408,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           if (existing.some((r) => r.userId === userId)) return prev;
           return { ...prev, [packId]: [...existing, { userId, emoji, sentAt: new Date().toISOString() }] };
         });
+        posthog.capture('reaction_sent', {
+          pack_id: packId,
+          emoji,
+        });
         if (token) {
           APIService.addReaction(token, packId, emoji).catch((e) => {
             console.warn('addReaction failed:', e);

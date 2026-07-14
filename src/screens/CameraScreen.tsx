@@ -15,6 +15,7 @@ import { filterColor } from '../theme/colors';
 import { useAppState } from '../state/AppState';
 import { VibeFilter, PRO_FILTERS } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
+import { posthog } from '../config/posthog';
 
 function isCameraLocked(lastPostAt: string | null): boolean {
   if (!lastPostAt) return false;
@@ -94,6 +95,15 @@ export default function CameraScreen() {
     try {
       const photo = await camRef.current.takePictureAsync({ quality: 1 });
       if (photo?.uri) {
+        posthog.capture('photo_captured', {
+          filter_name: filter,
+          filter_label: FILTER_LABEL[filter],
+          is_pro_filter: PRO_FILTERS.includes(filter),
+          mode: 'photo',
+          flash_on: flash === 'on',
+          facing,
+          timer_sec: timerSec,
+        });
         nav.navigate('PhotoPreview', { uri: photo.uri, filter, ...(videoUri ? { videoUri } : {}) });
       }
     } catch {
@@ -170,7 +180,16 @@ export default function CameraScreen() {
         try {
           const photo = await camRef.current.takePictureAsync({ quality: 0.7, skipProcessing: true });
           if (photo?.uri) {
-            setIsCapturing(false); // must reset before navigate so Retake works
+            posthog.capture('photo_captured', {
+              filter_name: filter,
+              filter_label: FILTER_LABEL[filter],
+              is_pro_filter: PRO_FILTERS.includes(filter),
+              mode: 'live',
+              flash_on: flash === 'on',
+              facing,
+              timer_sec: timerSec,
+            });
+            setIsCapturing(false);
             nav.navigate('PhotoPreview', { uri: photo.uri, filter, videoUri });
             return;
           }
@@ -378,7 +397,18 @@ export default function CameraScreen() {
       </PinchGestureHandler>
 
       {/* Filter strip */}
-      <FilterStrip selected={filter} onSelect={setFilter} isPro={user?.isPro} />
+      <FilterStrip
+        selected={filter}
+        onSelect={(f) => {
+          setFilter(f);
+          posthog.capture('filter_selected', {
+            filter_name: f,
+            filter_label: FILTER_LABEL[f],
+            is_pro_filter: PRO_FILTERS.includes(f),
+          });
+        }}
+        isPro={user?.isPro}
+      />
 
       {/* Shutter row */}
       <View style={styles.shutterRow}>

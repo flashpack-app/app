@@ -161,6 +161,7 @@ export default function RootNavigator() {
   const { isAuthenticated, isBooting, isOnboarding, isConnected, setIsConnected, refreshPacks, refreshDiscover, refreshNotifications, streakAdvancedTo, clearStreakAdvanced, liveNotification, setLiveNotification } = useAppState();
   const wasConnected = useRef<boolean | null>(null);
   const navigationRef = useRef<any>(null);
+  const routeNameRef = useRef<string | undefined>(undefined);
 
   // Subscribe to connectivity changes
   useEffect(() => {
@@ -209,8 +210,6 @@ export default function RootNavigator() {
   if (isBooting) {
     return <CustomSplash />;
   }
-
-  const routeNameRef = useRef<string | undefined>(undefined);
 
   const onNavigationReady = () => {
     routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name;
