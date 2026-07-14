@@ -64,8 +64,8 @@ export default function OTPScreen() {
 
   useEffect(() => {
     // Request a code for this subject as soon as the screen opens.
-    console.log('[OTPScreen] Requesting OTP with:', { username, inviteCode, phone, email, isLogin });
-    APIService.sendOTP({ username, inviteCode, phone, email, isLogin })
+    console.log('[OTPScreen] Requesting OTP with:', { username, inviteCode, phone, email, isLoginParam });
+    APIService.sendOTP({ username, inviteCode, phone, email, isLogin: !!isLoginParam })
       .then((res) => {
         console.log('[OTPScreen] OTP send response:', res);
         if (res.devCode) setDevCode(res.devCode);
@@ -78,14 +78,15 @@ export default function OTPScreen() {
           ? t('otp_error_rateLimited')
           : t('otp_error_sendFailed'));
       });
-  }, [username, inviteCode, phone, email, isLogin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resendCode = async () => {
     if (resendCooldown > 0) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await APIService.sendOTP({ username, inviteCode, phone, email, isLogin });
+      const res = await APIService.sendOTP({ username, inviteCode, phone, email, isLogin: !!isLoginParam });
       if (res.devCode) setDevCode(res.devCode);
       setResendCooldown(60);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -105,7 +106,7 @@ export default function OTPScreen() {
     setError(null);
 
     try {
-      const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp, phone, email, isLogin, ...extras });
+      const { user, token } = await APIService.verifyOTP({ username, inviteCode, code: otp, phone, email, isLogin: !!isLoginParam, ...extras });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (user && token) {
         posthog.identify(user.id, {
