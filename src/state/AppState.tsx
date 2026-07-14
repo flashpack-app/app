@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { Alert } from 'react-native';
 import { Pack, User, InviteSlot, CommentMessage } from '../types/models';
 import { mockPacks } from '../data/mock';
-import { Session, loadSession, saveSession, clearSession, loadLastStreakDays, saveLastStreakDays } from '../services/storage';
+import { Session, loadSession, saveSession, clearSession, loadLastStreakDays, saveLastStreakDays, loadCachedPacks, saveCachedPacks, loadCachedDiscoverPacks, saveCachedDiscoverPacks, clearPacksCache } from '../services/storage';
 import { APIService } from '../services/api';
 import { registerForPushNotificationsAsync } from '../services/pushNotifications';
 
@@ -117,28 +117,116 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUser(s.user);
         setToken(s.token);
         if (s.user.lastPostAt) setLastPostAt(s.user.lastPostAt);
+        
+        // Load offline cache immediately to show content under 50ms
+        const [cachedPacks, cachedDiscover] = await Promise.all([
+          loadCachedPacks(),
+          loadCachedDiscoverPacks(),
+        ]);
+        if (cachedPacks) setPacks(cachedPacks);
+        if (cachedDiscover) setDiscoverPacks(cachedDiscover);
       }
-      // Clear boot immediately after local session loads
+      
+      // Clear boot immediately after local session and cache load
       setBooting(false);
 
-      // Fire-and-forget network calls in background, run concurrently
+      // Concurrently run network calls in background after boot clears
       if (s) {
-        try {
-          const [fresh, topic] = await Promise.all([
-            APIService.getMe(s.token),
-            APIService.getDailyTopic().catch(() => null),
-          ]);
-          setUser(fresh);
-          if (fresh.lastPostAt) {
-            setLastPostAt(fresh.lastPostAt);
-            setHasPostedFirstPack(true);
-          }
-          await saveSession({ token: s.token, user: fresh });
-          registerForPushNotificationsAsync(s.token).catch(() => {});
-          if (topic) setDailyTopic(topic);
-        } catch (e) {
-          console.warn('failed to refresh user on boot:', e);
-        }
+        Promise.all([
+          APIService.getMe(s.token).then(async (fresh) => {
+            setUser(fresh);
+            if (fresh.lastPostAt) {
+              setLastPostAt(fresh.lastPostAt);
+              setHasPostedFirstPack(true);
+            }
+            await saveSession({ token: s.token, user: fresh });
+            registerForPushNotificationsAsync(s.token).catch(() => {});
+          }),
+          APIService.getDailyTopic().then((topic) => {
+            if (topic) setDailyTopic(topic);
+          }).catch(() => {}),
+          APIService.getPacks(s.token).then(async (loaded) => {
+            setPacks(loaded);
+            await saveCachedPacks(loaded);
+            const cmtMap: Record<string, CommentMessage[]> = {};
+            for (const p of loaded) {
+              if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
+            }
+            if (Object.keys(cmtMap).length) {
+              setComments((prev) => ({ ...prev, ...cmtMap }));
+            }
+            setReactions((prev) => {
+              const next: Record<string, PackReaction[]> = { ...prev };
+              for (const p of loaded) {
+                const server = (p.reactions ?? []).map((r: any) => ({
+                  userId: r.userId,
+                  emoji: r.emoji,
+                  sentAt: new Date().toISOString(),
+                }));
+                const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
+                const serverKeys = new Set(server.map(key));
+                const local = prev[p.id] ?? [];
+                const extra = local.filter((r) => !serverKeys.has(key(r)));
+                next[p.id] = [...server, ...extra];
+              }
+              return next;
+            });
+            if (loaded.length > 0) setHasPostedFirstPack(true);
+            markLoad('packs', false);
+          }).catch((e) => {
+            console.warn('boot packs load failed:', e);
+            markLoad('packs', true);
+          }),
+          APIService.getDiscover(s.token).then(async (loaded) => {
+            setDiscoverPacks(loaded);
+            await saveCachedDiscoverPacks(loaded);
+            const cmtMap: Record<string, CommentMessage[]> = {};
+            for (const p of loaded) {
+              if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
+            }
+            if (Object.keys(cmtMap).length) {
+              setComments((prev) => ({ ...prev, ...cmtMap }));
+            }
+            setReactions((prev) => {
+              const next: Record<string, PackReaction[]> = { ...prev };
+              for (const p of loaded) {
+                const server = (p.reactions ?? []).map((r: any) => ({
+                  userId: r.userId,
+                  emoji: r.emoji,
+                  sentAt: new Date().toISOString(),
+                }));
+                const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
+                const serverKeys = new Set(server.map(key));
+                const local = prev[p.id] ?? [];
+                const extra = local.filter((r) => !serverKeys.has(key(r)));
+                next[p.id] = [...server, ...extra];
+              }
+              return next;
+            });
+            markLoad('discover', false);
+          }).catch((e) => {
+            console.warn('boot discover load failed:', e);
+            markLoad('discover', true);
+          }),
+          APIService.getNotifications(s.token).then((list) => {
+            setUnreadCount(list.filter((n) => !n.readAt).length);
+            markLoad('notifications', false);
+          }).catch((e) => {
+            console.warn('boot notifications load failed:', e);
+            markLoad('notifications', true);
+          }),
+          APIService.getStreak(s.token).then((st) => {
+            setStreak(st);
+            if (st.lastPostAt) setLastPostAt(st.lastPostAt);
+            setUser((prev) => (prev ? { ...prev, streakDays: st.streakDays } : prev));
+            markLoad('streak', false);
+          }).catch((e) => {
+            console.warn('boot streak load failed:', e);
+            markLoad('streak', true);
+          }),
+        ]).catch((e) => {
+          console.warn('failed background fetch on boot:', e);
+        });
       } else {
         // Still fetch daily topic even without session
         try {
@@ -207,7 +295,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setDiscoverPacks([]);
         setReactions({});
         setComments({});
-        await clearSession();
+        await Promise.all([clearSession(), clearPacksCache()]);
       },
       async refreshUser() {
         if (!token) return;
@@ -224,6 +312,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           const loaded = await APIService.getPacks(token);
           setPacks(loaded);
+          await saveCachedPacks(loaded);
           // hydrate comments & reactions from server, merging so local optimistic
           // updates aren't lost if the server hasn't seen them yet.
           const cmtMap: Record<string, CommentMessage[]> = {};
@@ -261,6 +350,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           const loaded = await APIService.getDiscover(token);
           setDiscoverPacks(loaded);
+          await saveCachedDiscoverPacks(loaded);
           const cmtMap: Record<string, CommentMessage[]> = {};
           for (const p of loaded) {
             if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
