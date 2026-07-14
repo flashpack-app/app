@@ -26,6 +26,7 @@ import { APIService, AdminReport, AdminNotification } from '../services/api';
 import { AdminStats, AdminUserRow, GenesisCode } from '../types/models';
 import PillButton from '../components/PillButton';
 import { saveLastStreakDays } from '../services/storage';
+import * as Sentry from '@sentry/react-native';
 
 type Tab = 'reports' | 'users' | 'codes' | 'notifications' | 'test';
 
@@ -910,6 +911,19 @@ const TestPanel: React.FC = () => {
         style={{ height: 40 }}
       >
         <Ionicons name="notifications-outline" size={14} color={colors.white} />
+      </PillButton>
+
+      <PillButton
+        variant="dim"
+        label="test sentry error"
+        onPress={() => {
+          Sentry.captureException(new Error('First error'));
+          setTestResult('Sentry error captured');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }}
+        style={{ height: 40 }}
+      >
+        <Ionicons name="warning-outline" size={14} color={colors.white} />
       </PillButton>
 
       <Text style={{ color: colors.textDim, fontSize: 11, marginTop: 8 }}>
