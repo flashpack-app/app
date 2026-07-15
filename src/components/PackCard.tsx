@@ -44,7 +44,7 @@ const timeLeft = (iso: string) => {
   return h > 0 ? t('time_hm_left', { h, m: m % 60 }) : t('time_m_left', { m });
 };
 
-const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress }) => {
+const PackCard: React.FC<Props> = React.memo(({ pack, reactions = [], onPress, onLongPress }) => {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   return (
@@ -120,7 +120,7 @@ const PackCard: React.FC<Props> = ({ pack, reactions = [], onPress, onLongPress 
       </View>
     </Pressable>
   );
-};
+});
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   card: {

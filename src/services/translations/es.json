@@ -457,5 +457,25 @@
   "lifecycle_vault_title": "¿quieres conservarlo?",
   "lifecycle_vault_p": "los miembros pro pueden guardar packs ilimitados en su {{bold_vault}} antes de que expiren. los miembros gratis pueden tomar capturas — pero todos en el pack reciben una notificación.",
   "lifecycle_vault_bold": "vault privado",
-  "lifecycle_vault_btn": "desbloquear vault de packs"
+  "lifecycle_vault_btn": "desbloquear vault de packs",
+
+  "pack_shot_apart": "{{minutes}} min aparte · {{countries}} países",
+
+  "chemistry_breakdown": "desglose de química",
+  "chemistry_breakdown_sub": "por qué este pack obtuvo esa puntuación",
+  "chemistry_base_score": "puntuación base",
+  "chemistry_people": "personas",
+  "chemistry_people_detail": "{{count}} en el pack",
+  "chemistry_country_diversity": "diversidad de países",
+  "chemistry_country_one": "{{count}} país",
+  "chemistry_country_other": "{{count}} países",
+  "chemistry_filter_diversity": "diversidad de filtros",
+  "chemistry_filter_one": "{{count}} filtro usado",
+  "chemistry_filter_other": "{{count}} filtros usados",
+  "chemistry_shot_together": "disparados juntos",
+  "chemistry_same_moment": "mismo momento",
+  "chemistry_min_apart": "{{minutes}} min aparte",
+  "chemistry_daily_topic": "tema diario",
+  "chemistry_daily_topic_detail": "coincidió con el prompt de hoy",
+  "chemistry_footer": "puntuaciones más altas provienen de packs más grandes y globales disparados cerca en tiempo con filtros variados."
 }

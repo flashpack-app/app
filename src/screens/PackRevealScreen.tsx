@@ -401,7 +401,7 @@ export default function PackRevealScreen() {
           </View>
           <Animated.Text style={[styles.title, titleStyle]}>{t('yourPackIsHere')}<Text style={{ color: colors.yellow }}>.</Text></Animated.Text>
           <Animated.Text style={[styles.subtitle, subtitleStyle]}>
-            shot {pack.apartMinutes} min apart · {pack.countriesCount} countries
+            {t('pack_shot_apart', { minutes: pack.apartMinutes, countries: pack.countriesCount })}
           </Animated.Text>
           {pack.screenshots && pack.screenshots.length > 0 && (
             <Pressable onPress={() => setShowScreenshotModal(true)} hitSlop={8}>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, FlatList, StyleSheet, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -38,7 +38,7 @@ function useCountdown(target: Date | null): { text: string; hours: number } {
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
-  }, [target]);
+  }, [target?.getTime()]);
   return result;
 }
 
@@ -86,9 +86,7 @@ export default function FeedScreen() {
     refreshPacks();
     refreshDiscover();
     refreshNotifications();
-    const id = setInterval(() => { refreshNotifications(); }, 60_000);
-    return () => clearInterval(id);
-  }, []);
+  }, [refreshPacks, refreshDiscover, refreshNotifications]);
 
   // Load invite slots to calculate remaining
   useEffect(() => {
@@ -127,9 +125,9 @@ export default function FeedScreen() {
     ]);
   };
 
-  const formingTarget = lastPostAt ? new Date(new Date(lastPostAt).getTime() + 2 * 3600 * 1000) : null;
+  const formingTarget = useMemo(() => lastPostAt ? new Date(new Date(lastPostAt).getTime() + 2 * 3600 * 1000) : null, [lastPostAt]);
   const formingCountdown = useCountdown(formingTarget);
-  const expiresTarget = activePacks[0]?.expiresAt ? new Date(activePacks[0].expiresAt) : null;
+  const expiresTarget = useMemo(() => activePacks[0]?.expiresAt ? new Date(activePacks[0].expiresAt) : null, [activePacks[0]?.expiresAt]);
   const expiresCountdown = useCountdown(expiresTarget);
 
   return (
@@ -207,6 +205,11 @@ export default function FeedScreen() {
             keyExtractor={(p) => p.id}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            removeClippedSubviews={true}
+            windowSize={5}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
+            updateCellsBatchingPeriod={50}
             ListHeaderComponent={
               <View>
                 <LiquidRefresh progress={progress} />

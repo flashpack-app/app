@@ -457,5 +457,25 @@
   "lifecycle_vault_title": "想保留吗？",
   "lifecycle_vault_p": "pro 会员可以在过期前将无限小队保存到他们的 {{bold_vault}}。免费会员可以截图 — 但小队中的每个人都会收到通知。",
   "lifecycle_vault_bold": "私人保险库",
-  "lifecycle_vault_btn": "解锁小队保险库"
+  "lifecycle_vault_btn": "解锁小队保险库",
+
+  "pack_shot_apart": "相隔{{minutes}}分钟 · {{countries}}个国家",
+
+  "chemistry_breakdown": "化学反应分析",
+  "chemistry_breakdown_sub": "这个小队为何获得此分数",
+  "chemistry_base_score": "基础分数",
+  "chemistry_people": "人员",
+  "chemistry_people_detail": "小队中有{{count}}人",
+  "chemistry_country_diversity": "国家多样性",
+  "chemistry_country_one": "{{count}}个国家",
+  "chemistry_country_other": "{{count}}个国家",
+  "chemistry_filter_diversity": "滤镜多样性",
+  "chemistry_filter_one": "使用了{{count}}个滤镜",
+  "chemistry_filter_other": "使用了{{count}}个滤镜",
+  "chemistry_shot_together": "一起拍摄",
+  "chemistry_same_moment": "同一时刻",
+  "chemistry_min_apart": "相隔{{minutes}}分钟",
+  "chemistry_daily_topic": "每日主题",
+  "chemistry_daily_topic_detail": "与今日提示匹配",
+  "chemistry_footer": "更高的分数来自使用多种滤镜在相近时间拍摄的更大、更全球的小队。"
 }

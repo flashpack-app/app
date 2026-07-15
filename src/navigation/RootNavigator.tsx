@@ -207,10 +207,6 @@ export default function RootNavigator() {
   }, []);
 
   useEffect(() => {
-    flushPendingPack();
-  }, [canOpenPack, flushPendingPack]);
-
-  useEffect(() => {
     // Cold start: the tap that launched the app never reaches the listener below.
     getLastNotificationResponseAsync().then((initial) => {
       const packId = extractPackId(initial);

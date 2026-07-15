@@ -27,15 +27,17 @@ class ResponseParseError extends Error {
 
 async function http<T>(
   path: string,
-  opts: { method?: string; body?: any; token?: string | null } = {},
+  opts: { method?: string; body?: any; token?: string | null; headers?: Record<string, string> } = {},
 ): Promise<T> {
+  const isFormData = opts.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     method: opts.method ?? 'GET',
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
+      ...(opts.headers ?? {}),
     },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    body: isFormData ? opts.body : (opts.body ? JSON.stringify(opts.body) : undefined),
   });
   let json: any = null;
   let parseError: unknown;
@@ -265,7 +267,7 @@ export const APIService = {
         ...(packType === 'duet' ? { packType } : {}),
         filter,
       },
-    });
+    }) as Promise<{ photoId: string; packId: string; packNumber: number }>;
   },
 
   async revertPhoto(token: string, photoId: string): Promise<void> {

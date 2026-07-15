@@ -457,5 +457,25 @@
   "lifecycle_vault_title": "보관하고 싶으신가요?",
   "lifecycle_vault_p": "pro 회원은 만료 전에 무제한 팩을 {{bold_vault}}에 저장할 수 있습니다. 무료 회원은 스크린샷을 찍을 수 있지만 팩의 모든 사람에게 알림이 갑니다.",
   "lifecycle_vault_bold": "개인 보관함",
-  "lifecycle_vault_btn": "팩 보관함 잠금 해제"
+  "lifecycle_vault_btn": "팩 보관함 잠금 해제",
+
+  "pack_shot_apart": "{{minutes}}분 차이 · {{countries}}국가",
+
+  "chemistry_breakdown": "케미스트리 분석",
+  "chemistry_breakdown_sub": "이 팩이 왜 그 점수를 받았는지",
+  "chemistry_base_score": "기본 점수",
+  "chemistry_people": "사람들",
+  "chemistry_people_detail": "팩에 {{count}}명",
+  "chemistry_country_diversity": "국가 다양성",
+  "chemistry_country_one": "{{count}}국가",
+  "chemistry_country_other": "{{count}}국가",
+  "chemistry_filter_diversity": "필터 다양성",
+  "chemistry_filter_one": "{{count}}개 필터 사용됨",
+  "chemistry_filter_other": "{{count}}개 필터 사용됨",
+  "chemistry_shot_together": "함께 촬영",
+  "chemistry_same_moment": "같은 순간",
+  "chemistry_min_apart": "{{minutes}}분 차이",
+  "chemistry_daily_topic": "일일 토픽",
+  "chemistry_daily_topic_detail": "오늘의 프롬프트와 일치",
+  "chemistry_footer": "더 높은 점수는 다양한 필터로 가까운 시간에 촬영된 더 크고 글로벌한 팩에서 나옵니다."
 }

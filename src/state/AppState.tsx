@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pack, User, InviteSlot, CommentMessage } from '../types/models';
 import { mockPacks } from '../data/mock';
 import { Session, loadSession, saveSession, clearSession, loadLastStreakDays, saveLastStreakDays, loadCachedPacks, saveCachedPacks, loadCachedDiscoverPacks, saveCachedDiscoverPacks, clearPacksCache } from '../services/storage';
@@ -93,7 +93,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [streakAdvancedTo, setStreakAdvancedTo] = useState<number | null>(null);
   const [loadErrors, setLoadErrors] = useState<Record<string, boolean>>({});
-  const [liveNotification, setLiveNotification] = useState<{
+  const [liveNotificationState, setLiveNotificationState] = useState<{
     title: string;
     body?: string;
     type?: string;
@@ -261,6 +261,123 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })();
   }, [streak, token]);
 
+  // Stable callbacks for functions used in useEffect dependencies
+  const refreshPacks = useCallback(async () => {
+    if (!token) return;
+    try {
+      const loaded = await APIService.getPacks(token);
+      setPacks(loaded);
+      await saveCachedPacks(loaded);
+      // hydrate comments & reactions from server, merging so local optimistic
+      // updates aren't lost if the server hasn't seen them yet.
+      const cmtMap: Record<string, CommentMessage[]> = {};
+      for (const p of loaded) {
+        if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
+      }
+      if (Object.keys(cmtMap).length) {
+        setComments((prev) => ({ ...prev, ...cmtMap }));
+      }
+      setReactions((prev) => {
+        const next: Record<string, PackReaction[]> = { ...prev };
+        for (const p of loaded) {
+          const server = (p.reactions ?? []).map((r: any) => ({
+            userId: r.userId,
+            emoji: r.emoji,
+            sentAt: new Date().toISOString(),
+          }));
+          const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
+          const serverKeys = new Set(server.map(key));
+          const local = prev[p.id] ?? [];
+          const extra = local.filter((r) => !serverKeys.has(key(r)));
+          next[p.id] = [...server, ...extra];
+        }
+        return next;
+      });
+      if (loaded.length > 0) setHasPostedFirstPack(true);
+      markLoad('packs', false);
+    } catch (e) {
+      console.warn('refreshPacks failed:', e);
+      markLoad('packs', true);
+    }
+  }, [token]);
+
+  const refreshDiscover = useCallback(async () => {
+    if (!token) return;
+    try {
+      const loaded = await APIService.getDiscover(token);
+      setDiscoverPacks(loaded);
+      await saveCachedDiscoverPacks(loaded);
+      const cmtMap: Record<string, CommentMessage[]> = {};
+      for (const p of loaded) {
+        if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
+      }
+      if (Object.keys(cmtMap).length) {
+        setComments((prev) => ({ ...prev, ...cmtMap }));
+      }
+      setReactions((prev) => {
+        const next: Record<string, PackReaction[]> = { ...prev };
+        for (const p of loaded) {
+          const server = (p.reactions ?? []).map((r: any) => ({
+            userId: r.userId,
+            emoji: r.emoji,
+            sentAt: new Date().toISOString(),
+          }));
+          const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
+          const serverKeys = new Set(server.map(key));
+          const local = prev[p.id] ?? [];
+          const extra = local.filter((r) => !serverKeys.has(key(r)));
+          next[p.id] = [...server, ...extra];
+        }
+        return next;
+      });
+      markLoad('discover', false);
+    } catch (e) {
+      console.warn('refreshDiscover failed:', e);
+      markLoad('discover', true);
+    }
+  }, [token]);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!token) return;
+    try {
+      const list = await APIService.getNotifications(token);
+      setUnreadCount(list.filter((n) => !n.readAt).length);
+      markLoad('notifications', false);
+    } catch (e) {
+      console.warn('refreshNotifications failed:', e);
+      markLoad('notifications', true);
+    }
+  }, [token]);
+
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    try {
+      const fresh = await APIService.getMe(token);
+      setUser(fresh);
+      await saveSession({ token, user: fresh });
+    } catch (e) {
+      console.warn('refreshUser failed:', e);
+    }
+  }, [token]);
+
+  const refreshStreak = useCallback(async () => {
+    if (!token) return;
+    try {
+      const s = await APIService.getStreak(token);
+      setStreak(s);
+      if (s.lastPostAt) setLastPostAt(s.lastPostAt);
+      setUser((prev) => (prev ? { ...prev, streakDays: s.streakDays } : prev));
+      markLoad('streak', false);
+    } catch (e) {
+      console.warn('refreshStreak failed:', e);
+      markLoad('streak', true);
+    }
+  }, [token]);
+
+  const setLiveNotification = useCallback((notification: { title: string; body?: string; type?: string; packId?: string } | null) => {
+    setLiveNotificationState(notification);
+  }, []);
+
   const value = useMemo<AppStateValue>(
     () => ({
       user,
@@ -281,7 +398,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       isOnboarding,
       streakAtRisk,
       streakAdvancedTo,
-      liveNotification,
+      liveNotification: liveNotificationState,
       loadErrors,
       setIsOnboarding,
       setIsConnected,
@@ -314,89 +431,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setComments({});
         await Promise.all([clearSession(), clearPacksCache()]);
       },
-      async refreshUser() {
-        if (!token) return;
-        try {
-          const fresh = await APIService.getMe(token);
-          setUser(fresh);
-          await saveSession({ token, user: fresh });
-        } catch (e) {
-          console.warn('refreshUser failed:', e);
-        }
-      },
-      async refreshPacks() {
-        if (!token) return;
-        try {
-          const loaded = await APIService.getPacks(token);
-          setPacks(loaded);
-          await saveCachedPacks(loaded);
-          // hydrate comments & reactions from server, merging so local optimistic
-          // updates aren't lost if the server hasn't seen them yet.
-          const cmtMap: Record<string, CommentMessage[]> = {};
-          for (const p of loaded) {
-            if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
-          }
-          if (Object.keys(cmtMap).length) {
-            setComments((prev) => ({ ...prev, ...cmtMap }));
-          }
-          setReactions((prev) => {
-            const next: Record<string, PackReaction[]> = { ...prev };
-            for (const p of loaded) {
-              const server = (p.reactions ?? []).map((r: any) => ({
-                userId: r.userId,
-                emoji: r.emoji,
-                sentAt: new Date().toISOString(),
-              }));
-              const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
-              const serverKeys = new Set(server.map(key));
-              const local = prev[p.id] ?? [];
-              const extra = local.filter((r) => !serverKeys.has(key(r)));
-              next[p.id] = [...server, ...extra];
-            }
-            return next;
-          });
-          if (loaded.length > 0) setHasPostedFirstPack(true);
-          markLoad('packs', false);
-        } catch (e) {
-          console.warn('refreshPacks failed:', e);
-          markLoad('packs', true);
-        }
-      },
-      async refreshDiscover() {
-        if (!token) return;
-        try {
-          const loaded = await APIService.getDiscover(token);
-          setDiscoverPacks(loaded);
-          await saveCachedDiscoverPacks(loaded);
-          const cmtMap: Record<string, CommentMessage[]> = {};
-          for (const p of loaded) {
-            if (p.comment?.messages?.length) cmtMap[p.id] = p.comment.messages as any;
-          }
-          if (Object.keys(cmtMap).length) {
-            setComments((prev) => ({ ...prev, ...cmtMap }));
-          }
-          setReactions((prev) => {
-            const next: Record<string, PackReaction[]> = { ...prev };
-            for (const p of loaded) {
-              const server = (p.reactions ?? []).map((r: any) => ({
-                userId: r.userId,
-                emoji: r.emoji,
-                sentAt: new Date().toISOString(),
-              }));
-              const key = (r: PackReaction) => `${r.userId}:${r.emoji}`;
-              const serverKeys = new Set(server.map(key));
-              const local = prev[p.id] ?? [];
-              const extra = local.filter((r) => !serverKeys.has(key(r)));
-              next[p.id] = [...server, ...extra];
-            }
-            return next;
-          });
-          markLoad('discover', false);
-        } catch (e) {
-          console.warn('refreshDiscover failed:', e);
-          markLoad('discover', true);
-        }
-      },
+      refreshUser,
+      refreshPacks,
+      refreshDiscover,
       markAllRead: () => setUnreadCount(0),
       markOneRead: () => setUnreadCount((c) => Math.max(0, c - 1)),
       addPack: (p) => setPacks((prev) => [p, ...prev]),
@@ -406,26 +443,25 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLastPostAt: (iso) => setLastPostAt(iso),
       setLastPostedPhotoId: (id) => setLastPostedPhotoId(id),
       async addReaction(packId, emoji) {
-        const existing = reactions[packId] ?? [];
-        const userId = user?.id ?? 'anon';
-        if (existing.length >= 5 || existing.some((r) => r.userId === userId)) return;
-        const reaction = { userId, emoji, sentAt: new Date().toISOString() };
-        setReactions((prev) => ({ ...prev, [packId]: [...(prev[packId] ?? []), reaction] }));
-        posthog.capture('reaction_sent', {
-          pack_id: packId,
-          emoji,
+        setReactions((prev) => {
+          const existing = prev[packId] ?? [];
+          const userId = user?.id ?? 'anon';
+          if (existing.length >= 5 || existing.some((r) => r.userId === userId)) return prev;
+          const reaction = { userId, emoji, sentAt: new Date().toISOString() };
+          posthog.capture('reaction_sent', {
+            pack_id: packId,
+            emoji,
+          });
+          if (!token) return prev;
+          APIService.addReaction(token, packId, emoji).catch((error) => {
+            setReactions((prev2) => ({
+              ...prev2,
+              [packId]: (prev2[packId] ?? []).filter((item) => item !== reaction),
+            }));
+            console.warn('addReaction failed:', error);
+          });
+          return { ...prev, [packId]: [...existing, reaction] };
         });
-        if (!token) return;
-        try {
-          await APIService.addReaction(token, packId, emoji);
-        } catch (error) {
-          setReactions((prev) => ({
-            ...prev,
-            [packId]: (prev[packId] ?? []).filter((item) => item !== reaction),
-          }));
-          console.warn('addReaction failed:', error);
-          throw error;
-        }
       },
       async addComment(packId, msg) {
         setComments((prev) => ({ ...prev, [packId]: [...(prev[packId] ?? []), msg] }));
@@ -477,30 +513,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLastPostedPhotoId(null);
         setHasPostedFirstPack(false);
       },
-      async refreshStreak() {
-        if (!token) return;
-        try {
-          const s = await APIService.getStreak(token);
-          setStreak(s);
-          if (s.lastPostAt) setLastPostAt(s.lastPostAt);
-          setUser((prev) => (prev ? { ...prev, streakDays: s.streakDays } : prev));
-          markLoad('streak', false);
-        } catch (e) {
-          console.warn('refreshStreak failed:', e);
-          markLoad('streak', true);
-        }
-      },
-      async refreshNotifications() {
-        if (!token) return;
-        try {
-          const list = await APIService.getNotifications(token);
-          setUnreadCount(list.filter((n) => !n.readAt).length);
-          markLoad('notifications', false);
-        } catch (e) {
-          console.warn('refreshNotifications failed:', e);
-          markLoad('notifications', true);
-        }
-      },
+      refreshStreak,
+      refreshNotifications,
       async awardPongBadge() {
         if (!user || !token) return;
         try {
@@ -513,7 +527,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
     }),
-    [user, token, isBooting, packs, discoverPacks, hasPostedFirstPack, lastPostAt, lastPostedPhotoId, unreadCount, reactions, comments, streak, dailyTopic, isOnboarding, streakAtRisk, loadErrors, setIsOnboarding],
+    [user, token, isBooting, isConnected, isOnboarding, setIsOnboarding, refreshPacks, refreshDiscover, refreshNotifications, refreshUser, refreshStreak, setLiveNotification],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

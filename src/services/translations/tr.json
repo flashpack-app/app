@@ -496,5 +496,25 @@
   "lifecycle_vault_title": "saklamak ister misin?",
   "lifecycle_vault_p": "pro üyeler, süresi dolmadan önce sınırsız paketi {{bold_vault}} adresine kaydedebilir. ücretsiz üyeler ekran görüntüsü alabilir — ancak paketteki herkes bildirim alır.",
   "lifecycle_vault_bold": "özel kasaya",
-  "lifecycle_vault_btn": "paket kasasını aç"
+  "lifecycle_vault_btn": "paket kasasını aç",
+
+  "pack_shot_apart": "{{minutes}} dk aralıkta · {{countries}} ülke",
+
+  "chemistry_breakdown": "kimya analizi",
+  "chemistry_breakdown_sub": "bu paket bu puanı neden aldı",
+  "chemistry_base_score": "temel puan",
+  "chemistry_people": "insanlar",
+  "chemistry_people_detail": "{{count}} kişilik paket",
+  "chemistry_country_diversity": "ülke çeşitliliği",
+  "chemistry_country_one": "{{count}} ülke",
+  "chemistry_country_other": "{{count}} ülke",
+  "chemistry_filter_diversity": "filtre çeşitliliği",
+  "chemistry_filter_one": "{{count}} filtre kullanıldı",
+  "chemistry_filter_other": "{{count}} filtre kullanıldı",
+  "chemistry_shot_together": "birlikte çekildi",
+  "chemistry_same_moment": "aynı anda",
+  "chemistry_min_apart": "{{minutes}} dk aralıkta",
+  "chemistry_daily_topic": "günlük konu",
+  "chemistry_daily_topic_detail": "bugünün istemiyle eşleşti",
+  "chemistry_footer": "daha yüksek puanlar, çeşitli filtrelerle yakın zamanda çekilen daha büyük ve daha küresel paketlerden gelir."
 }

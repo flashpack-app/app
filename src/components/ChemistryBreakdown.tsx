@@ -6,6 +6,7 @@ import { Pack } from '../types/models';
 import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { t } from '../services/i18n';
 
 interface Props {
   visible: boolean;
@@ -41,29 +42,29 @@ function computeFactors(pack: Pack, hasDailyTopic: boolean): Factor[] {
   const factors: Factor[] = [
     {
       icon: 'people',
-      label: 'people',
-      detail: `${members} in the pack`,
+      label: t('chemistry_people'),
+      detail: t('chemistry_people_detail', { count: members }),
       points: people,
       max: 12,
     },
     {
       icon: 'earth',
-      label: 'country diversity',
-      detail: `${countries} ${countries === 1 ? 'country' : 'countries'}`,
+      label: t('chemistry_country_diversity'),
+      detail: t(countries === 1 ? 'chemistry_country_one' : 'chemistry_country_other', { count: countries }),
       points: country,
       max: 16,
     },
     {
       icon: 'color-palette',
-      label: 'filter diversity',
-      detail: `${filters} ${filters === 1 ? 'filter' : 'filters'} used`,
+      label: t('chemistry_filter_diversity'),
+      detail: t(filters === 1 ? 'chemistry_filter_one' : 'chemistry_filter_other', { count: filters }),
       points: filter,
       max: 12,
     },
     {
       icon: 'time',
-      label: 'shot together',
-      detail: apart === 0 ? 'same moment' : `${apart} min apart`,
+      label: t('chemistry_shot_together'),
+      detail: apart === 0 ? t('chemistry_same_moment') : t('chemistry_min_apart', { minutes: apart }),
       points: proximity,
       max: 10,
     },
@@ -72,8 +73,8 @@ function computeFactors(pack: Pack, hasDailyTopic: boolean): Factor[] {
   if (hasDailyTopic) {
     factors.push({
       icon: 'sparkles',
-      label: 'daily topic',
-      detail: 'matched today’s prompt',
+      label: t('chemistry_daily_topic'),
+      detail: t('chemistry_daily_topic_detail'),
       points: 5,
       max: 5,
     });
@@ -97,15 +98,15 @@ const ChemistryBreakdown: React.FC<Props> = ({ visible, pack, hasDailyTopic = fa
 
           <View style={styles.headRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>chemistry breakdown</Text>
-              <Text style={styles.sub}>why this pack scored what it did</Text>
+              <Text style={styles.title}>{t('chemistry_breakdown')}</Text>
+              <Text style={styles.sub}>{t('chemistry_breakdown_sub')}</Text>
             </View>
             <Text style={[styles.bigScore, { color }]}>{pack.chemistryScore}%</Text>
           </View>
 
           <View style={styles.baseRow}>
             <Ionicons name="flash" size={14} color={colors.textDim} />
-            <Text style={styles.baseLabel}>base score</Text>
+            <Text style={styles.baseLabel}>{t('chemistry_base_score')}</Text>
             <Text style={styles.basePoints}>+50</Text>
           </View>
 
@@ -128,7 +129,7 @@ const ChemistryBreakdown: React.FC<Props> = ({ visible, pack, hasDailyTopic = fa
           ))}
 
           <Text style={styles.footer}>
-            higher scores come from bigger, more global packs shot close in time with varied filters.
+            {t('chemistry_footer')}
           </Text>
         </Pressable>
       </Pressable>

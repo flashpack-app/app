@@ -496,5 +496,25 @@
   "lifecycle_vault_title": "want to keep it?",
   "lifecycle_vault_p": "pro members can save unlimited packs to their {{bold_vault}} before they expire. free members can screenshot — but everyone in the pack gets notified.",
   "lifecycle_vault_bold": "private vault",
-  "lifecycle_vault_btn": "unlock pack vault"
+  "lifecycle_vault_btn": "unlock pack vault",
+
+  "pack_shot_apart": "shot {{minutes}} min apart · {{countries}} countries",
+
+  "chemistry_breakdown": "chemistry breakdown",
+  "chemistry_breakdown_sub": "why this pack scored what it did",
+  "chemistry_base_score": "base score",
+  "chemistry_people": "people",
+  "chemistry_people_detail": "{{count}} in the pack",
+  "chemistry_country_diversity": "country diversity",
+  "chemistry_country_one": "{{count}} country",
+  "chemistry_country_other": "{{count}} countries",
+  "chemistry_filter_diversity": "filter diversity",
+  "chemistry_filter_one": "{{count}} filter used",
+  "chemistry_filter_other": "{{count}} filters used",
+  "chemistry_shot_together": "shot together",
+  "chemistry_same_moment": "same moment",
+  "chemistry_min_apart": "{{minutes}} min apart",
+  "chemistry_daily_topic": "daily topic",
+  "chemistry_daily_topic_detail": "matched today's prompt",
+  "chemistry_footer": "higher scores come from bigger, more global packs shot close in time with varied filters."
 }

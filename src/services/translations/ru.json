@@ -457,5 +457,25 @@
   "lifecycle_vault_title": "хочешь сохранить?",
   "lifecycle_vault_p": "pro-участники могут сохранять неограниченное количество паков в своём {{bold_vault}} до истечения срока. бесплатные участники могут делать скриншоты — но все в паке будут уведомлены.",
   "lifecycle_vault_bold": "личном хранилище",
-  "lifecycle_vault_btn": "разблокировать хранилище паков"
+  "lifecycle_vault_btn": "разблокировать хранилище паков",
+
+  "pack_shot_apart": "{{minutes}} мин разницы · {{countries}} стран",
+
+  "chemistry_breakdown": "разбор химии",
+  "chemistry_breakdown_sub": "почему этот набрал такую оценку",
+  "chemistry_base_score": "базовая оценка",
+  "chemistry_people": "люди",
+  "chemistry_people_detail": "{{count}} в паке",
+  "chemistry_country_diversity": "разнообразие стран",
+  "chemistry_country_one": "{{count}} страна",
+  "chemistry_country_other": "{{count}} стран",
+  "chemistry_filter_diversity": "разнообразие фильтров",
+  "chemistry_filter_one": "{{count}} фильтр использован",
+  "chemistry_filter_other": "{{count}} фильтров использовано",
+  "chemistry_shot_together": "снято вместе",
+  "chemistry_same_moment": "в один момент",
+  "chemistry_min_apart": "{{minutes}} мин разницы",
+  "chemistry_daily_topic": "ежедневная тема",
+  "chemistry_daily_topic_detail": "совпало с сегодняшним промптом",
+  "chemistry_footer": "более высокие оценки приходят от более крупных и глобальных паков, снятых близко по времени с разнообразными фильтрами."
 }

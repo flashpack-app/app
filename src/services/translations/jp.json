@@ -457,5 +457,25 @@
   "lifecycle_vault_title": "保存したいですか？",
   "lifecycle_vault_p": "proメンバーは期限前に無制限のパックを{{bold_vault}}に保存できます。無料メンバーはスクリーンショットを撮れますが、パックの全員に通知されます。",
   "lifecycle_vault_bold": "プライベートボールト",
-  "lifecycle_vault_btn": "パックボールトをアンロック"
+  "lifecycle_vault_btn": "パックボールトをアンロック",
+
+  "pack_shot_apart": "{{minutes}}分の差 · {{countries}}カ国",
+
+  "chemistry_breakdown": "ケミストリー内訳",
+  "chemistry_breakdown_sub": "このパックがなぜそのスコアを得たか",
+  "chemistry_base_score": "ベーススコア",
+  "chemistry_people": "人々",
+  "chemistry_people_detail": "パックに{{count}}人",
+  "chemistry_country_diversity": "国の多様性",
+  "chemistry_country_one": "{{count}}カ国",
+  "chemistry_country_other": "{{count}}カ国",
+  "chemistry_filter_diversity": "フィルターの多様性",
+  "chemistry_filter_one": "{{count}}つのフィルター使用",
+  "chemistry_filter_other": "{{count}}つのフィルター使用",
+  "chemistry_shot_together": "一緒に撮影",
+  "chemistry_same_moment": "同じ瞬間",
+  "chemistry_min_apart": "{{minutes}}分の差",
+  "chemistry_daily_topic": "日次トピック",
+  "chemistry_daily_topic_detail": "今日のプロンプトに一致",
+  "chemistry_footer": "より高いスコアは、多様なフィルターを使用して近い時間に撮影された、より大きくグローバルなパックから来ます。"
 }

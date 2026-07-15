@@ -19,7 +19,8 @@ const ChoiceRow: React.FC<{
   value: string;
   options: string[];
   onChange: (v: string) => void;
-}> = ({ icon, label, value, options, onChange }) => {
+  translationPrefix?: string;
+}> = ({ icon, label, value, options, onChange, translationPrefix = 'settings_theme_' }) => {
   const colors = useColors();
   const settingsStyles = useSettingsStyles();
   const styles = useThemedStyles(makeStyles);
@@ -40,7 +41,7 @@ const ChoiceRow: React.FC<{
             ]}
           >
             <ScaledText style={[styles.choiceText, value === o ? { color: '#000', fontWeight: '700' } : {}]}>
-              {t(('settings_theme_' + o) as any, { defaultValue: o })}
+              {t((translationPrefix + o) as any, { defaultValue: o })}
             </ScaledText>
           </Pressable>
         ))}
@@ -214,6 +215,7 @@ export default function AccessibilitySettingsScreen() {
             value={s.buttonSize}
             options={['normal', 'large']}
             onChange={(v) => patch({ buttonSize: v as 'normal' | 'large' })}
+            translationPrefix="settings_button_size_"
           />
         </Section>
 
