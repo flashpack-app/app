@@ -201,9 +201,9 @@ export default function RootNavigator() {
 
   const flushPendingPack = useCallback(() => {
     const packId = pendingPackId.current;
-    if (!packId || !navigationRef.isReady() || !canOpenPackRef.current) return;
+    if (!packId || !navigationRef.current?.isReady() || !canOpenPackRef.current) return;
     pendingPackId.current = null;
-    navigationRef.navigate('PackReveal', { packId });
+    navigationRef.current?.navigate('PackReveal', { packId });
   }, []);
 
   useEffect(() => {
@@ -245,8 +245,7 @@ export default function RootNavigator() {
       received.remove();
       response.remove();
     };
-  }, [flushPendingPack]);
-  }, [refreshNotifications, setLiveNotification]);
+  }, [flushPendingPack, refreshNotifications, setLiveNotification]);
 
   if (isBooting) {
     return <CustomSplash />;
@@ -268,7 +267,6 @@ export default function RootNavigator() {
 
   return (
     <View style={styles.root}>
-      <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingPack}>
       <NavigationContainer
         theme={navTheme}
         ref={navigationRef}
