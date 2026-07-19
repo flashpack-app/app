@@ -3,10 +3,19 @@
 // methods by mocking fetch.
 
 import { HTTPError } from '../api';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 // We need to re-import to get the module after mocks are set up
 const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
+
+class MockFormData {
+  fields: Array<[string, any]> = [];
+  append(name: string, value: any) {
+    this.fields.push([name, value]);
+  }
+}
+(global as any).FormData = MockFormData;
 
 describe('HTTPError', () => {
   it('stores status and body', () => {
@@ -127,5 +136,42 @@ describe('APIService.getPacks', () => {
     expect(packs[0].id).toBe('pack-1');
     expect(packs[0].chemistryScore).toBe(85);
     expect(packs[0].photos[0].imageURL).toContain('/photos/p1/raw');
+  });
+});
+
+describe('APIService.uploadPhoto', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    (ImageManipulator.manipulateAsync as jest.Mock).mockReset();
+  });
+
+  it('uploads compressed photo and live video as multipart files', async () => {
+    const { APIService } = require('../api');
+    (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce({
+      uri: 'file:///compressed.jpg',
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ photoId: 'p1', packId: 'pack1', packNumber: 1 }),
+    });
+
+    await APIService.uploadPhoto(
+      'tok-123',
+      'file:///camera.jpg',
+      'raw',
+      'file:///clip.mov',
+      'duet',
+    );
+
+    const request = mockFetch.mock.calls[0][1];
+    expect(request.headers['Content-Type']).toBeUndefined();
+    expect(request.headers.Authorization).toBe('Bearer tok-123');
+    expect(request.body).toBeInstanceOf(MockFormData);
+    expect(request.body.fields).toEqual([
+      ['photo', { uri: 'file:///compressed.jpg', name: 'flash.jpg', type: 'image/jpeg' }],
+      ['filter', 'raw'],
+      ['packType', 'duet'],
+      ['video', { uri: 'file:///clip.mov', name: 'flash-live.mov', type: 'video/quicktime' }],
+    ]);
   });
 });

@@ -200,11 +200,11 @@ export const APIService = {
   // OTP is keyed on the username (login) or invite code (signup). When the
   // server has no SMS provider configured it returns the code as devCode so
   // the flow still works end-to-end.
-  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string }): Promise<{ devCode?: string }> {
+  async sendOTP(params: { username?: string; inviteCode?: string; phone?: string; email?: string; isLogin?: boolean }): Promise<{ devCode?: string }> {
     return http('/auth/otp/send', { method: 'POST', body: params });
   },
 
-  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
+  async verifyOTP(params: { username?: string; inviteCode?: string; code: string; phone?: string; email?: string; isLogin?: boolean; city?: string; country?: string; flag?: string }): Promise<{ user?: User; token?: string }> {
     const res = await http<{ ok: boolean; user?: any; token?: string }>('/auth/otp/verify', {
       method: 'POST',
       body: params,
@@ -219,54 +219,48 @@ export const APIService = {
     videoUri?: string | null,
     packType?: 'duet' | 'squad',
   ): Promise<{ photoId: string; packId: string; packNumber: number }> {
-    // Compress the photo and convert to base64 so the server can host it for the
-    // whole pack. The filter is applied at render time, so we store the raw image.
-    let imageData: string | undefined;
+    // Keep media as files and let the server's Multer endpoint handle them.
+    // This avoids base64's ~33% size overhead and the JSON body-size limit.
+    let uploadUri = uri;
     if (uri) {
       try {
         const result = await ImageManipulator.manipulateAsync(
           uri,
           [{ resize: { width: 2048 } }],
-          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG },
         );
-        if (result?.base64) imageData = result.base64;
+        if (result?.uri) uploadUri = result.uri;
       } catch (err) {
         console.error('Error manipulating image in uploadPhoto:', err);
-        /* fall back to sending the local uri below */
+        // The original camera file is still a valid multipart fallback.
       }
     }
 
-    // Read the flash.live clip as base64 (if provided).
-    let videoData: string | undefined;
-    let videoMime: string | undefined;
+    if (!uploadUri) throw new Error('failed_to_prepare_photo');
+
+    const form = new FormData();
+    form.append('photo', {
+      uri: uploadUri,
+      name: 'flash.jpg',
+      type: 'image/jpeg',
+    } as any);
+    form.append('filter', filter);
+    form.append('packType', packType ?? 'squad');
+
     if (videoUri) {
-      try {
-        const b64 = await FileSystem.readAsStringAsync(videoUri, { encoding: FileSystem.EncodingType.Base64 });
-        if (b64) {
-          videoData = b64;
-          // iOS CameraView records .mov (QuickTime), Android records .mp4
-          const ext = videoUri.split('.').pop()?.toLowerCase();
-          videoMime = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
-        } else {
-          console.warn('Read file string was empty for videoUri:', videoUri);
-        }
-      } catch (err) {
-        console.error('Error reading video file in uploadPhoto:', err);
-        /* skip video if unreadable */
-      }
+      const ext = videoUri.split('.').pop()?.toLowerCase();
+      const isQuickTime = ext === 'mov';
+      form.append('video', {
+        uri: videoUri,
+        name: isQuickTime ? 'flash-live.mov' : 'flash-live.mp4',
+        type: isQuickTime ? 'video/quicktime' : 'video/mp4',
+      } as any);
     }
 
     return http('/photos', {
       method: 'POST',
       token,
-      body: {
-        ...(imageData
-          ? { imageData: imageData.replace(/^data:image\/\w+;base64,/, ''), imageMime: 'image/jpeg' }
-          : uri ? { imageUrl: uri } : {}),
-        ...(videoData ? { videoData, videoMime } : {}),
-        ...(packType === 'duet' ? { packType } : {}),
-        filter,
-      },
+      body: form,
     }) as Promise<{ photoId: string; packId: string; packNumber: number }>;
   },
 

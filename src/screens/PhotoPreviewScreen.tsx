@@ -75,9 +75,13 @@ export default function PhotoPreviewScreen() {
 
   const onSend = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!token) {
+      Alert.alert(t('uploadFailedTitle'), t('uploadFailedAuth'));
+      return;
+    }
     setState('uploading');
     try {
-      const res = await APIService.uploadPhoto(token!, uri, filter, videoUri, duet ? 'duet' : 'squad');
+      const res = await APIService.uploadPhoto(token, uri, filter, videoUri, duet ? 'duet' : 'squad');
       setPhotoId(res.photoId);
       setLastPostedPhotoId(res.photoId);
       const nowIso = new Date().toISOString();
@@ -96,6 +100,7 @@ export default function PhotoPreviewScreen() {
         nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
       }, 500);
     } catch (e: any) {
+      console.error('[PhotoPreview] upload failed:', e);
       setState('idle');
       if (e?.status === 422) {
         const code = e?.body?.error;
@@ -106,6 +111,16 @@ export default function PhotoPreviewScreen() {
         } else {
           Alert.alert(t('moderatedImage'), t('moderatedImageSub'));
         }
+      } else if (e?.status === 401) {
+        Alert.alert(t('uploadFailedTitle'), t('uploadFailedAuth'));
+      } else if (e?.status === 403 && e?.body?.error === 'user_banned') {
+        Alert.alert(t('uploadFailedTitle'), t('uploadFailedBanned'));
+      } else if (e?.status === 413) {
+        Alert.alert(t('uploadFailedTitle'), t('uploadFailedTooLarge'));
+      } else if (e?.status >= 500) {
+        Alert.alert(t('uploadFailedTitle'), t('uploadFailedServer'));
+      } else {
+        Alert.alert(t('uploadFailedTitle'), t('uploadFailedGeneric'));
       }
     }
   };

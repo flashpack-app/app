@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from '../services/haptics';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -238,8 +239,7 @@ export default function SettingsScreen() {
 
         {/* About */}
         <Section title={t('aboutSection')}>
-          <NavRow icon="information-circle-outline" label={t('versionLabel')} value={t('versionValue')} />
-          <NavRow icon="code-slash-outline" label={t('openSourceLicensesLabel')} />
+          <NavRow icon="information-circle-outline" label={t('versionLabel')} value={Constants.expoConfig?.version || '1.0.0'} />
           <NavRow icon="globe-outline" label={t('websiteLabel')} value="flash.app" />
         </Section>
 
