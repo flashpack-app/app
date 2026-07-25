@@ -30,7 +30,7 @@ interface AppStateValue {
   lastPostAt: string | null;
   lastSquadPostAt: string | null;
   lastDuetPostAt: string | null;
-  lastPostedPackType: 'duet' | 'squad' | null;
+  lastPostedPackType: 'duet' | 'squad' | 'friends' | null;
   lastPostedPhotoId: string | null;
   unreadCount: number;
   reactions: Record<string, PackReaction[]>;
@@ -67,7 +67,7 @@ interface AppStateValue {
   setLastPostAt: (iso: string | null) => void;
   setLastSquadPostAt: (iso: string | null) => void;
   setLastDuetPostAt: (iso: string | null) => void;
-  setLastPostedPackType: (packType: 'duet' | 'squad' | null) => void;
+  setLastPostedPackType: (packType: 'duet' | 'squad' | 'friends' | null) => void;
   setLastPostedPhotoId: (id: string | null) => void;
   addReaction: (packId: string, emoji: string) => Promise<void>;
   addComment: (packId: string, msg: CommentMessage) => Promise<void>;
@@ -92,7 +92,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [lastPostAt, setLastPostAt] = useState<string | null>(null);
   const [lastSquadPostAt, setLastSquadPostAt] = useState<string | null>(null);
   const [lastDuetPostAt, setLastDuetPostAt] = useState<string | null>(null);
-  const [lastPostedPackType, setLastPostedPackType] = useState<'duet' | 'squad' | null>(null);
+  const [lastPostedPackType, setLastPostedPackType] = useState<'duet' | 'squad' | 'friends' | null>(null);
   const [lastPostedPhotoId, setLastPostedPhotoId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [reactions, setReactions] = useState<Record<string, PackReaction[]>>({});
@@ -281,7 +281,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const loaded = await APIService.getPacks(token);
       setPacks(loaded);
       setLastPostedPackType((previous) => (
-        previous ?? (loaded[0] ? (loaded[0].packType === 'duet' ? 'duet' : 'squad') : null)
+        previous ?? (loaded[0] ? (loaded[0].packType ?? 'squad') : null)
       ));
       await saveCachedPacks(loaded);
       // hydrate comments & reactions from server, merging so local optimistic
@@ -543,10 +543,16 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setLastDuetPostAt(null);
           setLastPostAt(lastSquadPostAt);
           setHasPostedFirstPack(!!lastSquadPostAt);
-        } else {
+        } else if (lastPostedPackType === 'squad') {
           setLastSquadPostAt(null);
           setLastPostAt(lastDuetPostAt);
           setHasPostedFirstPack(!!lastDuetPostAt);
+        } else {
+          const latestPublicPost = [lastSquadPostAt, lastDuetPostAt]
+            .filter((value): value is string => !!value)
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
+          setLastPostAt(latestPublicPost);
+          setHasPostedFirstPack(!!latestPublicPost);
         }
         setLastPostedPackType(null);
         setLastPostedPhotoId(null);

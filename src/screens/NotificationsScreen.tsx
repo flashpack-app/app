@@ -88,7 +88,8 @@ export default function NotificationsScreen() {
         console.warn('failed to mark notification read:', e);
       });
     }
-    if (n.packId) nav.navigate('PackReveal', { packId: n.packId });
+    if (n.type === 'invite') nav.navigate('FriendsFeed');
+    else if (n.packId) nav.navigate('PackReveal', { packId: n.packId });
   };
 
   return (

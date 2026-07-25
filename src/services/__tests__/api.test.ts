@@ -172,6 +172,32 @@ describe('APIService.getPack', () => {
     const pack = await APIService.getPack('tok-123', 'pack-2');
     expect(pack?.packType).toBe('duet');
   });
+
+  it('preserves private friends pack metadata', async () => {
+    const { APIService } = require('../api');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        pack: {
+          id: 'friends-1',
+          number: 3,
+          members: [],
+          photos: [],
+          createdAt: '2024-01-01',
+          expiresAt: '2024-01-02',
+          status: 'open',
+          packType: 'friends',
+          creatorId: 'u1',
+          targetMemberCount: 2,
+        },
+      }),
+    });
+
+    const pack = await APIService.getPack('tok-123', 'friends-1');
+    expect(pack?.packType).toBe('friends');
+    expect(pack?.creatorId).toBe('u1');
+    expect(pack?.targetMemberCount).toBe(2);
+  });
 });
 
 describe('APIService.uploadPhoto', () => {
@@ -207,6 +233,34 @@ describe('APIService.uploadPhoto', () => {
       ['filter', 'raw'],
       ['packType', 'duet'],
       ['video', { uri: 'file:///clip.mov', name: 'flash-live.mov', type: 'video/quicktime' }],
+    ]);
+  });
+
+  it('targets an existing friends pack without changing public modes', async () => {
+    const { APIService } = require('../api');
+    (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce({
+      uri: 'file:///compressed.jpg',
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ photoId: 'p2', packId: 'friends-1', packNumber: 2 }),
+    });
+
+    await APIService.uploadPhoto(
+      'tok-123',
+      'file:///camera.jpg',
+      'raw',
+      undefined,
+      'friends',
+      'friends-1',
+    );
+
+    const request = mockFetch.mock.calls[0][1];
+    expect(request.body.fields).toEqual([
+      ['photo', { uri: 'file:///compressed.jpg', name: 'flash.jpg', type: 'image/jpeg' }],
+      ['filter', 'raw'],
+      ['packType', 'friends'],
+      ['packId', 'friends-1'],
     ]);
   });
 });

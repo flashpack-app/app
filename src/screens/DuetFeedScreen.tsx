@@ -163,6 +163,7 @@ export default function DuetFeedScreen() {
       onOpenChange={setIsMenuOpen}
       onForYouPress={() => nav.navigate('Tabs', { screen: 'Feed' })}
       onDuetPress={() => nav.navigate('DuetFeed')}
+      onFriendsPress={() => nav.navigate('FriendsFeed')}
       onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
       onSettingsPress={() => nav.navigate('Settings')}
       onCameraPress={() => nav.navigate('Tabs', { screen: 'Camera' })}

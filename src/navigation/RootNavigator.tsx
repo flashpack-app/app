@@ -15,6 +15,7 @@ import {
   addNotificationResponseReceivedListener,
   getLastNotificationResponseAsync,
   extractPackId,
+  extractNotificationType,
 } from '../services/pushNotifications';
 import { useCoachmark, CoachStep } from '../onboarding/CoachmarkContext';
 import CoachTabButton from '../onboarding/CoachTabButton';
@@ -33,6 +34,8 @@ import SignInScreen from '../screens/SignInScreen';
 import OTPScreen from '../screens/OTPScreen';
 import FeedScreen from '../screens/FeedScreen';
 import DuetFeedScreen from '../screens/DuetFeedScreen';
+import FriendsFeedScreen from '../screens/FriendsFeedScreen';
+import CreateFriendsPackScreen from '../screens/CreateFriendsPackScreen';
 import CameraScreen from '../screens/CameraScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PhotoPreviewScreen from '../screens/PhotoPreviewScreen';
@@ -195,11 +198,18 @@ export default function RootNavigator() {
   // A tapped notification can arrive before the navigator is ready (cold start)
   // or before the user is authenticated — park the packId until both hold.
   const pendingPackId = useRef<string | null>(null);
+  const pendingFriendsInvite = useRef(false);
   const canOpenPack = isAuthenticated && !isOnboarding && !isBooting;
   const canOpenPackRef = useRef(canOpenPack);
   canOpenPackRef.current = canOpenPack;
 
   const flushPendingPack = useCallback(() => {
+    if (pendingFriendsInvite.current && navigationRef.current?.isReady() && canOpenPackRef.current) {
+      pendingFriendsInvite.current = false;
+      pendingPackId.current = null;
+      navigationRef.current?.navigate('FriendsFeed');
+      return;
+    }
     const packId = pendingPackId.current;
     if (!packId || !navigationRef.current?.isReady() || !canOpenPackRef.current) return;
     pendingPackId.current = null;
@@ -209,6 +219,10 @@ export default function RootNavigator() {
   useEffect(() => {
     // Cold start: the tap that launched the app never reaches the listener below.
     getLastNotificationResponseAsync().then((initial) => {
+      if (extractNotificationType(initial) === 'invite') {
+        pendingFriendsInvite.current = true;
+        flushPendingPack();
+      }
       const packId = extractPackId(initial);
       if (packId) {
         pendingPackId.current = packId;
@@ -231,6 +245,11 @@ export default function RootNavigator() {
       });
     });
     const response = addNotificationResponseReceivedListener((event) => {
+      if (extractNotificationType(event) === 'invite') {
+        pendingFriendsInvite.current = true;
+        flushPendingPack();
+        return;
+      }
       const packId = extractPackId(event);
       if (packId) {
         pendingPackId.current = packId;
@@ -294,6 +313,9 @@ export default function RootNavigator() {
             <>
               <Stack.Screen name="Tabs" component={Tabs} />
               <Stack.Screen name="DuetFeed" component={DuetFeedScreen} />
+              <Stack.Screen name="FriendsFeed" component={FriendsFeedScreen} />
+              <Stack.Screen name="CreateFriendsPack" component={CreateFriendsPackScreen} />
+              <Stack.Screen name="FriendsCamera" component={CameraScreen} />
               <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
               <Stack.Screen name="PackReveal" component={PackRevealScreen} />
               <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ presentation: 'modal', animation: 'fade' }} />
@@ -338,7 +360,9 @@ export default function RootNavigator() {
         packId={liveNotification?.packId}
         onDismiss={() => setLiveNotification(null)}
         onPress={() => {
-          if (liveNotification?.packId) {
+          if (liveNotification?.type === 'invite') {
+            navigationRef.current?.navigate('FriendsFeed');
+          } else if (liveNotification?.packId) {
             navigationRef.current?.navigate('PackReveal', { packId: liveNotification.packId });
           }
           setLiveNotification(null);
