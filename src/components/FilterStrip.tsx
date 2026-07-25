@@ -36,8 +36,9 @@ const FilterStrip: React.FC<Props> = ({ selected, onSelect, isPro }) => {
               <View
                 style={[
                   styles.thumb,
-                  active && styles.thumbActive,
                   pro && !isPro && styles.thumbPro,
+                  pro && isPro && styles.thumbProUnlocked,
+                  active && styles.thumbActive,
                 ]}
               >
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: def.color }]} />
@@ -47,6 +48,11 @@ const FilterStrip: React.FC<Props> = ({ selected, onSelect, isPro }) => {
                 {pro && !isPro && (
                   <View style={styles.proBadge}>
                     <Text style={styles.proBadgeText}>pro</Text>
+                  </View>
+                )}
+                {pro && isPro && (
+                  <View style={styles.proUnlockedBadge}>
+                    <Text style={styles.proUnlockedBadgeText}>PRO</Text>
                   </View>
                 )}
               </View>
@@ -81,6 +87,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   thumbActive: { borderColor: colors.yellow, borderWidth: 1.5 },
   thumbPro: { opacity: 0.5 },
+  thumbProUnlocked: {
+    borderColor: 'rgba(255,214,10,0.55)',
+    borderWidth: 1,
+  },
   rawSlash: { borderWidth: 1, borderColor: 'rgba(0,0,0,0.25)', borderStyle: 'dashed' },
   proBadge: {
     position: 'absolute',
@@ -92,6 +102,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingVertical: 1,
   },
   proBadgeText: { color: '#000', fontSize: 7, fontWeight: '800' },
+  proUnlockedBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.78)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.yellow,
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  proUnlockedBadgeText: {
+    color: colors.yellow,
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   name: { fontSize: 9, color: colors.textDim },
 });
 
