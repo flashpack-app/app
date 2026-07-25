@@ -16,6 +16,7 @@ export const ALL_FILTERS: VibeFilter[] = [...FREE_FILTERS, ...PRO_FILTERS];
 
 export type PackStatus = 'forming' | 'active' | 'expired';
 export type InviteStatus = 'open' | 'pending' | 'joined';
+export type PackType = 'duet' | 'squad' | 'friends';
 
 export interface VibeProfile {
   filterUsage: Record<VibeFilter, number>; // 0..1
@@ -139,7 +140,9 @@ export interface Pack {
   reactions?: { userId: string; emoji: string }[];
   screenshots?: PackScreenshot[];
   // 'duet' = 2-person pack rendered as a 1×2 split screen; default 'squad'
-  packType?: 'duet' | 'squad';
+  packType?: PackType;
+  creatorId?: string;
+  targetMemberCount?: 2 | 4;
 }
 
 export interface PackScreenshot {
@@ -154,4 +157,16 @@ export interface InviteSlot {
   invitedUsername?: string;
   status: InviteStatus;
   sentAt?: string;
+}
+
+export interface FriendsPackInvite {
+  id: string;
+  packId: string;
+  packNumber: number;
+  targetMemberCount: 2 | 4;
+  inviterId: string;
+  inviterUsername: string;
+  inviterAvatarUrl?: string;
+  createdAt: string;
+  expiresAt: string;
 }

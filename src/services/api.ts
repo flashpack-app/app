@@ -1,5 +1,5 @@
 import { API_URL } from '../config';
-import { Pack, User, InviteSlot, VibeFilter, AdminStats, AdminUserRow, GenesisCode } from '../types/models';
+import { Pack, User, InviteSlot, VibeFilter, AdminStats, AdminUserRow, GenesisCode, PackType, FriendsPackInvite } from '../types/models';
 import { mockPacks } from '../data/mock';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -122,7 +122,9 @@ function mapPack(p: any): Pack {
     apartMinutes: p.apartMinutes ?? 0,
     reactions: p.reactions ?? [],
     screenshots: p.screenshots ?? [],
-    packType: p.packType === 'duet' ? 'duet' : 'squad',
+    packType: p.packType === 'duet' || p.packType === 'friends' ? p.packType : 'squad',
+    creatorId: p.creatorId ?? undefined,
+    targetMemberCount: p.targetMemberCount === 2 ? 2 : 4,
     comment: p.comments?.length
       ? {
           messages: p.comments.map((c: any) => ({
@@ -219,7 +221,8 @@ export const APIService = {
     uri: string | null,
     filter: VibeFilter,
     videoUri?: string | null,
-    packType?: 'duet' | 'squad',
+    packType?: PackType,
+    packId?: string,
   ): Promise<{ photoId: string; packId: string; packNumber: number }> {
     // Keep media as files and let the server's Multer endpoint handle them.
     // This avoids base64's ~33% size overhead and the JSON body-size limit.
@@ -248,6 +251,7 @@ export const APIService = {
     } as any);
     form.append('filter', filter);
     form.append('packType', packType ?? 'squad');
+    if (packId) form.append('packId', packId);
 
     if (videoUri) {
       const ext = videoUri.split('.').pop()?.toLowerCase();
@@ -284,6 +288,38 @@ export const APIService = {
   async getPack(token: string, id: string): Promise<Pack | undefined> {
     const res = await http<{ pack: any }>(`/packs/${id}`, { token });
     return res.pack ? mapPack(res.pack) : undefined;
+  },
+
+  async createFriendsPack(
+    token: string,
+    input: { size: 2 | 4; invitedUserIds: string[]; inviteCodes: string[] },
+  ): Promise<Pack> {
+    const res = await http<{ pack: any }>('/friends-packs', {
+      method: 'POST',
+      token,
+      body: input,
+    });
+    return mapPack(res.pack);
+  },
+
+  async getFriendsPackInvites(token: string): Promise<FriendsPackInvite[]> {
+    const res = await http<{ invites: FriendsPackInvite[] }>('/friends-packs/invites', { token });
+    return res.invites.map((invite) => ({
+      ...invite,
+      inviterAvatarUrl: avatarUrlAbsolute(invite.inviterAvatarUrl),
+    }));
+  },
+
+  async respondToFriendsPackInvite(
+    token: string,
+    inviteId: string,
+    accept: boolean,
+  ): Promise<{ ok: boolean; accepted: boolean; packId: string }> {
+    return http(`/friends-packs/invites/${inviteId}/respond`, {
+      method: 'POST',
+      token,
+      body: { accept },
+    });
   },
 
   async addReaction(token: string, packId: string, emoji: string): Promise<void> {

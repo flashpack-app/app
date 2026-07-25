@@ -25,6 +25,7 @@ type Props = {
   onOpenChange: (isOpen: boolean) => void;
   onForYouPress: () => void;
   onDuetPress: () => void;
+  onFriendsPress: () => void;
   onProfilePress: () => void;
   onSettingsPress: () => void;
   onCameraPress: () => void;
@@ -46,6 +47,7 @@ export default function LeftMenu({
   onOpenChange,
   onForYouPress,
   onDuetPress,
+  onFriendsPress,
   onProfilePress,
   onSettingsPress,
   onCameraPress,
@@ -130,6 +132,11 @@ export default function LeftMenu({
 
   const handleDuet = () => {
     onDuetPress();
+    onOpenChange(false);
+  };
+
+  const handleFriends = () => {
+    onFriendsPress();
     onOpenChange(false);
   };
 
@@ -226,6 +233,16 @@ export default function LeftMenu({
               <ScaledText style={styles.menuSub}>{t('justYouOnePerson')}</ScaledText>
             </View>
             <Ionicons name="people-outline" size={24} color={colors.white} />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={handleFriends} style={styles.menuRow}>
+            <View>
+              <ScaledText style={styles.menuTitle}>
+                friends<Text style={{ color: colors.yellow }}>.</Text>flash
+              </ScaledText>
+              <ScaledText style={styles.menuSub}>private packs with your people</ScaledText>
+            </View>
+            <Ionicons name="people-circle-outline" size={24} color={colors.yellow} />
           </Pressable>
         </View>
 

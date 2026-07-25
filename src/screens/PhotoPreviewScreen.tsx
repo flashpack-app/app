@@ -55,6 +55,8 @@ export default function PhotoPreviewScreen() {
   const route = useRoute<any>();
   const uri: string = route.params?.uri;
   const videoUri: string | undefined = route.params?.videoUri;
+  const friendsPackId: string | undefined = route.params?.friendsPackId;
+  const isFriendsPack = !!friendsPackId;
   const filter: VibeFilter = route.params?.filter ?? 'raw';
   const {
     markFirstPackPosted,
@@ -106,33 +108,37 @@ export default function PhotoPreviewScreen() {
       Alert.alert(t('uploadFailedTitle'), t('uploadFailedAuth'));
       return;
     }
-    if ((duet && duetLocked) || (!duet && squadLocked)) {
+    if (!isFriendsPack && ((duet && duetLocked) || (!duet && squadLocked))) {
       Alert.alert(t('modeLockedTitle'), t('modeLockedSub', { time: duet ? duetTimeLeft : squadTimeLeft }));
       return;
     }
     animateSendButton('uploading');
     setState('uploading');
     try {
-      const res = await APIService.uploadPhoto(token, uri, filter, videoUri, duet ? 'duet' : 'squad');
+      const mode = isFriendsPack ? 'friends' : duet ? 'duet' : 'squad';
+      const res = await APIService.uploadPhoto(token, uri, filter, videoUri, mode, friendsPackId);
       setPhotoId(res.photoId);
       setLastPostedPhotoId(res.photoId);
       const nowIso = new Date().toISOString();
       setSentAt(Date.now());
       setLastPostAt(nowIso);
-      if (duet) setLastDuetPostAt(nowIso);
-      else setLastSquadPostAt(nowIso);
-      setLastPostedPackType(duet ? 'duet' : 'squad');
+      if (!isFriendsPack) {
+        if (duet) setLastDuetPostAt(nowIso);
+        else setLastSquadPostAt(nowIso);
+      }
+      setLastPostedPackType(mode);
       markFirstPackPosted();
       refreshPacks();
       posthog.capture('photo_sent', {
         filter,
         is_live: !!videoUri,
-        mode: duet ? 'duet' : 'squad',
+        mode,
+        ...(friendsPackId ? { pack_id: friendsPackId } : {}),
       });
       setState('success');
       setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
+        nav.reset({ index: 0, routes: [{ name: isFriendsPack ? 'FriendsFeed' : 'Tabs' }] });
       }, 500);
     } catch (e: any) {
       console.error('[PhotoPreview] upload failed:', e);
@@ -155,6 +161,10 @@ export default function PhotoPreviewScreen() {
         Alert.alert(t('uploadFailedTitle'), t('uploadFailedTooLarge'));
       } else if (e?.status === 429 && e?.body?.error === 'pack_mode_locked') {
         Alert.alert(t('modeLockedTitle'), t('modeLockedServerSub'));
+      } else if (e?.status === 409 && e?.body?.error === 'friends_pack_waiting_for_members') {
+        Alert.alert('still waiting', 'everyone needs to accept before this private pack can flash.');
+      } else if (e?.status === 409 && e?.body?.error === 'friends_pack_already_posted') {
+        Alert.alert('already flashed', 'your moment is already in this private pack.');
       } else if (e?.status >= 500) {
         Alert.alert(t('uploadFailedTitle'), t('uploadFailedServer'));
       } else {
@@ -205,7 +215,21 @@ export default function PhotoPreviewScreen() {
       </View>
 
       <View style={styles.bottom}>
-        <Text style={styles.modeHeading}>{t('choosePackMode')}</Text>
+        <Text style={styles.modeHeading}>
+          {isFriendsPack ? 'private friends.flash' : t('choosePackMode')}
+        </Text>
+        {isFriendsPack ? (
+          <View style={styles.privateModeCard}>
+            <View style={styles.privateModeIcon}>
+              <Ionicons name="lock-closed" size={16} color="#000" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.privateModeTitle}>only this pack will receive it</Text>
+              <Text style={styles.privateModeDetail}>this does not use your duet or squad timer.</Text>
+            </View>
+            <Ionicons name="checkmark-circle" size={20} color={colors.yellow} />
+          </View>
+        ) : (
         <View style={styles.modeSelector}>
           {([
             {
@@ -274,6 +298,7 @@ export default function PhotoPreviewScreen() {
             );
           })}
         </View>
+        )}
 
         <View style={styles.row}>
           <Pressable
@@ -344,6 +369,28 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  privateModeCard: {
+    minHeight: 70,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.35)',
+    backgroundColor: 'rgba(255,214,10,0.10)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  privateModeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.yellow,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  privateModeTitle: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  privateModeDetail: { color: colors.textDim, fontSize: 9, marginTop: 3 },
   modeCard: {
     flex: 1,
     minHeight: 112,

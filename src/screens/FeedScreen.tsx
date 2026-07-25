@@ -65,10 +65,10 @@ export default function FeedScreen() {
   // naturally hides old packs, so we don't filter by calendar day — otherwise a
   // pack you joined late last night would vanish at midnight while still active.
   const activePacks = packs.filter(
-    (p) => p.packType !== 'duet' && p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now(),
+    (p) => p.packType === 'squad' && p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now(),
   );
-  const discoverSquadPacks = discoverPacks.filter((p) => p.packType !== 'duet');
-  const hasSquadPack = packs.some((p) => p.packType !== 'duet');
+  const discoverSquadPacks = discoverPacks.filter((p) => p.packType === 'squad');
+  const hasSquadPack = packs.some((p) => p.packType === 'squad');
   const hasRecentSquadPost = !!lastSquadPostAt
     && Date.now() - new Date(lastSquadPostAt).getTime() < 2 * 3600 * 1000;
 
@@ -145,6 +145,7 @@ export default function FeedScreen() {
       onOpenChange={setIsMenuOpen}
       onForYouPress={() => nav.navigate('Tabs', { screen: 'Feed' })}
       onDuetPress={() => nav.navigate('DuetFeed')}
+      onFriendsPress={() => nav.navigate('FriendsFeed')}
       onProfilePress={() => nav.navigate('Tabs', { screen: 'Profile' })}
       onSettingsPress={() => nav.navigate('Settings')}
       onCameraPress={() => nav.navigate('Tabs', { screen: 'Camera' })}

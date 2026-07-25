@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Alert, Animated as RNAnimated, Platf
 import { CameraView, useCameraPermissions, useMicrophonePermissions, FlashMode, CameraType } from 'expo-camera';
 import * as Haptics from '../services/haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 import FlashLogo from '../components/FlashLogo';
@@ -59,6 +59,8 @@ export default function CameraScreen() {
   const baseZoom = useRef(0);
   const camRef = useRef<CameraView>(null);
   const nav = useNavigation<any>();
+  const route = useRoute<any>();
+  const friendsPackId: string | undefined = route.params?.friendsPackId;
   const insets = useSafeAreaInsets();
   const { lastPostAt, lastSquadPostAt, lastDuetPostAt, lastPostedPhotoId, revertPhoto, refreshPacks, dailyTopic, user } = useAppState();
   const [, setTick] = useState(0);
@@ -69,7 +71,7 @@ export default function CameraScreen() {
   }, [lastSquadPostAt, lastDuetPostAt]);
   const squadLocked = isCameraLocked(lastSquadPostAt, SQUAD_WINDOW_MS);
   const duetLocked = isCameraLocked(lastDuetPostAt, DUET_WINDOW_MS);
-  const locked = squadLocked && duetLocked;
+  const locked = !friendsPackId && squadLocked && duetLocked;
   const squadLockTimer = lockCountdown(lastSquadPostAt, SQUAD_WINDOW_MS);
   const duetLockTimer = lockCountdown(lastDuetPostAt, DUET_WINDOW_MS);
   const undoWindowMs = user?.isAdmin ? Infinity : user?.isPro ? 4 * 3600 * 1000 : 2 * 3600 * 1000;
@@ -111,7 +113,12 @@ export default function CameraScreen() {
           facing,
           timer_sec: timerSec,
         });
-        nav.navigate('PhotoPreview', { uri: photo.uri, filter, ...(videoUri ? { videoUri } : {}) });
+        nav.navigate('PhotoPreview', {
+          uri: photo.uri,
+          filter,
+          ...(videoUri ? { videoUri } : {}),
+          ...(friendsPackId ? { friendsPackId } : {}),
+        });
       }
     } catch (error) {
       console.error('photo capture failed:', error);
@@ -200,7 +207,7 @@ export default function CameraScreen() {
               timer_sec: timerSec,
             });
             setIsCapturing(false);
-            nav.navigate('PhotoPreview', { uri: photo.uri, filter, videoUri });
+            nav.navigate('PhotoPreview', { uri: photo.uri, filter, videoUri, friendsPackId });
             return;
           }
         } catch (error) {
@@ -209,7 +216,7 @@ export default function CameraScreen() {
       }
       // Fallback: navigate without still (video only)
       setIsCapturing(false); // must reset before navigate so Retake works
-      nav.navigate('PhotoPreview', { uri: videoUri, filter, videoUri });
+      nav.navigate('PhotoPreview', { uri: videoUri, filter, videoUri, friendsPackId });
       return;
     }
     setIsCapturing(false);
@@ -278,7 +285,13 @@ export default function CameraScreen() {
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: Math.max(8, insets.top) }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {friendsPackId ? (
+            <Pressable onPress={() => nav.goBack()} style={styles.iconBtn}>
+              <Ionicons name="chevron-back" size={18} color={colors.white} />
+            </Pressable>
+          ) : null}
           <FlashLogo size={20} isLive={isVideoMode} />
+          {friendsPackId ? <Text style={styles.privateCameraLabel}>friends.flash</Text> : null}
         </View>
         <View style={styles.topBtns}>
           {/* flash.live toggle — Pro only, iOS only */}
@@ -554,6 +567,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
   },
   timerBadgeText: { color: '#000', fontSize: 9, fontWeight: '700' },
+  privateCameraLabel: { color: colors.yellow, fontSize: 10, fontWeight: '800' },
   liveProBadge: {
     position: 'absolute',
     top: -5,

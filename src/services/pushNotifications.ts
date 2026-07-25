@@ -83,3 +83,8 @@ export function extractPackId(response: Notifications.NotificationResponse | nul
   const packId = response?.notification.request.content.data?.packId;
   return typeof packId === 'string' && packId.length > 0 ? packId : null;
 }
+
+export function extractNotificationType(response: Notifications.NotificationResponse | null): string | null {
+  const type = response?.notification.request.content.data?.type;
+  return typeof type === 'string' && type.length > 0 ? type : null;
+}
