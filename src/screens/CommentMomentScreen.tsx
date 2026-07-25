@@ -9,6 +9,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
+import DuetMosaic from '../components/DuetMosaic';
 import { ModerationService } from '../services/moderation';
 import { HTTPError } from '../services/api';
 import { posthog } from '../config/posthog';
@@ -69,7 +70,11 @@ export default function CommentMomentScreen() {
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 30 }}>
       <View style={{ paddingTop: insets.top }}>
-        <Mosaic pack={pack} height={120} borderRadius={0} cellGap={1} showFlags={false} />
+        {pack.packType === 'duet' ? (
+          <DuetMosaic pack={pack} height={120} borderRadius={0} cellGap={1} showFlags={false} />
+        ) : (
+          <Mosaic pack={pack} height={120} borderRadius={0} cellGap={1} showFlags={false} />
+        )}
       </View>
       <View style={styles.body}>
         <View style={styles.headerRow}>

@@ -75,7 +75,12 @@ const FilteredImage: React.FC<Props> = ({ source, filter, style, resizeMode = 'c
   const lutImage = useImage(def.lut);
 
   const onLayout = useCallback((e: any) => {
-    setLayout(e.nativeEvent.layout);
+    const { width, height } = e.nativeEvent.layout;
+    setLayout((previous) => (
+      previous.width === width && previous.height === height
+        ? previous
+        : { width, height }
+    ));
   }, []);
 
   const { width, height } = layout;

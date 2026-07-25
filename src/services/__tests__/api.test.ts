@@ -60,6 +60,9 @@ describe('APIService.login', () => {
           invite_slots: 3,
           streak_days: 5,
           created_at: '2024-01-01',
+          last_post_at: '2024-01-03',
+          last_squad_post_at: '2024-01-02',
+          last_duet_post_at: '2024-01-03',
           city: 'london',
           country: 'GB',
           flag: '🇬🇧',
@@ -75,6 +78,8 @@ describe('APIService.login', () => {
     expect(result.user.inviteCode).toBe('FLASH-ABC-12');
     expect(result.user.streakDays).toBe(5);
     expect(result.user.city).toBe('london');
+    expect(result.user.lastSquadPostAt).toBe('2024-01-02');
+    expect(result.user.lastDuetPostAt).toBe('2024-01-03');
   });
 
   it('throws HTTPError on failure', async () => {
@@ -125,6 +130,7 @@ describe('APIService.getPacks', () => {
           createdAt: '2024-01-01',
           expiresAt: '2024-01-02',
           status: 'active',
+          packType: 'duet',
           countriesCount: 2,
           apartMinutes: 10,
         }],
@@ -135,7 +141,36 @@ describe('APIService.getPacks', () => {
     expect(packs).toHaveLength(1);
     expect(packs[0].id).toBe('pack-1');
     expect(packs[0].chemistryScore).toBe(85);
+    expect(packs[0].packType).toBe('duet');
     expect(packs[0].photos[0].imageURL).toContain('/photos/p1/raw');
+  });
+});
+
+describe('APIService.getPack', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('maps the detail payload and preserves duet mode', async () => {
+    const { APIService } = require('../api');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        pack: {
+          id: 'pack-2',
+          number: 2,
+          members: [],
+          photos: [],
+          createdAt: '2024-01-01',
+          expiresAt: '2024-01-02',
+          status: 'open',
+          packType: 'duet',
+        },
+      }),
+    });
+
+    const pack = await APIService.getPack('tok-123', 'pack-2');
+    expect(pack?.packType).toBe('duet');
   });
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, FlatList, StyleSheet, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -23,29 +23,40 @@ import { t } from '../services/i18n';
 function useCountdown(target: Date | null): { text: string; hours: number } {
   const [result, setResult] = useState({ text: '', hours: 0 });
   useEffect(() => {
-    if (!target) { setResult({ text: '', hours: 0 }); return; }
+    const updateResult = (next: { text: string; hours: number }) => {
+      setResult((previous) => (
+        previous.text === next.text && previous.hours === next.hours ? previous : next
+      ));
+    };
+    if (!target) {
+      updateResult({ text: '', hours: 0 });
+      return;
+    }
     const tick = () => {
       const ms = target.getTime() - Date.now();
-      if (ms <= 0) { setResult({ text: '', hours: 0 }); return; }
+      if (ms <= 0) {
+        updateResult({ text: '', hours: 0 });
+        return;
+      }
       const m = Math.floor(ms / 60_000);
       const h = Math.floor(m / 60);
       if (h >= 1) {
-        setResult({ text: t('time_hm', { h, m: m % 60 }), hours: h });
+        updateResult({ text: t('time_hm', { h, m: m % 60 }), hours: h });
       } else {
-        setResult({ text: t('time_m_only', { m }), hours: 0 });
+        updateResult({ text: t('time_m_only', { m }), hours: 0 });
       }
     };
     tick();
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
-  }, [target]);
+  }, [target?.getTime()]);
   return result;
 }
 
 export default function DuetFeedScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors, user, token } = useAppState();
+  const { packs, discoverPacks, unreadCount, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastDuetPostAt, loadErrors, user, token } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -59,16 +70,25 @@ export default function DuetFeedScreen() {
   const scrollRef = useRef<FlatList<any>>(null);
 
   // Filter for duet packs only
-  const activeDuetPacks = packs.filter(
-    (p) => p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now() && p.packType === 'duet',
+  const activeDuetPacks = useMemo(
+    () => packs.filter(
+      (p) => p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now() && p.packType === 'duet',
+    ),
+    [packs],
   );
 
-  const discoverDuetPacks = discoverPacks.filter((p) => p.packType === 'duet');
+  const discoverDuetPacks = useMemo(
+    () => discoverPacks.filter((p) => p.packType === 'duet'),
+    [discoverPacks],
+  );
+  const hasDuetPack = useMemo(() => packs.some((p) => p.packType === 'duet'), [packs]);
+  const hasRecentDuetPost = !!lastDuetPostAt
+    && Date.now() - new Date(lastDuetPostAt).getTime() < 2 * 3600 * 1000;
 
   // Show forming animation for 2h after posting while waiting for pack
   useEffect(() => {
-    if (hasPostedFirstPack && activeDuetPacks.length === 0 && lastPostAt) {
-      const posted = new Date(lastPostAt).getTime();
+    if (hasRecentDuetPost && activeDuetPacks.length === 0 && lastDuetPostAt) {
+      const posted = new Date(lastDuetPostAt).getTime();
       if (Date.now() - posted < 2 * 3600 * 1000) {
         setIsForming(true);
         const t = setTimeout(() => setIsForming(false), 2 * 3600 * 1000 - (Date.now() - posted));
@@ -76,7 +96,7 @@ export default function DuetFeedScreen() {
       }
     }
     setIsForming(false);
-  }, [hasPostedFirstPack, activeDuetPacks.length, lastPostAt]);
+  }, [hasRecentDuetPost, activeDuetPacks.length, lastDuetPostAt]);
 
   // Load real packs on mount
   useEffect(() => {
@@ -85,7 +105,7 @@ export default function DuetFeedScreen() {
     refreshNotifications();
     const id = setInterval(() => { refreshNotifications(); }, 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [refreshPacks, refreshDiscover, refreshNotifications]);
 
   // Load invite slots to calculate remaining
   useEffect(() => {
@@ -124,9 +144,17 @@ export default function DuetFeedScreen() {
     ]);
   };
 
-  const formingTarget = lastPostAt ? new Date(new Date(lastPostAt).getTime() + 2 * 3600 * 1000) : null;
+  const formingTarget = useMemo(
+    () => hasRecentDuetPost && lastDuetPostAt
+      ? new Date(new Date(lastDuetPostAt).getTime() + 2 * 3600 * 1000)
+      : null,
+    [hasRecentDuetPost, lastDuetPostAt],
+  );
   const formingCountdown = useCountdown(formingTarget);
-  const expiresTarget = activeDuetPacks[0]?.expiresAt ? new Date(activeDuetPacks[0].expiresAt) : null;
+  const expiresTarget = useMemo(
+    () => activeDuetPacks[0]?.expiresAt ? new Date(activeDuetPacks[0].expiresAt) : null,
+    [activeDuetPacks[0]?.expiresAt],
+  );
   const expiresCountdown = useCountdown(expiresTarget);
 
   return (
@@ -174,13 +202,13 @@ export default function DuetFeedScreen() {
         onRetry={onRefresh}
       />
 
-      {hasPostedFirstPack ? (
+      {hasDuetPack || hasRecentDuetPost ? (
         isForming ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
             <ScaledText style={styles.lockedTitle}>{t('flashingLightsTitle')}</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              {t('flashingLightsSubDuet', { time: formingCountdown || t('flashingLightsSubDefault') })}
+              {t('flashingLightsSubDuet', { time: formingCountdown.text || t('flashingLightsSubDefault') })}
             </ScaledText>
           </View>
         ) : activeDuetPacks.length === 0 ? (

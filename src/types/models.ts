@@ -30,6 +30,8 @@ export interface User {
   banned?: boolean;
   avatarUrl?: string;
   lastPostAt?: string;
+  lastSquadPostAt?: string;
+  lastDuetPostAt?: string;
   inviteCode: string; // FLASH·XXX·XX
   invitedBy?: string;
   inviteSlots: number;

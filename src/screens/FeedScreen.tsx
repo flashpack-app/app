@@ -45,7 +45,7 @@ function useCountdown(target: Date | null): { text: string; hours: number } {
 export default function FeedScreen() {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
-  const { packs, discoverPacks, unreadCount, hasPostedFirstPack, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastPostAt, loadErrors, user, token } = useAppState();
+  const { packs, discoverPacks, unreadCount, reactions, refreshPacks, refreshDiscover, refreshNotifications, lastSquadPostAt, loadErrors, user, token } = useAppState();
   const [refreshing, setRefreshing] = useState(false);
   const [isForming, setIsForming] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -65,13 +65,17 @@ export default function FeedScreen() {
   // naturally hides old packs, so we don't filter by calendar day — otherwise a
   // pack you joined late last night would vanish at midnight while still active.
   const activePacks = packs.filter(
-    (p) => p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now(),
+    (p) => p.packType !== 'duet' && p.status !== 'expired' && new Date(p.expiresAt).getTime() > Date.now(),
   );
+  const discoverSquadPacks = discoverPacks.filter((p) => p.packType !== 'duet');
+  const hasSquadPack = packs.some((p) => p.packType !== 'duet');
+  const hasRecentSquadPost = !!lastSquadPostAt
+    && Date.now() - new Date(lastSquadPostAt).getTime() < 2 * 3600 * 1000;
 
   // Show forming animation for 2h after posting while waiting for pack
   useEffect(() => {
-    if (hasPostedFirstPack && packs.length === 0 && lastPostAt) {
-      const posted = new Date(lastPostAt).getTime();
+    if (hasRecentSquadPost && activePacks.length === 0 && lastSquadPostAt) {
+      const posted = new Date(lastSquadPostAt).getTime();
       if (Date.now() - posted < 2 * 3600 * 1000) {
         setIsForming(true);
         const t = setTimeout(() => setIsForming(false), 2 * 3600 * 1000 - (Date.now() - posted));
@@ -79,7 +83,7 @@ export default function FeedScreen() {
       }
     }
     setIsForming(false);
-  }, [hasPostedFirstPack, packs.length, lastPostAt]);
+  }, [hasRecentSquadPost, activePacks.length, lastSquadPostAt]);
 
   // Load real packs on mount
   useEffect(() => {
@@ -125,7 +129,12 @@ export default function FeedScreen() {
     ]);
   };
 
-  const formingTarget = useMemo(() => lastPostAt ? new Date(new Date(lastPostAt).getTime() + 2 * 3600 * 1000) : null, [lastPostAt]);
+  const formingTarget = useMemo(
+    () => hasRecentSquadPost && lastSquadPostAt
+      ? new Date(new Date(lastSquadPostAt).getTime() + 2 * 3600 * 1000)
+      : null,
+    [hasRecentSquadPost, lastSquadPostAt],
+  );
   const formingCountdown = useCountdown(formingTarget);
   const expiresTarget = useMemo(() => activePacks[0]?.expiresAt ? new Date(activePacks[0].expiresAt) : null, [activePacks[0]?.expiresAt]);
   const expiresCountdown = useCountdown(expiresTarget);
@@ -175,13 +184,13 @@ export default function FeedScreen() {
         onRetry={onRefresh}
       />
 
-      {hasPostedFirstPack ? (
+      {hasSquadPack || hasRecentSquadPost ? (
         isForming ? (
           <View style={styles.locked}>
             <Ionicons name="flash" size={40} color={colors.yellow} />
             <ScaledText style={styles.lockedTitle}>{t('flashingLightsTitle')}</ScaledText>
             <ScaledText style={styles.lockedSub}>
-              {t('flashingLightsSub', { time: formingCountdown || t('flashingLightsSubDefault') })}
+              {t('flashingLightsSub', { time: formingCountdown.text || t('flashingLightsSubDefault') })}
             </ScaledText>
           </View>
         ) : activePacks.length === 0 ? (
@@ -201,7 +210,7 @@ export default function FeedScreen() {
           </View>
         ) : (
           <FlatList
-            data={discoverPacks}
+            data={discoverSquadPacks}
             keyExtractor={(p) => p.id}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -224,7 +233,7 @@ export default function FeedScreen() {
                     />
                   </View>
                 ))}
-                {discoverPacks.length > 0 ? (
+                {discoverSquadPacks.length > 0 ? (
                   <View style={styles.discoverHeader}>
                     <Ionicons name="earth" size={14} color={colors.textDim} />
                     <ScaledText style={styles.sectionLabel}>{t('aroundTheGlobeHeader')}</ScaledText>

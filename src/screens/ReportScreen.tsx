@@ -8,6 +8,7 @@ import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
+import DuetMosaic from '../components/DuetMosaic';
 import PillButton from '../components/PillButton';
 import ScreenHeader from '../components/ScreenHeader';
 import { APIService } from '../services/api';
@@ -61,7 +62,13 @@ export default function ReportScreen() {
       <ScreenHeader title={commentId ? t('report_comment_title') : t('report_pack_title')} />
 
       <ScrollView contentContainerStyle={{ padding: 12, gap: 12 }}>
-        {pack && <Mosaic pack={pack} height={88} cellGap={1} showFlags={false} borderRadius={10} />}
+        {pack && (
+          pack.packType === 'duet' ? (
+            <DuetMosaic pack={pack} height={88} cellGap={1} showFlags={false} borderRadius={10} />
+          ) : (
+            <Mosaic pack={pack} height={88} cellGap={1} showFlags={false} borderRadius={10} />
+          )
+        )}
 
         <Text style={styles.sectionLabel}>{t('report_section_issue')}</Text>
 

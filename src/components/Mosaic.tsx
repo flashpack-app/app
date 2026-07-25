@@ -17,6 +17,7 @@ import { t } from '../services/i18n';
 
 interface Props {
   pack: Pack;
+  layout?: 'squad' | 'duet';
   height?: number;
   cellRadius?: number;
   borderRadius?: number;
@@ -38,10 +39,11 @@ interface CellProps {
   index: number;
   animate: boolean;
   onPress?: () => void;
+  layout: 'squad' | 'duet';
 }
 
 // Placeholder cell shown when a pack member hasn't posted yet
-const EmptyCell: React.FC<{ index: number; animate: boolean }> = ({ index, animate }) => {
+const EmptyCell: React.FC<{ index: number; animate: boolean; layout: 'squad' | 'duet' }> = ({ index, animate, layout }) => {
   const styles = useThemedStyles(makeStyles);
   const scale = useSharedValue(animate ? 0.85 : 1);
   const opacity = useSharedValue(animate ? 0 : 1);
@@ -58,7 +60,7 @@ const EmptyCell: React.FC<{ index: number; animate: boolean }> = ({ index, anima
   }));
 
   return (
-    <Animated.View style={[styles.cell, styles.emptyCell, aStyle]}>
+    <Animated.View style={[styles.cell, layout === 'duet' && styles.duetCell, styles.emptyCell, aStyle]}>
       <View style={styles.emptyCellInner}>
         <View style={{ opacity: 0.18 }}>
           <FlashLogo size={13} />
@@ -68,7 +70,7 @@ const EmptyCell: React.FC<{ index: number; animate: boolean }> = ({ index, anima
   );
 };
 
-const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, index, animate, onPress }) => {
+const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, index, animate, onPress, layout }) => {
   const colors = useColors();
   const styles = useThemedStyles(makeStyles);
   const isPro = member?.isPro;
@@ -127,6 +129,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
   return (
     <Animated.View style={[
       styles.cell,
+      layout === 'duet' && styles.duetCell,
       isSelf && styles.selfCell,
       isPro && !isSelf && { borderWidth: 1.5, borderColor: proBorderColor },
       aStyle,
@@ -189,6 +192,7 @@ const Cell: React.FC<CellProps> = ({ photo, member, expired, showFlag, isSelf, i
 
 const Mosaic: React.FC<Props> = ({
   pack,
+  layout = 'squad',
   height = 220,
   borderRadius = 14,
   showFlags = true,
@@ -200,10 +204,9 @@ const Mosaic: React.FC<Props> = ({
   onCellPress,
 }) => {
   const styles = useThemedStyles(makeStyles);
-  const photos = pack.photos.slice(0, 4);
-  // Build a fixed 4-slot grid: real photos first, then empty placeholders
-  const totalSlots = Math.max(4, photos.length);
-  const slots = Array.from({ length: Math.min(totalSlots, 4) }, (_, i) => photos[i] ?? null);
+  const slotCount = layout === 'duet' ? 2 : 4;
+  const photos = pack.photos.slice(0, slotCount);
+  const slots = Array.from({ length: slotCount }, (_, i) => photos[i] ?? null);
   const memberOf = (uid: string) => pack.members.find((m) => m.userId === uid);
   const expired = pack.status === 'expired';
 
@@ -222,10 +225,11 @@ const Mosaic: React.FC<Props> = ({
               isSelf={highlightSelf && p.userId === selfUserId}
               index={i}
               animate={animateOnMount}
+              layout={layout}
               onPress={onCellPress ? () => onCellPress(p.id) : undefined}
             />
           ) : (
-            <EmptyCell key={`empty-${i}`} index={i} animate={animateOnMount} />
+            <EmptyCell key={`empty-${i}`} index={i} animate={animateOnMount} layout={layout} />
           )
         )}
       </View>
@@ -264,6 +268,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',
     borderRadius: 4,
+  },
+  duetCell: {
+    width: '49%',
+    height: '100%',
   },
   selfCell: {
     borderWidth: 1.5,
