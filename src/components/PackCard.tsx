@@ -7,6 +7,7 @@ import type { Palette } from '../theme/colors';
 import { useColors } from '../theme/useColors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import Mosaic from './Mosaic';
+import DuetMosaic from './DuetMosaic';
 import ReactionStack from './ReactionStack';
 import liveLogo from '../assets/live_logo_white.webp';
 import { t } from '../services/i18n';
@@ -97,7 +98,11 @@ const PackCard: React.FC<Props> = React.memo(({ pack, reactions = [], onPress, o
 
       {/* Mosaic edge-to-edge */}
       <View style={styles.mosaicWrap}>
-        <Mosaic pack={pack} height={252} borderRadius={0} cellGap={3} showFlags={false} />
+        {pack.packType === 'duet' ? (
+          <DuetMosaic pack={pack} height={252} borderRadius={0} cellGap={3} showFlags={false} />
+        ) : (
+          <Mosaic pack={pack} height={252} borderRadius={0} cellGap={3} showFlags={false} />
+        )}
         <Image source={liveLogo} style={styles.liveLogo} />
       </View>
 

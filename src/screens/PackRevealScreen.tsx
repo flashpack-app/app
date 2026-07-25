@@ -35,6 +35,7 @@ import { useAccessibility } from '../services/AccessibilityContext';
 import { API_URL } from '../config';
 import StatusPill from '../components/StatusPill';
 import Mosaic from '../components/Mosaic';
+import DuetMosaic from '../components/DuetMosaic';
 import ChemistryBar from '../components/ChemistryBar';
 import ChemistryBreakdown from '../components/ChemistryBreakdown';
 import PillButton from '../components/PillButton';
@@ -67,8 +68,8 @@ function resolveUrl(u?: string): string | undefined {
 const { width: SCREEN_W } = Dimensions.get('window');
 const TILE_GAP = 3;
 const TILE_SIZE = (SCREEN_W - 24 - TILE_GAP) / 2;
-// Duet packs render 1x2: two full-width stacked tiles instead of the 2x2 grid.
-const DUET_TILE_W = SCREEN_W - 24;
+// Duet packs render as two equal cells next to each other.
+const DUET_TILE_W = TILE_SIZE;
 const DUET_TILE_H = TILE_SIZE;
 
 /* Shade-in wrapper for grid tiles */
@@ -345,9 +346,11 @@ export default function PackRevealScreen() {
     }
   };
 
-  const photos = pack.photos.slice(0, 4);
-  // Fixed 4-slot grid — null entries become placeholder tiles
-  const slots = Array.from({ length: 4 }, (_, i) => photos[i] ?? null);
+  const isDuet = pack.packType === 'duet';
+  const slotCount = isDuet ? 2 : 4;
+  const photos = pack.photos.slice(0, slotCount);
+  // Duets are a two-person split; squads keep the four-tile grid.
+  const slots = Array.from({ length: slotCount }, (_, i) => photos[i] ?? null);
   const memberOf = (uid: string) => pack.members.find((m) => m.userId === uid);
 
   return (
@@ -417,7 +420,7 @@ export default function PackRevealScreen() {
           )}
         </Animated.View>
 
-        {/* Photo grid — staggered shade-in (duet packs stack 1x2 instead) */}
+        {/* Photo grid — duets are one horizontal two-person row. */}
         <View style={[styles.grid, { gap: TILE_GAP, paddingHorizontal: 12 }]}>
           {slots.map((p, i) => {
             if (!p) {
@@ -427,7 +430,7 @@ export default function PackRevealScreen() {
                   key={`empty-${i}`}
                   ready={ready}
                   index={i}
-                  style={[styles.tile, styles.emptyTile]}
+                  style={[isDuet ? styles.tileDuet : styles.tile, styles.emptyTile]}
                 >
                   <View style={styles.emptyTileInner}>
                     <View style={{ opacity: 0.15 }}>
@@ -441,7 +444,6 @@ export default function PackRevealScreen() {
             const isSelf = p.userId === user?.id;
             const isPro = !!member?.isPro;
             const proBorderColor = member?.proBorder || colors.yellow;
-            const isDuet = pack.packType === 'duet';
             return (
               <ShadeInTile
                 key={p.id}
@@ -906,7 +908,11 @@ export default function PackRevealScreen() {
               </View>
             </View>
             <View style={styles.storyMosaic}>
-              <Mosaic pack={pack} height={960} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
+              {isDuet ? (
+                <DuetMosaic pack={pack} height={960} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
+              ) : (
+                <Mosaic pack={pack} height={960} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
+              )}
             </View>
             <View style={styles.storyFooter}>
               <ScaledText style={styles.storyChem}>{pack.chemistryScore}% match</ScaledText>

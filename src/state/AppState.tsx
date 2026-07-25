@@ -28,6 +28,9 @@ interface AppStateValue {
   discoverPacks: Pack[];
   hasPostedFirstPack: boolean;
   lastPostAt: string | null;
+  lastSquadPostAt: string | null;
+  lastDuetPostAt: string | null;
+  lastPostedPackType: 'duet' | 'squad' | null;
   lastPostedPhotoId: string | null;
   unreadCount: number;
   reactions: Record<string, PackReaction[]>;
@@ -62,6 +65,9 @@ interface AppStateValue {
   updatePack: (id: string, patch: Partial<Pack>) => void;
   markFirstPackPosted: () => void;
   setLastPostAt: (iso: string | null) => void;
+  setLastSquadPostAt: (iso: string | null) => void;
+  setLastDuetPostAt: (iso: string | null) => void;
+  setLastPostedPackType: (packType: 'duet' | 'squad' | null) => void;
   setLastPostedPhotoId: (id: string | null) => void;
   addReaction: (packId: string, emoji: string) => Promise<void>;
   addComment: (packId: string, msg: CommentMessage) => Promise<void>;
@@ -84,6 +90,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [discoverPacks, setDiscoverPacks] = useState<Pack[]>([]);
   const [hasPostedFirstPack, setHasPostedFirstPack] = useState(false);
   const [lastPostAt, setLastPostAt] = useState<string | null>(null);
+  const [lastSquadPostAt, setLastSquadPostAt] = useState<string | null>(null);
+  const [lastDuetPostAt, setLastDuetPostAt] = useState<string | null>(null);
+  const [lastPostedPackType, setLastPostedPackType] = useState<'duet' | 'squad' | null>(null);
   const [lastPostedPhotoId, setLastPostedPhotoId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [reactions, setReactions] = useState<Record<string, PackReaction[]>>({});
@@ -117,6 +126,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUser(s.user);
         setToken(s.token);
         if (s.user.lastPostAt) setLastPostAt(s.user.lastPostAt);
+        setLastSquadPostAt(s.user.lastSquadPostAt ?? null);
+        setLastDuetPostAt(s.user.lastDuetPostAt ?? null);
         posthog.identify(s.user.id, {
           $set: { username: s.user.username, is_pro: s.user.isPro, country: s.user.country, city: s.user.city },
           $set_once: { joined_at: s.user.joinedAt, ...(s.user.invitedBy ? { invited_by: s.user.invitedBy } : {}) },
@@ -143,6 +154,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               setLastPostAt(fresh.lastPostAt);
               setHasPostedFirstPack(true);
             }
+            setLastSquadPostAt(fresh.lastSquadPostAt ?? null);
+            setLastDuetPostAt(fresh.lastDuetPostAt ?? null);
             await saveSession({ token: s.token, user: fresh });
             registerForPushNotificationsAsync(s.token).catch((error) => {
               console.warn('push notification registration failed during boot:', error);
@@ -267,6 +280,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const loaded = await APIService.getPacks(token);
       setPacks(loaded);
+      setLastPostedPackType((previous) => (
+        previous ?? (loaded[0] ? (loaded[0].packType === 'duet' ? 'duet' : 'squad') : null)
+      ));
       await saveCachedPacks(loaded);
       // hydrate comments & reactions from server, merging so local optimistic
       // updates aren't lost if the server hasn't seen them yet.
@@ -354,6 +370,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const fresh = await APIService.getMe(token);
       setUser(fresh);
+      setLastSquadPostAt(fresh.lastSquadPostAt ?? null);
+      setLastDuetPostAt(fresh.lastDuetPostAt ?? null);
       await saveSession({ token, user: fresh });
     } catch (e) {
       console.warn('refreshUser failed:', e);
@@ -389,6 +407,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       discoverPacks,
       hasPostedFirstPack,
       lastPostAt,
+      lastSquadPostAt,
+      lastDuetPostAt,
+      lastPostedPackType,
       lastPostedPhotoId,
       unreadCount,
       reactions,
@@ -407,6 +428,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       async signIn(s, onboarding = false) {
         setUser(s.user);
         setToken(s.token);
+        setLastPostAt(s.user.lastPostAt ?? null);
+        setLastSquadPostAt(s.user.lastSquadPostAt ?? null);
+        setLastDuetPostAt(s.user.lastDuetPostAt ?? null);
         setIsOnboarding(onboarding);
         await saveSession(s);
         registerForPushNotificationsAsync(s.token).catch((error) => {
@@ -424,6 +448,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setUser(null);
         setToken(null);
         setLastPostAt(null);
+        setLastSquadPostAt(null);
+        setLastDuetPostAt(null);
+        setLastPostedPackType(null);
         setLastPostedPhotoId(null);
         setPacks([]);
         setDiscoverPacks([]);
@@ -441,6 +468,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setPacks((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p))),
       markFirstPackPosted: () => setHasPostedFirstPack(true),
       setLastPostAt: (iso) => setLastPostAt(iso),
+      setLastSquadPostAt: (iso) => setLastSquadPostAt(iso),
+      setLastDuetPostAt: (iso) => setLastDuetPostAt(iso),
+      setLastPostedPackType: (packType) => setLastPostedPackType(packType),
       setLastPostedPhotoId: (id) => setLastPostedPhotoId(id),
       async addReaction(packId, emoji) {
         setReactions((prev) => {
@@ -509,9 +539,17 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       async revertPhoto(photoId) {
         if (!token) return;
         await APIService.revertPhoto(token, photoId);
-        setLastPostAt(null);
+        if (lastPostedPackType === 'duet') {
+          setLastDuetPostAt(null);
+          setLastPostAt(lastSquadPostAt);
+          setHasPostedFirstPack(!!lastSquadPostAt);
+        } else {
+          setLastSquadPostAt(null);
+          setLastPostAt(lastDuetPostAt);
+          setHasPostedFirstPack(!!lastDuetPostAt);
+        }
+        setLastPostedPackType(null);
         setLastPostedPhotoId(null);
-        setHasPostedFirstPack(false);
       },
       refreshStreak,
       refreshNotifications,
@@ -527,7 +565,36 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       },
     }),
-    [user, token, isBooting, isConnected, isOnboarding, setIsOnboarding, refreshPacks, refreshDiscover, refreshNotifications, refreshUser, refreshStreak, setLiveNotification],
+    [
+      user,
+      token,
+      isBooting,
+      isConnected,
+      packs,
+      discoverPacks,
+      hasPostedFirstPack,
+      lastPostAt,
+      lastSquadPostAt,
+      lastDuetPostAt,
+      lastPostedPackType,
+      lastPostedPhotoId,
+      unreadCount,
+      reactions,
+      comments,
+      streak,
+      dailyTopic,
+      isOnboarding,
+      streakAtRisk,
+      streakAdvancedTo,
+      liveNotificationState,
+      loadErrors,
+      refreshPacks,
+      refreshDiscover,
+      refreshNotifications,
+      refreshUser,
+      refreshStreak,
+      setLiveNotification,
+    ],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

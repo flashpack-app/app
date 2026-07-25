@@ -125,6 +125,11 @@
   "yourPackWaiting": "your pack is waiting · shoot anytime",
   "cameraLocked": "camera locked",
   "alreadyFlashedToday": "you already flashed today.\nnext window in {{time}}.",
+  "cameraModesLocked": "squad unlocks in {{squadTime}}.\nduet unlocks in {{duetTime}}.",
+  "modeLockedTitle": "this mode is recharging",
+  "modeLockedSub": "you can post here again in {{time}}.",
+  "modeLockedServerSub": "refresh your packs to see when this mode is available again.",
+  "modeAvailableIn": "available in {{time}}",
   "undoYourFlash": "undo your flash?",
   "undoYourFlashSub": "this deletes your photo and removes you from your pack. you'll lose your streak.",
   "undo": "undo",
@@ -522,5 +527,11 @@
   "chemistry_min_apart": "{{minutes}} min apart",
   "chemistry_daily_topic": "daily topic",
   "chemistry_daily_topic_detail": "matched today's prompt",
-  "chemistry_footer": "higher scores come from bigger, more global packs shot close in time with varied filters."
+  "chemistry_footer": "higher scores come from bigger, more global packs shot close in time with varied filters.",
+  "choosePackMode": "choose your pack",
+  "squadModeLabel": "squad",
+  "squadModeExplainer": "4-person grid pack",
+  "duetModeLabel": "duet",
+  "duetModeExplainer": "2-person split-screen pack",
+  "selectedMode": "selected"
 }

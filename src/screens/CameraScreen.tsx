@@ -18,14 +18,17 @@ import { VibeFilter, PRO_FILTERS } from '../types/models';
 import { FILTER_LABEL } from '../services/filters';
 import { posthog } from '../config/posthog';
 
-function isCameraLocked(lastPostAt: string | null): boolean {
+const SQUAD_WINDOW_MS = 18 * 3600 * 1000;
+const DUET_WINDOW_MS = 4 * 3600 * 1000;
+
+function isCameraLocked(lastPostAt: string | null, windowMs: number): boolean {
   if (!lastPostAt) return false;
-  return Date.now() - new Date(lastPostAt).getTime() < 18 * 3600 * 1000;
+  return Date.now() - new Date(lastPostAt).getTime() < windowMs;
 }
 
-function lockCountdown(lastPostAt: string | null): string {
+function lockCountdown(lastPostAt: string | null, windowMs: number): string {
   if (!lastPostAt) return '';
-  const ms = 18 * 3600 * 1000 - (Date.now() - new Date(lastPostAt).getTime());
+  const ms = windowMs - (Date.now() - new Date(lastPostAt).getTime());
   if (ms <= 0) return '';
   const h = Math.floor(ms / 3600_000);
   const m = Math.floor((ms % 3600_000) / 60_000);
@@ -57,15 +60,18 @@ export default function CameraScreen() {
   const camRef = useRef<CameraView>(null);
   const nav = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { lastPostAt, lastPostedPhotoId, revertPhoto, refreshPacks, dailyTopic, user } = useAppState();
+  const { lastPostAt, lastSquadPostAt, lastDuetPostAt, lastPostedPhotoId, revertPhoto, refreshPacks, dailyTopic, user } = useAppState();
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (!lastPostAt) return;
+    if (!lastSquadPostAt && !lastDuetPostAt) return;
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(id);
-  }, [lastPostAt]);
-  const locked = isCameraLocked(lastPostAt);
-  const lockTimer = lockCountdown(lastPostAt);
+  }, [lastSquadPostAt, lastDuetPostAt]);
+  const squadLocked = isCameraLocked(lastSquadPostAt, SQUAD_WINDOW_MS);
+  const duetLocked = isCameraLocked(lastDuetPostAt, DUET_WINDOW_MS);
+  const locked = squadLocked && duetLocked;
+  const squadLockTimer = lockCountdown(lastSquadPostAt, SQUAD_WINDOW_MS);
+  const duetLockTimer = lockCountdown(lastDuetPostAt, DUET_WINDOW_MS);
   const undoWindowMs = user?.isAdmin ? Infinity : user?.isPro ? 4 * 3600 * 1000 : 2 * 3600 * 1000;
   const canUndo =
     !!lastPostAt &&
@@ -467,7 +473,9 @@ export default function CameraScreen() {
         <View style={styles.lockOverlay}>
           <Ionicons name="lock-closed" size={40} color={colors.yellow} />
           <Text style={styles.lockTitle}>{t('cameraLocked')}</Text>
-          <Text style={styles.lockSub}>{t('alreadyFlashedToday', { time: lockTimer })}</Text>
+          <Text style={styles.lockSub}>
+            {t('cameraModesLocked', { squadTime: squadLockTimer, duetTime: duetLockTimer })}
+          </Text>
           {canUndo && (
             <Pressable
               onPress={() => {

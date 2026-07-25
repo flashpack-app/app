@@ -9,6 +9,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import ProGate from '../components/ProGate';
 import { useAppState } from '../state/AppState';
 import Mosaic from '../components/Mosaic';
+import DuetMosaic from '../components/DuetMosaic';
 import { t } from '../services/i18n';
 
 const MONTH_KEYS = ['month_jan','month_feb','month_mar','month_apr','month_may','month_jun','month_jul','month_aug','month_sep','month_oct','month_nov','month_dec'] as const;
@@ -65,7 +66,11 @@ export default function PackCalendarScreen() {
                     onPress={() => isPro && nav.navigate('PackReveal', { packId: p.id })}
                     style={styles.card}
                   >
-                    <Mosaic pack={p} height={120} borderRadius={8} cellGap={2} animateOnMount={false} />
+                    {p.packType === 'duet' ? (
+                      <DuetMosaic pack={p} height={120} borderRadius={8} cellGap={2} animateOnMount={false} />
+                    ) : (
+                      <Mosaic pack={p} height={120} borderRadius={8} cellGap={2} animateOnMount={false} />
+                    )}
                     <View style={styles.cardMeta}>
                       <Text style={styles.cardNum}>#{p.number}</Text>
                       <Text style={styles.cardChem}>{p.chemistryScore}%</Text>

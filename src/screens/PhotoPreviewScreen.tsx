@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '../services/haptics';
@@ -19,6 +19,17 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { posthog } from '../config/posthog';
 
 type State = 'idle' | 'uploading' | 'success';
+const SQUAD_WINDOW_MS = 18 * 3600 * 1000;
+const DUET_WINDOW_MS = 4 * 3600 * 1000;
+
+function modeTimeLeft(lastPostAt: string | null, windowMs: number): string {
+  if (!lastPostAt) return '';
+  const remaining = windowMs - (Date.now() - new Date(lastPostAt).getTime());
+  if (remaining <= 0) return '';
+  const hours = Math.floor(remaining / 3600_000);
+  const minutes = Math.floor((remaining % 3600_000) / 60_000);
+  return `${hours}h ${minutes}m`;
+}
 
 function LivePreview({ videoUri }: { videoUri: string }) {
   const player = useVideoPlayer(videoUri, (p) => {
@@ -45,26 +56,42 @@ export default function PhotoPreviewScreen() {
   const uri: string = route.params?.uri;
   const videoUri: string | undefined = route.params?.videoUri;
   const filter: VibeFilter = route.params?.filter ?? 'raw';
-  const { markFirstPackPosted, token, revertPhoto, setLastPostAt, setLastPostedPhotoId, refreshPacks } = useAppState();
+  const {
+    markFirstPackPosted,
+    token,
+    revertPhoto,
+    lastSquadPostAt,
+    lastDuetPostAt,
+    setLastPostAt,
+    setLastSquadPostAt,
+    setLastDuetPostAt,
+    setLastPostedPackType,
+    setLastPostedPhotoId,
+    refreshPacks,
+  } = useAppState();
   const insets = useSafeAreaInsets();
+  const squadTimeLeft = modeTimeLeft(lastSquadPostAt, SQUAD_WINDOW_MS);
+  const duetTimeLeft = modeTimeLeft(lastDuetPostAt, DUET_WINDOW_MS);
+  const squadLocked = !!squadTimeLeft;
+  const duetLocked = !!duetTimeLeft;
 
   const [state, setState] = useState<State>('idle');
-  const [duet, setDuet] = useState(false);
+  const [duet, setDuet] = useState(squadLocked && !duetLocked);
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const width = useSharedValue(220);
   const radius = useSharedValue(12);
 
-  useEffect(() => {
+  const animateSendButton = (nextState: State) => {
     const ease = Easing.bezier(0.4, 0, 0.2, 1);
-    if (state === 'idle') {
+    if (nextState === 'idle') {
       width.value = withTiming(220, { duration: 260, easing: ease });
       radius.value = withTiming(12, { duration: 260, easing: ease });
     } else {
       width.value = withTiming(56, { duration: 260, easing: ease });
       radius.value = withTiming(28, { duration: 260, easing: ease });
     }
-  }, [state]);
+  };
 
   const sendStyle = useAnimatedStyle(() => ({
     width: width.value,
@@ -79,6 +106,11 @@ export default function PhotoPreviewScreen() {
       Alert.alert(t('uploadFailedTitle'), t('uploadFailedAuth'));
       return;
     }
+    if ((duet && duetLocked) || (!duet && squadLocked)) {
+      Alert.alert(t('modeLockedTitle'), t('modeLockedSub', { time: duet ? duetTimeLeft : squadTimeLeft }));
+      return;
+    }
+    animateSendButton('uploading');
     setState('uploading');
     try {
       const res = await APIService.uploadPhoto(token, uri, filter, videoUri, duet ? 'duet' : 'squad');
@@ -87,6 +119,9 @@ export default function PhotoPreviewScreen() {
       const nowIso = new Date().toISOString();
       setSentAt(Date.now());
       setLastPostAt(nowIso);
+      if (duet) setLastDuetPostAt(nowIso);
+      else setLastSquadPostAt(nowIso);
+      setLastPostedPackType(duet ? 'duet' : 'squad');
       markFirstPackPosted();
       refreshPacks();
       posthog.capture('photo_sent', {
@@ -101,6 +136,7 @@ export default function PhotoPreviewScreen() {
       }, 500);
     } catch (e: any) {
       console.error('[PhotoPreview] upload failed:', e);
+      animateSendButton('idle');
       setState('idle');
       if (e?.status === 422) {
         const code = e?.body?.error;
@@ -117,6 +153,8 @@ export default function PhotoPreviewScreen() {
         Alert.alert(t('uploadFailedTitle'), t('uploadFailedBanned'));
       } else if (e?.status === 413) {
         Alert.alert(t('uploadFailedTitle'), t('uploadFailedTooLarge'));
+      } else if (e?.status === 429 && e?.body?.error === 'pack_mode_locked') {
+        Alert.alert(t('modeLockedTitle'), t('modeLockedServerSub'));
       } else if (e?.status >= 500) {
         Alert.alert(t('uploadFailedTitle'), t('uploadFailedServer'));
       } else {
@@ -167,21 +205,75 @@ export default function PhotoPreviewScreen() {
       </View>
 
       <View style={styles.bottom}>
-        <Text style={styles.caption}>{t('captionSendSquad')}</Text>
-
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setDuet((d) => !d);
-          }}
-          style={[styles.duetToggle, duet && styles.duetToggleOn]}
-        >
-          <Ionicons name="people-outline" size={13} color={duet ? '#000' : colors.textSecondary} />
-          <Text style={[styles.duetText, duet && styles.duetTextOn]}>
-            {t('duetToggleLabel')}
-          </Text>
-          <View style={[styles.duetDot, duet && styles.duetDotOn]} />
-        </Pressable>
+        <Text style={styles.modeHeading}>{t('choosePackMode')}</Text>
+        <View style={styles.modeSelector}>
+          {([
+            {
+              key: 'squad',
+              title: t('squadModeLabel'),
+              detail: t('squadModeExplainer'),
+              icon: 'grid-outline' as const,
+            },
+            {
+              key: 'duet',
+              title: t('duetModeLabel'),
+              detail: t('duetModeExplainer'),
+              icon: 'people-outline' as const,
+            },
+          ]).map((option) => {
+            const selected = duet ? option.key === 'duet' : option.key === 'squad';
+            const isDuetOption = option.key === 'duet';
+            const locked = isDuetOption ? duetLocked : squadLocked;
+            const timeLeft = isDuetOption ? duetTimeLeft : squadTimeLeft;
+            return (
+              <Pressable
+                key={option.key}
+                accessibilityRole="radio"
+                accessibilityState={{ selected, disabled: locked }}
+                accessibilityLabel={`${option.title}. ${option.detail}`}
+                onPress={() => {
+                  if (selected || locked) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setDuet(isDuetOption);
+                }}
+                disabled={locked}
+                style={[styles.modeCard, selected && styles.modeCardSelected, locked && styles.modeCardLocked]}
+              >
+                <View style={styles.modeCardTop}>
+                  <View style={[styles.modeIcon, selected && styles.modeIconSelected]}>
+                    <Ionicons name={option.icon} size={16} color={selected ? '#000' : colors.textSecondary} />
+                  </View>
+                  <View style={[styles.layoutPreview, isDuetOption ? styles.duetPreview : styles.squadPreview]}>
+                    {Array.from({ length: isDuetOption ? 2 : 4 }).map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.previewTile,
+                          isDuetOption ? styles.duetPreviewTile : styles.squadPreviewTile,
+                          selected && styles.previewTileSelected,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+                <Text style={[styles.modeTitle, selected && styles.modeTitleSelected]}>{option.title}</Text>
+                <Text style={styles.modeDetail}>{option.detail}</Text>
+                {locked ? (
+                  <View style={styles.modeLockedRow}>
+                    <Ionicons name="lock-closed" size={9} color={colors.textFade} />
+                    <Text style={styles.modeLockedText}>{t('modeAvailableIn', { time: timeLeft })}</Text>
+                  </View>
+                ) : null}
+                {selected ? (
+                  <View style={styles.selectedBadge}>
+                    <Ionicons name="checkmark" size={10} color="#000" />
+                    <Text style={styles.selectedBadgeText}>{t('selectedMode')}</Text>
+                  </View>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
 
         <View style={styles.row}>
           <Pressable
@@ -241,29 +333,92 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   filterDot: { width: 6, height: 6, borderRadius: 3 },
   filterBadgeText: { color: colors.white, fontSize: 10 },
   bottom: { padding: 16, gap: 10 },
-  caption: { color: colors.textDim, fontSize: 11, textAlign: 'center' },
-  duetToggle: {
+  modeHeading: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textAlign: 'center',
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeCard: {
+    flex: 1,
+    minHeight: 112,
+    padding: 11,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  modeCardSelected: {
+    backgroundColor: 'rgba(255,214,10,0.12)',
+    borderColor: colors.yellow,
+  },
+  modeCardLocked: { opacity: 0.45 },
+  modeCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    alignSelf: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  modeIconSelected: { backgroundColor: colors.yellow },
+  layoutPreview: {
+    width: 36,
+    height: 28,
+    gap: 2,
+  },
+  squadPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  duetPreview: { flexDirection: 'row' },
+  previewTile: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 2,
+  },
+  squadPreviewTile: { width: 17, height: 13 },
+  duetPreviewTile: { width: 17, height: 28 },
+  previewTileSelected: { backgroundColor: colors.yellow },
+  modeTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  modeTitleSelected: { color: colors.white },
+  modeDetail: {
+    color: colors.textDim,
+    fontSize: 9,
+    lineHeight: 12,
+    marginTop: 2,
+    paddingRight: 2,
+  },
+  modeLockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 5,
+  },
+  modeLockedText: { color: colors.textFade, fontSize: 8, fontWeight: '600' },
+  selectedBadge: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    backgroundColor: colors.yellow,
   },
-  duetToggleOn: { backgroundColor: colors.yellow, borderColor: colors.yellow },
-  duetText: { color: colors.textSecondary, fontSize: 11 },
-  duetTextOn: { color: '#000', fontWeight: '600' },
-  duetDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  duetDotOn: { backgroundColor: '#000' },
+  selectedBadgeText: { color: '#000', fontSize: 8, fontWeight: '800' },
   row: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   retake: {
     flex: 1,

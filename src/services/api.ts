@@ -85,6 +85,8 @@ function mapUser(row: any): User {
     inviteSlots: row.invite_slots,
     streakDays: row.streak_days ?? 0,
     lastPostAt: row.last_post_at ?? undefined,
+    lastSquadPostAt: row.last_squad_post_at ?? undefined,
+    lastDuetPostAt: row.last_duet_post_at ?? undefined,
     isPro: !!row.is_pro,
     proBorder: row.proBorder ?? row.pro_border ?? undefined,
     vibeProfile: { filterUsage: { raw: 0, cinema: 0, maku: 0, neagh: 0, ontario: 0, summer: 0, bonboa: 0, daisy: 0, earth: 0, hibiscus: 0 } },
@@ -281,7 +283,7 @@ export const APIService = {
 
   async getPack(token: string, id: string): Promise<Pack | undefined> {
     const res = await http<{ pack: any }>(`/packs/${id}`, { token });
-    return res.pack;
+    return res.pack ? mapPack(res.pack) : undefined;
   },
 
   async addReaction(token: string, packId: string, emoji: string): Promise<void> {

@@ -22,6 +22,7 @@ import { useAppState } from '../state/AppState';
 import { API_URL } from '../config';
 import FilteredImage from '../components/FilteredImage';
 import Mosaic from '../components/Mosaic';
+import DuetMosaic from '../components/DuetMosaic';
 import CaptureBlockedOverlay from '../components/CaptureBlockedOverlay';
 import { usePreventCapture, useCaptureBlockOverlay } from '../services/screenshot';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -322,7 +323,11 @@ export default function PhotoViewerScreen() {
             <Text style={styles.storyTagline}>{pack.members.length} people · {pack.countriesCount} countries</Text>
           </View>
           <View style={styles.storyMosaic}>
-            <Mosaic pack={pack} height={1080} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
+            {pack.packType === 'duet' ? (
+              <DuetMosaic pack={pack} height={1080} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
+            ) : (
+              <Mosaic pack={pack} height={1080} borderRadius={32} cellGap={6} showFlags animateOnMount={false} />
+            )}
           </View>
           <View style={styles.storyFooter}>
             <Text style={styles.storyChem}>{pack.chemistryScore}% match</Text>
