@@ -279,7 +279,12 @@ export default function CameraScreen() {
           {user?.isPro && Platform.OS === 'ios' && (
             <Pressable
               onPress={() => {
-                setIsVideoMode((v) => !v);
+                const nextMode = !isVideoMode;
+                setIsVideoMode(nextMode);
+                posthog.capture('pro_feature_used', {
+                  feature: 'flash_live',
+                  enabled: nextMode,
+                });
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               style={[styles.iconBtn, isVideoMode && styles.iconBtnActive]}
@@ -289,6 +294,9 @@ export default function CameraScreen() {
                 size={16}
                 color={isVideoMode ? '#000' : colors.white}
               />
+              <View pointerEvents="none" style={styles.liveProBadge}>
+                <Text style={styles.liveProBadgeText}>PRO</Text>
+              </View>
             </Pressable>
           )}
           <Pressable
@@ -407,11 +415,18 @@ export default function CameraScreen() {
         selected={filter}
         onSelect={(f) => {
           setFilter(f);
+          const isProSelection = PRO_FILTERS.includes(f);
           posthog.capture('filter_selected', {
             filter_name: f,
             filter_label: FILTER_LABEL[f],
-            is_pro_filter: PRO_FILTERS.includes(f),
+            is_pro_filter: isProSelection,
           });
+          if (user?.isPro && isProSelection) {
+            posthog.capture('pro_feature_used', {
+              feature: 'camera_filter',
+              filter_name: f,
+            });
+          }
         }}
         isPro={user?.isPro}
       />
@@ -531,6 +546,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
   },
   timerBadgeText: { color: '#000', fontSize: 9, fontWeight: '700' },
+  liveProBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#000',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.yellow,
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  liveProBadgeText: {
+    color: colors.yellow,
+    fontSize: 6,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   viewfinderWrap: { flex: 1, paddingHorizontal: 8, paddingVertical: 4 },
   viewfinder: { flex: 1, borderRadius: 12, overflow: 'hidden', backgroundColor: '#0d0d0d' },
   permissionWrap: { alignItems: 'center', justifyContent: 'center', gap: 12 },
